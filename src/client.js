@@ -437,8 +437,11 @@
            handler. */
         var PANEL_ROW = "[data-slot='sidebar'] > div > nav[aria-label] > button:has([data-slot='sidebar.panellist'])[aria-label='插件'], [data-slot='sidebar'] > div > nav[aria-label] > button:has([data-slot='sidebar.panellist'])[aria-label='Plugins']"
 
-        /* The settings command by its other door: the shortcut the launcher button
-           itself advertises (Control+Alt+,). */
+        /* The settings command by its other door: the chord the launcher advertises
+           in the WEB runtime (Control+Alt+,; the desktop build binds the same command
+           to Ctrl+, -- dsh-client-shortcuts declares a map per receiving device, so
+           this synthesized event only matches where the web map is in force). Reached
+           only when the launcher button is absent from the DOM. */
         var pressSettingsShortcut = function () {
           if (typeof KeyboardEvent !== 'function') return
           document.dispatchEvent(new KeyboardEvent('keydown', {

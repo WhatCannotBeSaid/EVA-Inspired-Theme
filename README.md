@@ -89,11 +89,15 @@ there are no zones either.
 | Entry | Where | Way back |
 |---|---|---|
 | 「应用」/「编辑」 title-bar menu | desktop shell only; absent in a browser | none from inside the app: 关于 / 检查更新 / dsh 命令 / 退出应用 go with it. Quit is still on the tray menu. |
-| the second 「新会话」 button | sidebar, below the brand row | `WHALE-01`, or `Ctrl+Alt+N` — it is a duplicate |
+| the second 「新会话」 button | sidebar, below the brand row | `WHALE-01`, or `Ctrl+N` — it is a duplicate |
 | 「插件」/ “Plugins” nav row | sidebar | click the illustration; **no shortcut is left** |
-| 「设置」 row and its launcher button | sidebar | click `SYSTEM`, or `Ctrl+Alt+,` |
+| 「设置」 row and its launcher button | sidebar | click `SYSTEM`, or `Ctrl+,` |
 | 「收起侧栏」 button | left sidebar only; the right sidebar's stays visible | the collapse command itself is untouched |
 | the session list's bottom fade | sidebar | it only dimmed the last row |
+
+Where a way back names a keyboard shortcut, that is the desktop default — `Ctrl+N` for
+a new session, `Ctrl+,` for settings, both of them the official ones, unchanged by this
+theme. The web build binds the same two commands to `Ctrl+Alt+N` and `Ctrl+Alt+,`.
 
 Nothing else in the sidebar moves. The workspace and session list keeps the official
 `flex: 1` scrolling area, and the bottom area still shows whatever a third-party
