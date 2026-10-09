@@ -99,10 +99,10 @@ is listed in section 2, that file's own terms govern it.
       build/wallpapers.json      TRACKED. Two entries, each with a `direct:` URL
                                  and the `page:` its credit belongs on. The build
                                  emits url("https://…"), so a theme built from
-                                 this file paints two pictures the browser fetches
-                                 from wallhaven at paint time. No image bytes
-                                 travel with it, and an offline machine simply has
-                                 no background.
+                                 this file paints two pictures the browser fetches,
+                                 at paint time, from the host each entry names. No
+                                 image bytes travel with it, and an offline machine
+                                 simply has no background.
       out/wallpapers.local.json  LOCAL, ignored by git. The same shape with
                                  `dataUrl:` entries; when it exists the build
                                  embeds those local copies instead, which is how
@@ -121,8 +121,13 @@ is listed in section 2, that file's own terms govern it.
       og33jl — wallhaven.cc/w/og33jl, 2560x1440, credited there to the artist YOTA
                SAKI; the entry's source link is pixiv.net/en/artworks/133258822.
                Uploaded to wallhaven by "Elisban". Not licensed to us.
-      x85po3 — wallhaven.cc/w/x85po3, 1760x1066, the light-mode default. Wallhaven
-               records no source for this upload, so the artist is unknown.
+      eva01city — haowallpaper.com/homeViewLook/18703364605463936, 1100x775, the
+                  light-mode default. The page credits no artist, only its
+                  uploader; the same artwork also circulates on wallhaven as
+                  x85po3, uploaded there by "BachoWilson". haowallpaper serves this
+                  preview to anonymous visitors, so the 3066x2160 original — which
+                  the maintainer holds, and which this file does not point at — is
+                  behind a signed-in download. Not licensed to us.
 
     We have no permission from either artist. If you are one of them and want the
     entry gone, ask and it will be dropped from the manifest. See README, "Fan work

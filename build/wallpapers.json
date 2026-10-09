@@ -1,18 +1,18 @@
 [
   {
-    "id": "x85po3",
+    "id": "eva01city",
     "name": "Unit-01 in the Ruins / 废墟中的初号机",
     "mode": "light",
     "role": "default",
-    "credit": "Author unknown — wallhaven gives no source for this upload (uploader: BachoWilson). The same artwork also circulates as 哲风壁纸 eva-初号机-动漫.jpg.",
-    "page": "https://wallhaven.cc/w/x85po3",
-    "direct": "https://w.wallhaven.cc/full/x8/wallhaven-x85po3.jpg",
-    "sourceResolution": "1760x1066",
-    "shippedResolution": "1760x1066",
-    "bytes": 444989,
-    "meanLuminance": 82.7,
+    "credit": "No artist credit: the 哲风壁纸 (haowallpaper.com) page that hosts this artwork names only its uploader, and the same picture also circulates on wallhaven as x85po3, uploaded there by BachoWilson. The full-size original reached this project as a user-supplied file.",
+    "page": "https://haowallpaper.com/homeViewLook/18703364605463936",
+    "direct": "https://haowallpaper.com/link/common/file/previewFileImg/18703341593480576",
+    "sourceResolution": "1100x775",
+    "shippedResolution": "1100x775",
+    "bytes": 97506,
+    "meanLuminance": 82.9,
     "resampled": "none",
-    "note": "Hotlinked, never redistributed: this repository carries no image bytes. The upload has letterbox bars; background-size: cover crops them on a 16:9 window."
+    "note": "Hotlinked, never redistributed: this repository carries no image bytes. The artwork's own file is 3066x2160, but haowallpaper serves anonymous visitors only this 1100x775 preview -- the larger one needs a signed-in download. A machine that holds the original can embed it through the git-ignored local manifest instead, which is what the maintainer's install does."
   },
   {
     "id": "og33jl",

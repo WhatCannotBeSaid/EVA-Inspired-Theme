@@ -144,9 +144,10 @@ Refreshing either file from upstream must re-apply them.
 
 This repository carries no image bytes for a background. `build/wallpapers.json`
 (tracked) names two third-party pictures by URL; the build turns those into CSS
-`url()` values, and the browser fetches them from wallhaven when the theme paints.
-Nothing here is a copy of either picture, and this project licenses nothing in
-them.
+`url()` values, and the browser fetches each one from the host its entry names
+(haowallpaper.com for the light default, wallhaven for the dark one) when the
+theme paints. Nothing here is a copy of either picture, and this project licenses
+nothing in them.
 
   og33jl — https://wallhaven.cc/w/og33jl
     Artist:            YOTA SAKI (credited on that page)
@@ -154,11 +155,11 @@ them.
     Uploaded there by: Elisban
     2560x1440. Dark-mode default.
 
-  x85po3 — https://wallhaven.cc/w/x85po3
-    Artist:            unknown — wallhaven records no source for this upload
-    Uploaded there by: BachoWilson
-    1760x1066. Light-mode default. The same artwork also circulates on Chinese
-    wallpaper sites.
+  eva01city — https://haowallpaper.com/homeViewLook/18703364605463936
+    Artist:            unknown — the page credits only its uploader
+    Also on wallhaven: https://wallhaven.cc/w/x85po3 (uploaded there by BachoWilson)
+    1100x775. Light-mode default. Anonymous visitors are served only this preview;
+    the artwork's own file is 3066x2160.
 
 Neither artist has licensed this use, and neither has been asked. If you are one
 of them and object to the link, ask and the entry will be dropped from the

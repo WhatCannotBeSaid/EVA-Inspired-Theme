@@ -143,13 +143,18 @@ PICKS = [
         "name": "Unit-01 in the Ruins / 废墟中的初号机",
         "file": "eva01-city.jpg", "width": 2560,
         "credit": "user-supplied original (哲风壁纸), resized only",
-        # The user handed the image itself over in the chat, so there is no page to link.
-        # This field must stay free of machine-specific markers (`cli.18` forbids the home
-        # path, and even the account name, from reaching the bundle) -- the exact Desktop
-        # file the user attached is therefore recorded in the RETIRED/D59 comment above
-        # instead of here, and is reproduced in docs/design.md's D59 row.
-        "page": "no public page -- the user attached the file itself "
-                "(哲风壁纸 / eva-初号机-动漫.jpg, 2026-10-07)",
+        # D83 (2026-10-10): the public page this artwork came from was identified, so this
+        # is no longer a prose placeholder. Two cautions before re-running this script: it
+        # writes `dataUrl:` into `build/wallpapers.json` -- the TRACKED file, which `wall.6`
+        # forbids bytes in -- so the tracked manifest is edited by hand for that shape and
+        # this table survives as the provenance record of what the machine embeds. The
+        # field must also stay free of machine-specific markers (`cli.18` forbids the home
+        # path, and even the account name, from reaching the bundle); the exact Desktop file
+        # the user attached is recorded in the RETIRED/D59 comment above and in D59's row.
+        "page": "https://haowallpaper.com/homeViewLook/18703364605463936",
+        # What that page serves anonymously is only a 1100x775 preview; the 3066x2160 original
+        # is behind a signed-in download. `direct` is therefore the preview, not the original.
+        "direct": "https://haowallpaper.com/link/common/file/previewFileImg/18703341593480576",
         "note": "The user's own file, supplied 2026-10-07 as the LIGHT art (「将EVA主题亮色模式下"
                 "的壁纸换成这张」 with the image attached). A near-monochrome manga-style "
                 "illustration: EVA Unit-01 crouched in a ruined city, its armour rendered in "

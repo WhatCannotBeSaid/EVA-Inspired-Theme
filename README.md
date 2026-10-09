@@ -13,7 +13,7 @@ mask, and four tiered task sounds.
 This repository ships **no background picture of its own**: the paint layer is
 here, the artwork is not. Instead the tracked wallpaper manifest names two
 third-party pictures by URL, so a clone draws a background the browser fetches
-from wallhaven at paint time. The only pictures in git are the brand marks and
+from those hosts at paint time. The only pictures in git are the brand marks and
 the two preview screenshots, which naturally show the art the app was painting;
 the theme's look is otherwise unchanged — the alphas, the boot mask, the brand
 mark and the fonts all come from this repository.
@@ -35,9 +35,11 @@ The session list is hidden in both shots; nothing else is retouched.
 
 ![Central Dogma, the dark mode](docs/preview-dark.jpg)
 
-The backgrounds are the two wallhaven pictures the tracked manifest names, so
-these are what a clone shows once the browser has fetched them; the credits are
-in [Fan work and attribution](#fan-work-and-attribution).
+The backgrounds are the theme's two third-party pictures — what a clone fetches
+at paint time. The light shot was taken before the light default moved to its
+page on haowallpaper.com (D83), so that one shows an earlier, lower-resolution
+upload of the same artwork; the dark shot is the picture the manifest still
+names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 
 ## What it is
 
@@ -45,7 +47,7 @@ in [Fan work and attribution](#fan-work-and-attribution).
 |---|---|
 | Modes | **Title Card** (light) and **Central Dogma** (dark) |
 | Token layer | 55 measured overrides (41 in the light arm, 14 in the dark arm) on a single removable layer |
-| Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures on wallhaven; the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
+| Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures — the light default on haowallpaper.com, the dark one on wallhaven — and the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
 | Boot mask | Shown on load; unchanged timings and triggers |
 | Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
@@ -285,20 +287,22 @@ images are part of the theme's intended look. Since 2026-10-09 (D79) neither is
 in this repository, and since D81 the tracked manifest points at
 them instead of embedding them: a build shows the pictures while this repository
 carries none of their bytes and grants you no rights in them. The browser fetches
-them from wallhaven when the theme paints, so nothing is mirrored here and an
-offline machine simply has no background. The one place they do appear in git is
-the two preview screenshots above, which are captures of the app painting them.
-Provenance, recorded because it is what a takedown request would be about:
+them from the host each entry names when the theme paints, so nothing is mirrored
+here and an offline machine simply has no background. The one place they do appear
+in git is the two preview screenshots above, which are captures of the app
+painting them. Provenance, recorded because it is what a takedown request would be
+about:
 
 - Dark — **Central Dogma**, `og33jl`,
   [wallhaven.cc/w/og33jl](https://wallhaven.cc/w/og33jl), 2560×1440. Wallhaven
   credits the artist **YOTA SAKI**, and the entry links to the original posting,
   [pixiv artwork 133258822](https://www.pixiv.net/en/artworks/133258822).
   Uploaded to wallhaven by *Elisban*.
-- Light — **Title Card**, `x85po3`,
-  [wallhaven.cc/w/x85po3](https://wallhaven.cc/w/x85po3), 1760×1066. Wallhaven
-  records no source for this upload (uploader *BachoWilson*), so the artist is
-  unknown; the same artwork also circulates on Chinese wallpaper sites.
+- Light — **Title Card**, `eva01city`,
+  [haowallpaper.com/homeViewLook/18703364605463936](https://haowallpaper.com/homeViewLook/18703364605463936),
+  1100×775. The page credits no artist, only its uploader, and the same artwork
+  also circulates on wallhaven as `x85po3` (uploaded there by *BachoWilson*); the
+  artwork's own file is 3066×2160, which anonymous visitors are not served.
 
 We hold no permission from either artist. If you are one of them and object to
 being linked this way, say so and the entry will be dropped from
