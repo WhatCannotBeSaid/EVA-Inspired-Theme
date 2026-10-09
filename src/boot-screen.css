@@ -1,0 +1,167 @@
+/* ===================== 启动遮罩：「闸门开启」 =====================
+ * 只在动画播放期间存在，播完节点就被删掉，所以下面每条规则在正常使用时
+ * 都不匹配。颜色全部走本主题自己的令牌（这张表里没有一个字面色值，
+ * selfcheck 的 css.8 会拦），两套模式自动跟着变；尺寸用 vh/vw + clamp，
+ * 任何视口都不会把字挤出画面。
+ * 文字一律写在 content 里：DOM 上没有可翻译文本，网页翻译改不掉它。
+ * ================================================================= */
+[data-eva-boot] {
+  position: fixed;
+  inset: 0;
+  /* 高过应用自己的所有层：遮罩要盖住首屏，不是被首屏盖住。 */
+  z-index: 2147483000;
+  /* 永远不劫持操作：动画期间下面的应用照样能点。 */
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 1;
+  /* 2026-10-09 性能：这张挡板是 position:fixed 的全屏层，它内部任何一次
+     布局/绘制变化默认都会上升到文档根。contain 把布局与绘制关在这棵子树
+     里（inset:0 + overflow:hidden 本来就把它裁在视口内，外观一字不变），
+     逐帧改进度条时不再牵动整个应用重排。 */
+  contain: layout paint;
+  color: var(--dsw-alias-label-primary);
+  font-family: Bahnschrift, 'DIN Alternate', 'DIN Next', 'Helvetica Neue', Inter, Arial, sans-serif;
+  /* 不加 opacity transition：淡出由 JS 逐帧写。有的渲染器根本不跑 transition，
+     那样会留下一块擦不掉的挡板。 */
+}
+
+/* 两层挡板才是背景。遮罩自己不画底色，挡板分开时才真的露出应用。
+   这里用不透明的 platform 令牌，不用带透明度的 bg-base —— 遮罩要挡住首屏。 */
+[data-eva-boot] .eva-boot-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50.5%;
+  background: var(--dsw-alias-bg-module-platform);
+  will-change: transform;
+}
+
+[data-eva-boot] .eva-boot-panel-l { left: 0; }
+[data-eva-boot] .eva-boot-panel-r { right: 0; }
+
+/* 工业扫描线，压在挡板之上、文字之下。 */
+[data-eva-boot] .eva-boot-tex {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--dsw-alias-label-primary) 3%, transparent) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--dsw-alias-label-primary) 2%, transparent) 0 1px, transparent 1px 96px);
+}
+
+[data-eva-boot] .eva-boot-body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2.4vh, 30px);
+}
+
+[data-eva-boot] .eva-boot-tag {
+  position: absolute;
+  top: max(20px, 3vh);
+  left: max(20px, 3vw);
+  font-size: max(9px, 1.02vh);
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  opacity: 0.72;
+  color: var(--dsw-alias-brand-primary);
+}
+
+[data-eva-boot] .eva-boot-tag::before { content: 'NERV // MAGI SYSTEM'; }
+
+[data-eva-boot] .eva-boot-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+[data-eva-boot] .eva-boot-word {
+  font-size: clamp(42px, min(13vh, 12vw), 132px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0.2em;
+  /* 字距把末尾也推开了半个字，用等宽缩进补回来，字标才是真的居中。 */
+  text-indent: 0.2em;
+}
+
+[data-eva-boot] .eva-boot-word::before { content: 'EVA'; }
+
+[data-eva-boot] .eva-boot-sub {
+  margin-top: 0.9em;
+  font-size: max(9px, 1.15vh);
+  font-weight: 500;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  opacity: 0.68;
+}
+
+[data-eva-boot] .eva-boot-sub::before { content: 'EVA-INSPIRED THEME / 闸门开启'; }
+
+/* 六边形用 clip-path 画，不依赖字体也不依赖 border-radius。
+   呼吸由 JS 逐帧写 --eva-boot-hex-op：这张表里不能有 @keyframes —— 半屏检查
+   会把紧跟规则之后的 @ 块和关键帧百分比当成「非契约选择器」拦下来。 */
+[data-eva-boot] .eva-boot-hex {
+  width: clamp(26px, 5vh, 52px);
+  height: clamp(26px, 5vh, 52px);
+  background: var(--dsw-alias-brand-primary);
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  opacity: var(--eva-boot-hex-op, 0.6);
+}
+
+/* 底部进度轨：填充宽度只由 JS 写的一个自定义属性决定。
+   2026-10-09 性能：以前这里写 `width: var(--eva-boot-progress)`，于是每帧都
+   是一次布局（而且挡板是 fixed 全屏层，布局还会往外冒）。改成定宽 + `scaleX`
+   之后，同一个自定义属性只驱动合成/绘制，形状不变（这条填充没有圆角、没有
+   阴影、只填一个纯色，缩放与改宽在其他像素上完全一致）。 */
+[data-eva-boot] .eva-boot-rail {
+  position: absolute;
+  left: max(20px, 3vw);
+  right: max(20px, 3vw);
+  bottom: max(26px, 4vh);
+  height: 2px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 16%, transparent);
+}
+
+[data-eva-boot] .eva-boot-rail::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  transform: scaleX(var(--eva-boot-progress, 0));
+  transform-origin: 0 0;
+  will-change: transform;
+  background: var(--dsw-alias-brand-primary);
+}
+
+[data-eva-boot] .eva-boot-pct {
+  position: absolute;
+  left: 0;
+  bottom: 14px;
+  font-size: max(11px, 1.5vh);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-brand-primary);
+}
+
+[data-eva-boot] .eva-boot-state {
+  position: absolute;
+  right: 0;
+  bottom: 14px;
+  font-size: max(9px, 1.12vh);
+  letter-spacing: 0.28em;
+  opacity: 0.7;
+  color: var(--dsw-alias-state-success-primary);
+}
+
+/* 满格后的收尾由 JS 驱动 width/opacity/transform，这里只留状态钩子：
+   `data-eva-boot-full`（进度满格）与 `data-eva-boot-open`（开始收尾，由
+   src/boot-screen.js 的 finish() 写）。万一哪个渲染器没跑 JS 的淡出，下面
+   **这一条**也能把挡板收掉 —— 只有这一条：`-full` 是给探针和 DevTools 看的
+   状态，没有配套规则（原文写「这两条」，与实现不符）。 */
+[data-eva-boot][data-eva-boot-open] .eva-boot-body { opacity: 0; }

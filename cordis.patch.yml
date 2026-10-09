@@ -1,0 +1,44 @@
+# EVA-Inspired-Theme bundle patch
+#
+# This is the `dsh.bundle.patch` layer of the package. Adding the theme to a
+# profile reconciles `dsh.profile.bundles` against the installed package and, seeing
+# this declaration, appends `EVA-Inspired-Theme` to the bundle stack; profile boot then
+# merges this patch — the `insert`s below — exactly like a hand-written
+# cordis.patch.yml mount line. One registration installs and mounts, with no profile
+# file to edit.
+#
+# The first row doubles as the `dsh.client` browser-roster entry: the web modules
+# half scans the mounted rows for a package that declares `exports["./client"]` and
+# loads client.js into the page.
+#
+# The theme is entirely client-side. The host half exists only so the loader has
+# something to mount; it registers no services, injects nothing and carries no
+# `config:` block, because this theme ships no settings panel and therefore has no
+# preference to store (see index.js for that reasoning).
+#
+# The theme neither reconfigures nor reorders any official row, and it does not
+# disable anything: a theme is one removable layer, and a layer that edits its host
+# is not removable.
+#
+# ---------------------------------------------------------------------------
+# 2026-10-07: the companion mount for `dsh-auto-title` was REMOVED. It never
+# mounted anything, so this layer is back to a single row.
+#
+# Evidence, read from the running profile:
+#   * `GET` and `POST /api/dsh-auto-title` both answer 404 `not found`, while a
+#     route this profile does serve answers 200 on the same origin.
+#   * `dsh-auto-title` is absent from `dsh.profile.bundles` and from the profile's
+#     `dependencies`. Only a junction into `<plugins>\dsh-auto-title` exists.
+#     A row inserted here cannot roster a package the profile does not declare.
+#
+# So the built-in `session-title-llm` provider was in charge the whole time, and
+# removing the row changes no behaviour. The earlier reasoning for mounting rather
+# than vendoring — see docs/design.md D27 — still stands as a reason NOT to vendor
+# a companion into a removable visual layer.
+#
+# One row, and only one: a theme is one removable layer, and a layer that mounts
+# extra plugins is not one.
+# ---------------------------------------------------------------------------
+- insert:
+    - id: eva-inspired-theme
+      name: 'EVA-Inspired-Theme'

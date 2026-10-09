@@ -1,0 +1,161 @@
+EVA-Inspired-Theme — third-party notices
+========================================
+
+This package redistributes the third-party components listed below. Each one
+keeps its own license. Nothing here is relicensed as MIT.
+
+The license in package.json covers this project's own code and styling only.
+The components below are carved out of it, and the brand marks in section 3
+carry a non-commercial term that applies to anyone redistributing or reusing
+them together with this package.
+
+
+1. Tiered task sounds — sounds/plan.wav, sounds/done.wav, sounds/ask.wav, sounds/fail.wav
+--------------------------------------------------------------------------------------
+
+Upstream:  dsh-perlica-ding v0.2.0
+Source:    https://github.com/117BS/dsh-perlica-ding
+License:   MIT
+
+These four files are upstream's own sound files, re-encoded at 60% volume for
+this theme. That re-encoding is a change to the files as received. The upstream
+license requires its notice to travel with every copy, so it is reproduced in
+full here:
+
+    MIT License
+
+    Copyright (c) 2026 dsh-perlica-ding contributors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+
+2. Display font — build/great-vibes-latin.woff2
+-----------------------------------------------
+
+Great Vibes, Copyright 2015 The Great Vibes Pro Project Authors.
+License: SIL Open Font License 1.1.
+
+The license text ships with the font in build/great-vibes-OFL.txt. The file is
+redistributed unmodified: a Latin subset of the original woff2, with no change
+to the glyphs and no change to the font name.
+
+
+3. Brand marks — build/brand-mark.png, build/brand-mark-dark.png, build/brand-mark.jpg
+--------------------------------------------------------------------------------------
+
+Character "溟月" (Mingyue):        上善无形 — original character
+                                   https://space.bilibili.com/4456176
+DeepSeek-element derivative art:   ZipZipPipe (GPT Image 2)
+                                   https://space.bilibili.com/4168597
+Restoration and fixes:             QYQCAMIAO
+License:                           Creative Commons
+                                   Attribution-NonCommercial-ShareAlike 4.0 International
+                                   (CC BY-NC-SA 4.0)
+                                   https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+The license above is the one stated by the work's distribution chain, not by
+this project. The legal text ships with this package as
+LICENSE-CC-BY-NC-SA-4.0.txt; the canonical copy is at
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+Changes made here, and therefore flagged as required by section 3(a)(1)(B) of
+that license: the illustration was cropped and resized to 256x256 for
+build/brand-mark.png, and a darkened variant was derived with
+tools/make-brand-mark-dark.py for build/brand-mark-dark.png. Both derived images
+are offered under the same CC BY-NC-SA 4.0 terms, and both stay non-commercial.
+
+What this means in practice for anyone reusing this package:
+
+  Attribution  Keep the three credits above with their links, the license name
+               and its link, and the note that the images were changed.
+  NonCommercial
+               You may not use these images, or this package as distributed,
+               for commercial purposes. Selling it, bundling it into a paid
+               product and using it to promote a product all count as
+               commercial.
+  ShareAlike   If you adapt the images, you must release your adaptation under
+               CC BY-NC-SA 4.0 or a compatible license.
+
+This license grants no trademark rights, and nothing here implies endorsement by
+khara, inc., Hypergryph or DeepSeek.
+
+
+4. Vendored client halves — build/plugin-toggle.js, build/session-eva-status.js
+------------------------------------------------------------------------------
+
+Both files started as byte-for-byte copies of code from other plugins, not written
+for this theme (see the caveats at the end of this section). Both upstreams are MIT,
+and both are by the same author as this theme:
+
+  build/plugin-toggle.js
+    Upstream: dsh-disable-unofficial-plugins
+    Source:   https://github.com/WhatCannotBeSaid/dsh-disable-unofficial-plugins
+    License:  MIT
+
+  build/session-eva-status.js
+    Upstream: dsh-session-eva-status v0.1.0
+    Source:   https://github.com/WhatCannotBeSaid/dsh-session-eva-status
+    License:  MIT
+
+MIT requires its copyright notice and license text to travel with copies and
+substantial portions. Both upstream repositories carry them in their own LICENSE
+files; the full MIT text and the copyright line are section 1 of this
+repository's LICENSE. Neither of these two files carries a notice of its own, and
+both are inlined into the generated client.js, so if you redistribute either file
+or the bundle, carry this section with it.
+
+Two caveats, added 2026-10-09. build/session-eva-status.js (D78) is no longer a
+byte-for-byte copy: this repository patches three spots in its hot path — a
+frame-coalesced schedule, a compare-then-write pin attribute, and cancelling the
+pending frame on dispose — because the upstream checkout is not available here to
+fix and re-vendor. build/plugin-toggle.js (D79) is patched in five spots, all
+performance-only and none of them behavioural: a reload sequence guard, a
+single-slot reload debounce, a compare-then-write button text, a throttled body
+redraw, and a Set-based reason dedupe. Both lists are at the top of the respective
+file and pinned by the cli.27 and cli.28 checks in tools/selfcheck.mjs; everything
+else in each file is still upstream's code. Refreshing either file from upstream
+must re-apply them.
+
+
+5. Background wallpapers — NOT redistributed, linked by URL
+-----------------------------------------------------------
+
+This repository carries no image bytes for a background. `build/wallpapers.json`
+(tracked) names two third-party pictures by URL; the build turns those into CSS
+`url()` values, and the browser fetches them from wallhaven when the theme paints.
+Nothing here is a copy of either picture, and this project licenses nothing in
+them.
+
+  og33jl — https://wallhaven.cc/w/og33jl
+    Artist:            YOTA SAKI (credited on that page)
+    Original posting:  https://www.pixiv.net/en/artworks/133258822
+    Uploaded there by: Elisban
+    2560x1440. Dark-mode default.
+
+  x85po3 — https://wallhaven.cc/w/x85po3
+    Artist:            unknown — wallhaven records no source for this upload
+    Uploaded there by: BachoWilson
+    1760x1066. Light-mode default. The same artwork also circulates on Chinese
+    wallpaper sites.
+
+Neither artist has licensed this use, and neither has been asked. If you are one
+of them and object to the link, ask and the entry will be dropped from the
+manifest; this repository holds no copy of either picture either way.
+
+本仓库图片来自网络流传，具体作者未确认；如原作者认为不妥，请联系删除。

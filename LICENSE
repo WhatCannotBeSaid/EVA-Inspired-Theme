@@ -1,0 +1,169 @@
+EVA-Inspired-Theme — licence
+============================
+
+This package is NOT covered by a single licence. It is a layer of our own code
+wrapped around third-party material, and the two do not share terms. Read this
+file together with NOTICE, which carries the full upstream texts.
+
+The short version, in the order that decides what you may do:
+
+  * Our own code ......... MIT — use it, change it, ship it.
+  * Brand marks .......... CC BY-NC-SA 4.0 — credit, NO commercial use, share alike.
+  * Task sounds .......... MIT (upstream) — but see NOTICE for the voice credit.
+  * Great Vibes font ..... SIL OFL 1.1.
+  * The wallpaper pair ... NOT distributed and NOT licensed here. Since 2026-10-09
+                           the two background images are third-party artwork that
+                           this repository does not carry; the tracked manifest
+                           links to them instead (D81), so a build paints them
+                           from wallhaven; see 2.4.
+
+Because the brand marks forbid commercial use, THE PACKAGE AS A WHOLE IS NOT
+COMMERCIAL-USE. That restriction comes from section 2.3, not from the MIT grant
+in section 1. If you need a commercial-use build, remove the brand marks.
+
+
+1. Our own code — MIT
+---------------------
+
+Everything in this package that we wrote ourselves — the host half (index.js),
+the client token and paint layers (src/), the build and check tooling (tools/),
+the vendored glue that assembles them, and the documentation in docs/ — is
+released under the MIT licence below.
+
+  Copyright (c) 2026 WhatCannotBeSaid
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+This MIT grant does not extend to any file described in section 2. Where a file
+is listed in section 2, that file's own terms govern it.
+
+
+2. Bundled third-party material
+-------------------------------
+
+2.1 Task sounds — sounds/ask.wav, done.wav, fail.wav, plan.wav
+    From `dsh-perlica-ding` v0.2.0 by 117BS, MIT. The full upstream licence and
+    copyright notice are reproduced in NOTICE section 1. What we changed: the
+    four files are rescaled to 60% volume. The voices themselves are upstream's
+    voice lines for the character Perlica (佩丽卡) from Arknights: Endfield
+    (© Hypergryph / GRYPHLINE); that character credit belongs to upstream and is
+    recorded in NOTICE.
+
+2.2 Font — build/great-vibes-latin.woff2
+    "Great Vibes" by TypeSETit. SIL Open Font License 1.1. Copyright 2015 The
+    Great Vibes Pro Project Authors. The licence text ships with the package at
+    build/great-vibes-OFL.txt, as OFL condition 2 requires. The file is an
+    unmodified latin subset. OFL condition 3 applies: the font may not be sold on
+    its own. No other font is redistributed — the remaining families named in
+    src/theme.css (Bahnschrift, DIN Alternate, DIN Next, Eurostile Extended,
+    Helvetica Neue, Inter, Arial, sans-serif) are referenced by name only and are
+    never shipped. OFL condition 5 applies to this package: the font's reserved
+    name is unchanged, and no file here ships under the name "Great Vibes".
+
+2.3 Brand marks — build/brand-mark.png, build/brand-mark-dark.png,
+    build/brand-mark.jpg
+    CC BY-NC-SA 4.0. Credits and the list of changes we made are in NOTICE
+    section 3. Three consequences you must respect:
+
+      BY — keep the credits. Attribution goes to the character's author 上善无形
+           (original character 溟月), the DeepSeek-element second pass by
+           ZipZipPipe (GPT Image 2), and the refined repair by QYQCAMIAO.
+      NC — no commercial use. Ads, sponsorship, paid distribution and paid
+           products all count, whether or not you charge for this package.
+      SA — share alike. brand-mark-dark.png is a derivative (see NOTICE), and any
+           adaptation or derivative you distribute must carry the same licence.
+
+2.4 Wallpapers — NOT distributed, hotlinked
+    Since 2026-10-09 (D79) this repository distributes no wallpaper
+    image, and since D81 the tracked manifest names the pictures by URL rather than
+    leaving the layer empty. Both background images are third-party artwork, not
+    ours, and we grant no licence in them. What this repository holds is an address
+    and a credit, in two files:
+
+      build/wallpapers.json      TRACKED. Two entries, each with a `direct:` URL
+                                 and the `page:` its credit belongs on. The build
+                                 emits url("https://…"), so a theme built from
+                                 this file paints two pictures the browser fetches
+                                 from wallhaven at paint time. No image bytes
+                                 travel with it, and an offline machine simply has
+                                 no background.
+      out/wallpapers.local.json  LOCAL, ignored by git. The same shape with
+                                 `dataUrl:` entries; when it exists the build
+                                 embeds those local copies instead, which is how
+                                 the maintainer's own machine keeps its look.
+                                 `--public` ignores it.
+      client.js                  GENERATED, ignored by git. `npm run selfcheck`
+                                 asserts that the tracked manifest carries no
+                                 `dataUrl:` (wall.6) and that a bundle built from
+                                 it resolves every `direct:` URL (wall.8). An empty
+                                 manifest is still legal: it publishes
+                                 `--cp-pick-light: none; --cp-pick-dark: none;`.
+
+    Provenance, recorded because it is the maintainer's own record and because it
+    is what a takedown request would be about:
+
+      og33jl — wallhaven.cc/w/og33jl, 2560x1440, credited there to the artist YOTA
+               SAKI; the entry's source link is pixiv.net/en/artworks/133258822.
+               Uploaded to wallhaven by "Elisban". Not licensed to us.
+      x85po3 — wallhaven.cc/w/x85po3, 1760x1066, the light-mode default. Wallhaven
+               records no source for this upload, so the artist is unknown.
+
+    We have no permission from either artist. If you are one of them and want the
+    entry gone, ask and it will be dropped from the manifest. See README, "Fan work
+    and attribution", which also keeps the maintainer's standing notice about images
+    taken from the web.
+
+
+3. What comes from where
+------------------------
+
+  index.js, src/, tools/, docs/, cordis.patch.yml ... MIT (section 1)
+  client.js ......................................... MIT (generated from src/, not tracked)
+  sounds/*.wav ...................................... MIT, upstream (2.1)
+  build/great-vibes-latin.woff2 ..................... OFL 1.1 (2.2)
+  build/great-vibes-OFL.txt ......................... OFL 1.1 text
+  build/brand-mark*.png, build/brand-mark.jpg ....... CC BY-NC-SA 4.0 (2.3)
+  the wallpaper pair ................................ NOT distributed, hotlinked (2.4)
+
+Vendored code. Two files are byte-for-byte copies of code from other plugins, not
+written for this theme:
+
+  build/plugin-toggle.js ....... dsh-disable-unofficial-plugins, MIT
+                                 https://github.com/WhatCannotBeSaid/dsh-disable-unofficial-plugins
+  build/session-eva-status.js .. dsh-session-eva-status v0.1.0, MIT
+                                 https://github.com/WhatCannotBeSaid/dsh-session-eva-status
+
+Both upstreams are MIT, whose notice has to travel with copies and substantial
+portions. NOTICE section 4 carries both entries, and the MIT text with its
+copyright line is section 1 of this file. The two files are also inlined into the
+generated client.js, so that notice belongs with the bundle and not only with the
+two source files. Keep it if you redistribute either file or the bundle.
+
+The CC BY-NC-SA 4.0 legal text for section 2.3 ships with this repository as
+LICENSE-CC-BY-NC-SA-4.0.txt; the canonical copy is
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+No `EVA`, `NERV`, `Evangelion` or Arknights artwork owned by khara, inc. or
+Hypergryph is distributed in this package. The only images this repository
+carries are the brand marks in 2.3 — both wallpapers are absent as bytes by
+construction (2.4), which keeps only their addresses and their credits. The theme
+is an unofficial, non-commercial fan work, published under
+khara's fan-work guideline (https://www.khara.co.jp/guideline/), which permits
+non-commercial fan works and licenses neither the characters nor the brand. See
+README, "Fan work and attribution".

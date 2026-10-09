@@ -1,0 +1,73 @@
+{
+  "name": "EVA-Inspired-Theme",
+  "version": "1.0.0",
+  "description": "EVA-Inspired-Theme / NERV 闸门 — a Neon Genesis Evangelion skin for DeepSeek Harness. Two fully designed modes: Title Card (light) and Central Dogma (dark). 55 measured tokens over one removable override layer, plus a wallpaper paint layer whose two surface alphas are solved against a WCAG contrast budget rather than picked by eye.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "plugin",
+    "theme",
+    "skin",
+    "evangelion",
+    "neon",
+    "eva-inspired-theme"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "LICENSE",
+    "LICENSE-CC-BY-NC-SA-4.0.txt",
+    "NOTICE",
+    "README.md",
+    "src",
+    "build",
+    "sounds",
+    "tools",
+    "docs"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node tools/build-client.mjs",
+    "check": "node tools/build-client.mjs --check",
+    "selfcheck": "node tools/selfcheck.mjs",
+    "audit": "node tools/token-audit.mjs",
+    "sounds": "node tools/check-sound-layer.mjs",
+    "verify": "node --check index.js && node --check client.js && node tools/selfcheck.mjs && node tools/token-audit.mjs && node tools/check-sound-layer.mjs && node tools/build-client.mjs --check"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  }
+}

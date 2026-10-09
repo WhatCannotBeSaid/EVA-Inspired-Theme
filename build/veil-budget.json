@@ -1,0 +1,292 @@
+{
+ "target": 4.5,
+ "surfaces": [
+  "--dsw-alias-bg-base",
+  "--dsw-specific-sidebar-fill"
+ ],
+ "inks": [
+  "--dsw-alias-label-primary",
+  "--dsw-alias-label-secondary",
+  "--dsw-alias-label-tertiary"
+ ],
+ "modes": {
+  "dark": {
+   "mode": "dark",
+   "wallpaper": "og33jl",
+   "probe": "p95",
+   "artLuminance": {
+    "p05": 0.0069,
+    "median": 0.0075,
+    "p95": 0.0323,
+    "mean": 0.0138
+   },
+   "perSurface": {
+    "--dsw-alias-bg-base": {
+     "fill": "#1a1325",
+     "minAlpha": 0.2
+    },
+    "--dsw-specific-sidebar-fill": {
+     "fill": "#1a1325",
+     "minAlpha": 0.2
+    }
+   },
+   "solvedMinAlpha": 0.2,
+   "chosenAlpha": 0.35,
+   "chosenBy": "SHIPPED_ALPHA -- chosen for visible transparency, below the solved minimum",
+   "atShipped": {
+    "--dsw-alias-bg-base": {
+     "fill": "#1a1325",
+     "alpha": 0.35,
+     "atProbe": {
+      "composite": "#2a272e",
+      "compositeLum": 0.0216,
+      "ink": {
+       "--dsw-alias-label-primary": 10.43,
+       "--dsw-alias-label-secondary": 8.47,
+       "--dsw-alias-label-tertiary": 7.02
+      },
+      "ok": true
+     },
+     "atMean": {
+      "composite": "#1d1b21",
+      "compositeLum": 0.0115,
+      "ink": {
+       "--dsw-alias-label-primary": 12.13,
+       "--dsw-alias-label-secondary": 9.85,
+       "--dsw-alias-label-tertiary": 8.17
+      },
+      "ok": true
+     }
+    },
+    "--dsw-specific-sidebar-fill": {
+     "fill": "#1a1325",
+     "alpha": 0.35,
+     "atProbe": {
+      "composite": "#2a272e",
+      "compositeLum": 0.0216,
+      "ink": {
+       "--dsw-alias-label-primary": 10.43,
+       "--dsw-alias-label-secondary": 8.47,
+       "--dsw-alias-label-tertiary": 7.02
+      },
+      "ok": true
+     },
+     "atMean": {
+      "composite": "#1d1b21",
+      "compositeLum": 0.0115,
+      "ink": {
+       "--dsw-alias-label-primary": 12.13,
+       "--dsw-alias-label-secondary": 9.85,
+       "--dsw-alias-label-tertiary": 8.17
+      },
+      "ok": true
+     }
+    }
+   },
+   "contractAtShipped": {
+    "target": 4.5,
+    "inks": [
+     "--dsw-alias-label-primary",
+     "--dsw-alias-label-secondary",
+     "--dsw-alias-label-tertiary"
+    ],
+    "holdsAtProbe": {
+     "--dsw-alias-label-primary": true,
+     "--dsw-alias-label-secondary": true,
+     "--dsw-alias-label-tertiary": true
+    },
+    "holdsAtMean": {
+     "--dsw-alias-label-primary": true,
+     "--dsw-alias-label-secondary": true,
+     "--dsw-alias-label-tertiary": true
+    }
+   },
+   "strictContract": {
+    "inks": [
+     "--dsw-alias-label-primary",
+     "--dsw-alias-label-secondary",
+     "--dsw-alias-label-tertiary"
+    ],
+    "perSurface": {
+     "--dsw-alias-bg-base": {
+      "fill": "#1a1325",
+      "minAlpha": 0.2
+     },
+     "--dsw-specific-sidebar-fill": {
+      "fill": "#1a1325",
+      "minAlpha": 0.2
+     }
+    },
+    "minAlpha": 0.2,
+    "feasible": true
+   },
+   "toned": {
+    "p05": 0.006929017981958719,
+    "median": 0.0074990320432261745,
+    "p95": 0.0322812731931241,
+    "mean": 0.013753128870546104
+   },
+   "atChosen": {
+    "--dsw-alias-bg-base": {
+     "composite": "#2a272e",
+     "compositeLum": 0.0216,
+     "ink": {
+      "--dsw-alias-label-primary": 10.43,
+      "--dsw-alias-label-secondary": 8.47,
+      "--dsw-alias-label-tertiary": 7.02
+     },
+     "ok": true
+    },
+    "--dsw-specific-sidebar-fill": {
+     "composite": "#2a272e",
+     "compositeLum": 0.0216,
+     "ink": {
+      "--dsw-alias-label-primary": 10.43,
+      "--dsw-alias-label-secondary": 8.47,
+      "--dsw-alias-label-tertiary": 7.02
+     },
+     "ok": true
+    }
+   }
+  },
+  "light": {
+   "mode": "light",
+   "wallpaper": "eva01city",
+   "probe": "p05",
+   "artLuminance": {
+    "p05": 0.007,
+    "median": 0.0437,
+    "p95": 0.5444,
+    "mean": 0.1377
+   },
+   "perSurface": {
+    "--dsw-alias-bg-base": {
+     "fill": "#e2e1ed",
+     "minAlpha": 0.82
+    },
+    "--dsw-specific-sidebar-fill": {
+     "fill": "#e2e1ed",
+     "minAlpha": 0.82
+    }
+   },
+   "solvedMinAlpha": 0.82,
+   "chosenAlpha": 0.7,
+   "chosenBy": "SHIPPED_ALPHA -- chosen for visible transparency, below the solved minimum",
+   "atShipped": {
+    "--dsw-alias-bg-base": {
+     "fill": "#e2e1ed",
+     "alpha": 0.7,
+     "atProbe": {
+      "composite": "#a4a4ac",
+      "compositeLum": 0.3726,
+      "ink": {
+       "--dsw-alias-label-primary": 6.41,
+       "--dsw-alias-label-secondary": 5.54,
+       "--dsw-alias-label-tertiary": 4.82
+      },
+      "ok": true
+     },
+     "atMean": {
+      "composite": "#bdbdc5",
+      "compositeLum": 0.5112,
+      "ink": {
+       "--dsw-alias-label-primary": 8.51,
+       "--dsw-alias-label-secondary": 7.36,
+       "--dsw-alias-label-tertiary": 6.41
+      },
+      "ok": true
+     }
+    },
+    "--dsw-specific-sidebar-fill": {
+     "fill": "#e2e1ed",
+     "alpha": 0.7,
+     "atProbe": {
+      "composite": "#a4a4ac",
+      "compositeLum": 0.3726,
+      "ink": {
+       "--dsw-alias-label-primary": 6.41,
+       "--dsw-alias-label-secondary": 5.54,
+       "--dsw-alias-label-tertiary": 4.82
+      },
+      "ok": true
+     },
+     "atMean": {
+      "composite": "#bdbdc5",
+      "compositeLum": 0.5112,
+      "ink": {
+       "--dsw-alias-label-primary": 8.51,
+       "--dsw-alias-label-secondary": 7.36,
+       "--dsw-alias-label-tertiary": 6.41
+      },
+      "ok": true
+     }
+    }
+   },
+   "contractAtShipped": {
+    "target": 4.5,
+    "inks": [
+     "--dsw-alias-label-primary",
+     "--dsw-alias-label-secondary",
+     "--dsw-alias-label-tertiary"
+    ],
+    "holdsAtProbe": {
+     "--dsw-alias-label-primary": true,
+     "--dsw-alias-label-secondary": true,
+     "--dsw-alias-label-tertiary": true
+    },
+    "holdsAtMean": {
+     "--dsw-alias-label-primary": true,
+     "--dsw-alias-label-secondary": true,
+     "--dsw-alias-label-tertiary": true
+    }
+   },
+   "strictContract": {
+    "inks": [
+     "--dsw-alias-label-primary",
+     "--dsw-alias-label-secondary",
+     "--dsw-alias-label-tertiary"
+    ],
+    "perSurface": {
+     "--dsw-alias-bg-base": {
+      "fill": "#e2e1ed",
+      "minAlpha": 0.82
+     },
+     "--dsw-specific-sidebar-fill": {
+      "fill": "#e2e1ed",
+      "minAlpha": 0.82
+     }
+    },
+    "minAlpha": 0.82,
+    "feasible": true
+   },
+   "toned": {
+    "p05": 0.006995410187265386,
+    "median": 0.04373502925697346,
+    "p95": 0.5443959530238854,
+    "mean": 0.13765822287119256
+   },
+   "atChosen": {
+    "--dsw-alias-bg-base": {
+     "composite": "#a4a4ac",
+     "compositeLum": 0.3726,
+     "ink": {
+      "--dsw-alias-label-primary": 6.41,
+      "--dsw-alias-label-secondary": 5.54,
+      "--dsw-alias-label-tertiary": 4.82
+     },
+     "ok": true
+    },
+    "--dsw-specific-sidebar-fill": {
+     "composite": "#a4a4ac",
+     "compositeLum": 0.3726,
+     "ink": {
+      "--dsw-alias-label-primary": 6.41,
+      "--dsw-alias-label-secondary": 5.54,
+      "--dsw-alias-label-tertiary": 4.82
+     },
+     "ok": true
+    }
+   }
+  }
+ }
+}

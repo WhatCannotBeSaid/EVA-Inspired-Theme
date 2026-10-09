@@ -1,0 +1,19 @@
+[
+  {
+    "id": "great-vibes",
+    "name": "Great Vibes",
+    "family": "Great Vibes",
+    "role": "hero headline — the new-session page's motto",
+    "page": "https://fonts.google.com/specimen/Great+Vibes",
+    "direct": "https://fonts.gstatic.com/s/greatvibes/v21/RWmMoKWR9v4ksMfaWd_JN9XFiaQ.woff2",
+    "credit": "Great Vibes by TypeSETit — Copyright 2015 The Great Vibes Pro Project Authors (https://github.com/googlefonts/great-vibes), SIL OFL 1.1",
+    "license": "SIL Open Font License 1.1",
+    "licenseFile": "build/great-vibes-OFL.txt",
+    "file": "build/great-vibes-latin.woff2",
+    "format": "woff2",
+    "subset": "latin",
+    "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+    "bytes": 42800,
+    "note": "The latin subset of Great Vibes v21 as served by Google Fonts, fetched 2026-10-08 and shipped byte for byte in build/great-vibes-latin.woff2 (unmodified). Its unicode-range covers U+0000-00FF, which is what the headline's ü and ä need; none of the four other subsets (cyrillic-ext, cyrillic, greek-ext, vietnamese, latin-ext) is shipped, because a glyph outside this range would fall back rather than be fetched. tools/build-client.mjs reads this record and embeds the file as an @font-face data URL, so the theme still fetches nothing at runtime; build/great-vibes-OFL.txt rides along because OFL condition 2 requires the copyright notice and the licence wherever the font is redistributed. Counted by tools/selfcheck.mjs (font.1 / font.2)."
+  }
+]
