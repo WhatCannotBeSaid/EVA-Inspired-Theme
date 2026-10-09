@@ -1,0 +1,127 @@
+# EVA-Inspired-Theme
+
+[![Licence: MIT + CC BY-NC-SA 4.0](https://img.shields.io/badge/licence-MIT%20%2B%20CC--BY--NC--SA%204.0-yellow.svg)](#许可)
+[![Unofficial fan work](https://img.shields.io/badge/project-unofficial_fan_work-blue.svg)](#同人作品与署名)
+
+[English](README.md) | 中文
+
+一个受《新世纪福音战士》启发的 **DeepSeek Harness** 皮肤。两套完整设计的明暗模式叠在同一层可整体移除的覆盖层上；壁纸着色层的 alpha 是按对比度预算解出来的，不是凭眼睛挑的；另有启动遮罩与四档任务音效。
+
+本仓库**不含任何背景图的图像字节**：着色层在这里，画作不在。被 git 跟踪的壁纸清单改用 URL 点名两张第三方图片，于是 clone 出来的副本在绘制时由浏览器去 wallhaven 取图，git 里没有别人家的像素数据。主题观感其余部分不变——alpha、启动遮罩、品牌标记与字体全部来自本仓库。
+
+**非官方同人作品。** 与 khara, inc.、Hypergryph（鹰角网络）、DeepSeek 均无关联，亦未获其背书或授权。见[同人作品与署名](#同人作品与署名)。
+
+## 它是什么
+
+| | |
+|---|---|
+| 模式 | **Title Card**（亮）与 **Central Dogma**（暗） |
+| 令牌层 | 55 条实测覆盖（亮档 41 条、暗档 14 条），全部落在同一层可移除的覆盖层上 |
+| 壁纸层 | 本仓库不随包发布任何图像字节。被跟踪的清单指向 wallhaven 上的两张第三方图片，浏览器在绘制时去取；维护者自己的机器则内嵌本地副本。表面 alpha 按 WCAG 对比度预算解出 |
+| 启动遮罩 | 加载时显示；时序与触发条件不变 |
+| 任务音效 | `ask`、`done`、`fail`、`plan` —— 四个 WAV，移植自 `dsh-perlica-ding` v0.2.0。普通问答轮次保持静音。无启动提示音。 |
+| 品牌标记 | 一张客户端插画，两种色调 |
+| 还包含 | 一个插件启停开关与一条会话行状态轨，两者都内联自同作者的 MIT 插件 |
+| 语言 | 全部面向用户的文案走官方 locale 服务（zh / en） |
+
+主题既不重配、也不停用任何官方行。它只装一层，也能被当成一层整体移除。它**不提供设置面板**，也不存任何偏好：没有可配置的东西，也就没有配置需要持久化。
+
+## 环境要求
+
+- 带 web profile 的 DeepSeek Harness。
+- Node.js >= 18 —— 只用于构建与检查工具。主题本身在浏览器里运行。
+
+## 安装
+
+在这个 checkout 里，或它的 clone 里：
+
+```
+npm run build                                              # 写出浏览器束
+dsh plugin --profile <profile> add link:<path-to-this-checkout>
+```
+
+clone 之后先跑一次构建：`client.js` 是生成的，故意不跟踪（见[目录结构](#目录结构)）。clone 构建出的是被跟踪的形态：着色层指向 `build/wallpapers.json` 里点名的那两张图，由浏览器去取，所以背景需要联网，托管方会看到访问者的 IP。这是对外的预期形态。
+
+包里带一个 `prepare` 脚本，跑的正是这条构建，所以直接从 Git URL 安装时，包被 link 之前束就已经生成好。单纯 `git clone` 仍要构建一次：`npm run build`，或在 checkout 里跑任意一次 `npm install`（会触发 `prepare`）。
+
+包声明了 `dsh.bundle.patch`，因此 profile 会拿已安装的包去对齐束栈并挂载主题。若重启后主题没出现，把 `EVA-Inspired-Theme` 追加到该 profile `package.json` 的 `dsh.profile.bundles` 里——仅仅作为依赖存在的包不会被挂载。
+
+## 卸载
+
+```
+dsh plugin --profile <profile> remove EVA-Inspired-Theme
+```
+
+如果你曾把它写进 `dsh.profile.bundles`，把那一条也删掉。
+
+## 目录结构
+
+```
+index.js              host 半 —— 挂载、播放任务音效，不注册任何路由
+client.js             生成的浏览器束。不跟踪；自己构建。不要编辑。
+src/client.js         真正的客户端半
+src/theme.css         令牌层
+cordis.patch.yml      束补丁（bundle-patch）挂载声明
+build/                随包发布的资产 + 两个内联的客户端半
+build/wallpapers.json 被跟踪的壁纸清单 —— 是画作 URL，不是图像字节
+sounds/               四个任务 WAV
+tools/                构建、自检、令牌审计、音效层闸
+docs/                 设计日志、侦察、审计、渲染报告
+NOTICE                上游许可与第三方署名
+LICENSE               本包的分层许可
+LICENSE-CC-BY-NC-SA-4.0.txt  品牌标记所用的 CC 许可文本
+```
+
+`client.js` 由 `src/` 生成，束里带横幅声明这一点。改 `src/`，然后 `npm run build`；若两者漂移，检查闸会失败。
+
+壁纸清单有两层，被跟踪的那层是点名画作而不是携带画作：
+
+- `build/wallpapers.json` —— 被跟踪。两条记录，各自带一个 `direct:` URL 指向第三方对这张图的副本，外加一个 `page:` 表示署名该落在哪里。构建产出 `url("https://…")`，于是主题保住了背景，而本仓库仍然不含任何图像字节。空清单同样合法：它发布 `--cp-pick-light: none; --cp-pick-dark: none;`，即着色层文档化的「无画作」状态。
+- `out/wallpapers.local.json` —— 被 git 忽略。形状相同，但用 `dataUrl:` 条目；它存在时构建改读它并内嵌画作，维护者自己的机器就是这样保持现在这副样子的。`node tools/build-client.mjs --public` 会忽略它，照样构建被跟踪的形态。
+
+因为 `client.js` 也被忽略、被跟踪的清单里又没有 `dataUrl:`，带画作的束没有任何地方可以提交。这些事实都有断言把守（`wall.2`、`wall.6`、`wall.7`、`wall.8`）。
+
+## 检查
+
+```
+npm run verify
+```
+
+跑完整套闸：两个束半的语法检查、自检（115 条断言）、令牌审计（55 条覆盖，恰好是计划中的 55 条）、音效层闸（25 项检查：格式、字节长度与每个 WAV 的峰值），以及一次重建比对，证明 `client.js` 与 `src/` 同步。
+
+## 许可
+
+本包采用**分层许可**。每个许可只作用于它被点名的那部分；任何一个都不是整仓库的替代许可。图像与第三方素材不在总括授权之内，除非某一行另有说明；目录数据（`build/*.json`）只是描述资产，并不为其授权。此处不授予任何商标权利。
+
+| 部分 | 许可 | 对你要求什么 |
+|---|---|---|
+| 我们的代码 —— `index.js`、`src/`、`tools/`、`client.js` | MIT | 保留版权与许可声明。代码的商业使用没问题。 |
+| 项目文本 —— 本 README、`docs/`、`NOTICE`、`LICENSE` | CC BY-NC-SA 4.0 | 署名、附上许可链接、注明改动、保持非商业、相同方式共享。 |
+| 品牌标记 —— `build/brand-mark*.png`、`build/brand-mark.jpg` | CC BY-NC-SA 4.0 | 条款同上，且这是第三方画作：见下文。 |
+| 任务音效 —— `sounds/*.wav` | MIT（上游 `dsh-perlica-ding`） | 保留上游声明。 |
+| 字体 —— `build/great-vibes-latin.woff2` | SIL OFL 1.1 | 保留声明；不要单独售卖该字体。 |
+| 内联的两个半 —— `build/plugin-toggle.js`、`build/session-eva-status.js` | MIT（同作者的另两个插件） | 两份声明都要保留；它们同样被内联进 `client.js`。 |
+| 两张背景壁纸 | **外链热链，不随包分发，此处不授权。** | 本项目不向你授予它们的任何权利；下文的署名仅为出处标注。 |
+
+因为品牌标记禁止商业使用，**整个包不得用于商业用途**。单看 MIT 部分的代码不受此限；若你需要商业用途的构建，去掉品牌标记即可。
+
+完整条款：[LICENSE](LICENSE)。上游文本与逐文件署名：[NOTICE](NOTICE)。CC BY-NC-SA 4.0 法律文本随包发布为 [LICENSE-CC-BY-NC-SA-4.0.txt](LICENSE-CC-BY-NC-SA-4.0.txt)，亦见 <https://creativecommons.org/licenses/by-nc-sa/4.0/>。
+
+## 同人作品与署名
+
+**非官方同人作品。** 与 khara, inc.、Hypergryph（鹰角网络）、DeepSeek 均无关联，未获其背书或授权。本主题是在 khara 公布的二次创作指引（<https://www.khara.co.jp/guideline/>）之下制作的非商业同人作品，该指引许可非商业二次创作，但不许可角色与品牌本身。超出该指引范围使用需要另行取得 khara 的授权。包名中的 `EVA` 是引用，不是来源主张。
+
+**品牌标记。** 角色溟月，作者上善无形（原创角色，<https://space.bilibili.com/4456176>）。DeepSeek 元素第二轮由 ZipZipPipe 制作（GPT Image 2，<https://space.bilibili.com/4168597>）。精修修复由 QYQCAMIAO 完成。以 CC BY-NC-SA 4.0 授权——署名、非商业、相同方式共享。本仓库把该插画裁剪并缩放到 256×256，并用 `tools/make-brand-mark-dark.py` 派生出暗色变体；两张派生图沿用同一套条款。该画作的商业使用需要取得上述权利人的许可。
+
+**任务音效。** 来自 117BS 的 `dsh-perlica-ding` v0.2.0（MIT），音量缩放到 60%。语音台词是上游的，对应《明日方舟：终末地》角色佩丽卡（Perlica）（© Hypergryph / GRYPHLINE）。
+
+**字体。** "Great Vibes"，作者 TypeSETit，SIL OFL 1.1。
+
+**壁纸 —— 带署名热链，从不二次分发。** 两张背景图是主题预期观感的一部分。自 2026-10-09（D79）起两张都不在本仓库里，自 D81 起被跟踪的清单改为指向它们而不是内嵌：构建出来的副本会显示这两张图，而本仓库不携带它们的任何一个字节，也不向你授予任何权利。主题绘制时由浏览器去 wallhaven 取图，所以这里没有任何镜像，离线机器就是没有背景。以下记录出处，因为一旦收到下架请求，谈的就是这件事：
+
+- 暗 —— **Central Dogma**，`og33jl`，[wallhaven.cc/w/og33jl](https://wallhaven.cc/w/og33jl)，2560×1440。wallhaven 把作者标为 **YOTA SAKI**，该条目链接到原始投稿 [pixiv artwork 133258822](https://www.pixiv.net/en/artworks/133258822)。上传到 wallhaven 的是 *Elisban*。
+- 亮 —— **Title Card**，`x85po3`，[wallhaven.cc/w/x85po3](https://wallhaven.cc/w/x85po3)，1760×1066。wallhaven 未记录这次上传的来源（上传者 *BachoWilson*），因此作者不明；同一张画作也在中文壁纸站上流传。
+
+我们未持有两位作者中任何一位的许可。如果你是其中一位、不认可这种链接方式，说一声，我们就把该条目从 `build/wallpapers.json` 里删掉——无论如何本仓库都不存它的副本。
+
+本仓库图片来自网络流传，具体作者未确认；如原作者认为不妥，请联系删除。

@@ -3,6 +3,8 @@
 [![Licence: MIT + CC BY-NC-SA 4.0](https://img.shields.io/badge/licence-MIT%20%2B%20CC--BY--NC--SA%204.0-yellow.svg)](#licence)
 [![Unofficial fan work](https://img.shields.io/badge/project-unofficial_fan_work-blue.svg)](#fan-work-and-attribution)
 
+English | [中文](README.zh.md)
+
 A Neon Genesis Evangelion–inspired skin for **DeepSeek Harness**. Two fully
 designed modes over one removable override layer, a wallpaper paint layer whose
 alphas are solved against a contrast budget rather than picked by eye, a boot
