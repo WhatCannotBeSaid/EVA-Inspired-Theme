@@ -31,12 +31,93 @@ khara, inc., Hypergryph, or DeepSeek. See
 | Boot mask | Shown on load; unchanged timings and triggers |
 | Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
-| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins |
+| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a Telegram filter on the workspace row |
 | Language | All user-facing text goes through the official locale service (zh / en) |
 
-The theme neither reconfigures nor disables any official row. It installs one
-layer and can be removed as one. It also ships **no settings panel** and stores
-no preference: there is nothing to configure, so there is no config to persist.
+The theme installs one layer and can be removed as one. It ships **no settings panel
+of its own** — the look is fixed, not a preference — and the only thing it persists
+is the workspace pin set. It does hide and move a few official entries, so read
+[What it changes in the interface](#what-it-changes-in-the-interface) before you
+install it.
+
+## What it changes in the interface
+
+Removing the package takes the layer away again and every official element comes
+back. In between, the theme **hides five official controls, rewrites the sidebar
+identity line, and replaces one page's heading**. All of it is CSS plus a few client
+effects — the official DOM is never rewritten — but here is where things went.
+
+### The brand row is three click zones
+
+The sidebar brand row reads **[illustration] WHALE-01 [SYSTEM]**; the official
+wordmark and its whale glyph are hidden. It is one official button carrying three
+zones, decided from the click's x coordinate at click time:
+
+| Click | Opens | Because |
+|---|---|---|
+| the illustration, left of `WHALE-01` | **Plugins** | the 「插件」/ “Plugins” nav row is hidden |
+| the `WHALE-01` text | a **new session** | official behaviour, unchanged |
+| the `SYSTEM` chip, right of `WHALE-01` | **Settings** | the 「设置」 row and its launcher button are hidden |
+
+The zones drive the hidden buttons programmatically, so both still open. A Plugins row
+that your composition does not have is not intercepted at all — the click falls
+through to the official new-session handler instead of becoming a hole. Keyboard
+activation (Enter or Space on the focused button) and any click held with a modifier
+key are left alone. Collapse the sidebar to a rail and there is no brand button, so
+there are no zones either.
+
+### Hidden official entries
+
+| Entry | Where | Way back |
+|---|---|---|
+| 「应用」/「编辑」 title-bar menu | desktop shell only; absent in a browser | none from inside the app: 关于 / 检查更新 / dsh 命令 / 退出应用 go with it. Quit is still on the tray menu. |
+| the second 「新会话」 button | sidebar, below the brand row | `WHALE-01`, or `Ctrl+Alt+N` — it is a duplicate |
+| 「插件」/ “Plugins” nav row | sidebar | click the illustration; **no shortcut is left** |
+| 「设置」 row and its launcher button | sidebar | click `SYSTEM`, or `Ctrl+Alt+,` |
+| 「收起侧栏」 button | left sidebar only; the right sidebar's stays visible | the collapse command itself is untouched |
+| the session list's bottom fade | sidebar | it only dimmed the last row |
+
+Nothing else in the sidebar moves. The workspace and session list keeps the official
+`flex: 1` scrolling area, and the bottom area still shows whatever a third-party
+plugin registers into `sidebar.footer.action` (a ledger card, say) in the position the
+host gives it.
+
+### The new session page (hero)
+
+Three changes, on that page only:
+
+- the headline is replaced by one fixed German line, exactly as registered:
+  `Wovon man nicht sprechen kann, darüber muss man schweigen`;
+- the 「预览版」/ “Preview” badge is gone;
+- the whale logo above the headline is gone.
+
+That line is set in **Great Vibes** (SIL OFL 1.1, shipped in the package) at
+`min(44px, 5.3cqw)` and never wraps. Two costs, stated plainly: it is injected as
+generated content, so find-in-page and screen readers do not see it, and it does not
+follow the interface language — a Chinese and an English user both read the German.
+
+### What the theme adds
+
+- A **pin button** on every workspace and session row (置顶工作区 / Pin workspace,
+  following the host's language). The pinned set is kept in browser storage under
+  `eva-theme/workspace-pins`; the order it produces is written through the host's own
+  insert-before API, so it survives a restart — and, unlike the pin set, it also
+  survives removing the theme.
+- A **Telegram filter** on the 「工作区」 row, on the same line as Search and the view
+  options: one click expands the groups and leaves only the conversations `dsh-im`
+  opened for Telegram, and another click puts the official list back. It only tags
+  rows and stores nothing, and it has nothing to show until such conversations exist.
+- The vendored **non-official plugin switch**, on the installed group's header in the
+  official Plugins page: tick which non-official plugins to disable, or to enable
+  again. It switches bundle enablement only — it installs and uninstalls nothing.
+- The vendored **session status rail**: blue and breathing while a session waits for
+  you (an approval, a question, a plan review), red while it is the one open in the
+  main area, purple while it finished unread. A pinned row gets a rainbow title
+  instead of a rail.
+- The **boot mask** once per page load, and the four **task sounds**.
+
+Settings themselves remain the official dialog. The single change there is that the
+dim tint behind it is removed; the panel and click-outside-to-close are untouched.
 
 ## Requirements
 
