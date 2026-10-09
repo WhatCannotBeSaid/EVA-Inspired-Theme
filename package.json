@@ -47,15 +47,14 @@
     "README.md",
     "src",
     "build",
-    "sounds",
-    "tools",
-    "docs"
+    "sounds"
   ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "build": "node tools/build-client.mjs",
+    "prepare": "node tools/build-client.mjs",
     "check": "node tools/build-client.mjs --check",
     "selfcheck": "node tools/selfcheck.mjs",
     "audit": "node tools/token-audit.mjs",

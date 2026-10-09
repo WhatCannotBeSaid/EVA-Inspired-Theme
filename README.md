@@ -55,8 +55,12 @@ Run the build once after cloning: `client.js` is generated and deliberately not
 tracked (see [Layout](#layout)). A clone builds the tracked form: the paint layer
 points at the two pictures named in `build/wallpapers.json` and the browser
 fetches them, so the background needs a network and the host learns the viewer's
-IP. That is the intended public form. There is no `prepare` script, so an install
-straight from the Git URL has no bundle either — clone, build, then link.
+IP. That is the intended public form.
+
+The package carries a `prepare` script that runs exactly that build, so an
+install straight from the Git URL produces the bundle for you before the package
+is linked. A plain `git clone` still needs one build: `npm run build`, or any
+`npm install` inside the checkout, which triggers `prepare`.
 
 The package declares `dsh.bundle.patch`, so the profile reconciles its bundle
 stack against the installed package and mounts the theme. If it does not appear
