@@ -120,17 +120,23 @@ repository's LICENSE. Neither of these two files carries a notice of its own, an
 both are inlined into the generated client.js, so if you redistribute either file
 or the bundle, carry this section with it.
 
-Two caveats, added 2026-10-09. build/session-eva-status.js (D78) is no longer a
-byte-for-byte copy: this repository patches three spots in its hot path — a
-frame-coalesced schedule, a compare-then-write pin attribute, and cancelling the
-pending frame on dispose — because the upstream checkout is not available here to
-fix and re-vendor. build/plugin-toggle.js (D79) is patched in five spots, all
-performance-only and none of them behavioural: a reload sequence guard, a
+Two caveats, added 2026-10-09, the second amended 2026-10-10.
+build/session-eva-status.js (D78) is no longer a byte-for-byte copy: this repository
+patches three spots in its hot path — a frame-coalesced schedule, a
+compare-then-write pin attribute, and cancelling the pending frame on dispose —
+because the upstream checkout is not available here to fix and re-vendor.
+build/plugin-toggle.js (D79) is patched in six spots. Five of them are
+performance-only and none of those five is behavioural: a reload sequence guard, a
 single-slot reload debounce, a compare-then-write button text, a throttled body
-redraw, and a Set-based reason dedupe. Both lists are at the top of the respective
-file and pinned by the cli.27 and cli.28 checks in tools/selfcheck.mjs; everything
-else in each file is still upstream's code. Refreshing either file from upstream
-must re-apply them.
+redraw, and a Set-based reason dedupe. The sixth (D82) does change behaviour, and is
+the reason this file is no longer a faithful copy of upstream in any sense: upstream
+excludes only the switch's own package from the batch, but this copy is vendored
+into the theme's client bundle, so the theme itself is an unofficial plugin too and
+would otherwise be offered up for disabling — by a button that the theme's own
+bundle provides. The switch now excludes its host bundle as well. Both lists are at
+the top of the respective file and pinned by the cli.27 and cli.28 checks in
+tools/selfcheck.mjs; everything else in each file is still upstream's code.
+Refreshing either file from upstream must re-apply them.
 
 
 5. Background wallpapers — NOT redistributed, linked by URL

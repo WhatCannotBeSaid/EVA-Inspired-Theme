@@ -674,14 +674,23 @@ checks.check('cli.27', 'the vendored rail still carries its three theme-side pat
 /* D79 (2026-10-09): the switch is the second vendored block the theme patches by hand, so
    the same reasoning as cli.27 applies — cli.19/cli.20 only check the provenance markers and
    the remote calls, not the body. Five spots, all performance-only, none of them behavioural:
-   a refresh of the upstream copy that silently drops one would be a silent regression. */
-checks.check('cli.28', 'the vendored switch still carries its five theme-side patches', () => {
+   a refresh of the upstream copy that silently drops one would be a silent regression.
+   D82 (2026-10-10) added a sixth, and it *is* behavioural: the vendored switch now excludes
+   its host bundle as well as SELF, so the theme stops listing itself as disableable. That one
+   regresses invisibly too — the button merely reappears in its own list — so it is pinned
+   here as well, in the same one-entry-per-patch shape. */
+checks.check('cli.28', 'the vendored switch still carries its six theme-side patches', () => {
   const patches = [
     ['the reload sequence guard', /const seq = \(reloadSeq \+= 1\);/],
     ['the single-slot reload debounce', /if \(!busy\) scheduleReload\(\);/],
     ['the compare-then-write button text', /function setText\(el, text\) \{/],
     ['the throttled body redraw', /force === true \|\| now - lastBodyAt >= BODY_REDRAW_MS/],
     ['the Set-based reason dedupe', /new Set\(blocked\.map\(\(bundle\) => bundle\.readOnlyReason\)\)/],
+    /* Either half alone is useless — a probe nothing calls, or a call to a name that no longer
+       exists — so patch f's single entry asserts both, by lookahead rather than by adjacency
+       (the probe and its only call site are ~150 lines apart in the file). */
+    ['the host-bundle exclusion (D82)',
+      /(?=[\s\S]*function isSelfBundle\(name\) \{)(?=[\s\S]*if \(isSelfBundle\(bundle\.name\)\) continue;)/],
   ]
   const missing = patches.filter(([, re]) => !re.test(client)).map(([name]) => name)
   return missing.length === 0 || `the vendored switch lost its patches: ${missing.join(', ')}`

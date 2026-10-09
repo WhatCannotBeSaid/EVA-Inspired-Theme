@@ -27,17 +27,23 @@
  *   setBundleEnabled(name, enabled): Promise<RemoteResult<ChangeResult>>
  * 远程返回值统一为 { ok: true, value } | { ok: false, error: { code, message } }。
  *
- * ── 主题侧补丁（EVA-Inspired-Theme，D79 / 2026-10-09）────────────────────
- * 本文件按 D29 是上游 v1.3.0 客户端半的逐字节副本。主题侧此后打了五处**只关乎
- * 性能、不改行为**的补丁，刷新上游（用新版 lib/client.js 覆盖本文件再重建）时必须重贴：
+ * ── 主题侧补丁（EVA-Inspired-Theme，D79 / 2026-10-09；f 为 D82 / 2026-10-10）──────
+ * 本文件按 D29 是上游 v1.3.0 客户端半的逐字节副本。主题侧此后打了六处补丁，刷新上游
+ * （用新版 lib/client.js 覆盖本文件再重建）时必须重贴：
  *   a. `reload()` 加序号守卫 —— 只有最后一次调用允许写 snapshot，先发的旧响应不再覆盖新快照；
  *   b. 事件驱动的重载改走 `scheduleReload()` 单槽去抖 —— 原为每个事件一次并发 RPC；
  *   c. `setText()` 先比后写按钮文案 —— textContent 每次赋值都会叫醒本插件自己的 observer；
  *   d. 运行弹窗的正文按 ~80ms 墙钟节流重画 —— 原为每完成一项就重画整张清单（O(n²)），
  *      最后一项与语言切换仍然必画；
  *   e. `reasons` 的去重换成 Set —— 原来是 `filter((r,i,a) => a.indexOf(r) === i)`（O(n²)）。
- * 本机已无上游 checkout，因此这五处只登记在这里、`NOTICE` 第 4 节与 `docs/design.md` 的 D79，
- * 并由 `tools/selfcheck.mjs` 的 cli.28 钉住（绊线，不是哈希）。
+ *   f. **宿主组合包与 SELF 一起排除**（唯一一处改行为的补丁，见下）—— a–e 只关乎性能，
+ *      这一处不是：上游只排除插件自己，而本文件是 vendor 进主题客户端束的，宿主
+ *      `EVA-Inspired-Theme` 也是「非官方插件」，于是它出现在自己的停用清单里，勾中它就会
+ *      把这个按钮本身一起停掉。`classify()` 的排除条件改走 `isSelfBundle()`，排除集 =
+ *      `SELF` + `PLUGIN_ID`（构建脚本在束顶层声明，见 `tools/build-client.mjs`），
+ *      `classify` 的注释、确认框的 hint、字典的 `dialog.host.*` 三处同步登记这件事。
+ * 本机已无上游 checkout，因此这些补丁只登记在这里、`NOTICE` 第 4 节与 `docs/design.md`
+ * 的 D79/D82，并由 `tools/selfcheck.mjs` 的 cli.27 / cli.28 钉住（绊线，不是哈希）。
  * ────────────────────────────────────────────────────────────────────────
  */
 window.__ModuleLoader__.load({
@@ -49,6 +55,36 @@ window.__ModuleLoader__.load({
 
 		/** 本插件自身的包名：批量停用时必须排除自己，否则点一次按钮就把自己停掉了。 */
 		const SELF = 'dsh-disable-unofficial-plugins';
+
+		/**
+		 * 承载本开关的宿主组合包（主题侧补丁 f，D82 / 2026-10-10）。
+		 *
+		 * 本文件被 vendor 进主题的客户端束，于是宿主自己也是「非官方插件」：它的包名
+		 * `EVA-Inspired-Theme` 不以 `@deepseek-ai/` 开头、也不在 BUILTIN_PROFILE_BUNDLES 里，
+		 * 所以只看上游那条 `SELF` 判据，宿主会出现在自己的停用清单里 —— 而按钮就长在宿主
+		 * 提供的束里，勾中它等于让这个功能把自己连同清单一起关掉。
+		 *
+		 * `PLUGIN_ID` 是构建脚本在客户端束顶层声明的 `var`（`tools/build-client.mjs`），
+		 * 对本 IIFE 可见；本文件被单独加载（不在主题束里）时它并不存在，而 `typeof` 正是
+		 * 唯一对未声明标识符也不抛错的探测方式，所以两种情况都不会炸。
+		 *
+		 * 大小写不敏感：主题的包名是 `EVA-Inspired-Theme`，而 `cordis.patch.yml` 里那行的
+		 * `id` 是全小写的 `eva-inspired-theme`；两种拼法都要排掉。
+		 */
+		function hostBundle() {
+			try {
+				return typeof PLUGIN_ID === 'string' && PLUGIN_ID ? PLUGIN_ID : null;
+			} catch (err) {
+				return null;
+			}
+		}
+
+		/** 批量启停时必须排除的包名：本插件自己 + 承载本插件的宿主组合包。 */
+		function isSelfBundle(name) {
+			if (name === SELF) return true;
+			const host = hostBundle();
+			return host !== null && name.toLowerCase() === host.toLowerCase();
+		}
 
 		/**
 		 * 「非官方」的判据：**组合包名不以 `@deepseek-ai/` 开头**。
@@ -123,6 +159,8 @@ window.__ModuleLoader__.load({
 				'dialog.blocked.enable': '另有 {count} 个非官方插件为只读项（{reasons}），无法启用，不会出现在上面的清单里。',
 				'dialog.self.disable': '本插件自身（{self}）不在停用范围内。',
 				'dialog.self.enable': '本插件自身（{self}）不在启用范围内。',
+				'dialog.host.disable': '本开关所在的宿主组合包（{host}）同样不在停用范围内 —— 它被停用的话，这个按钮本身就随它一起消失。',
+				'dialog.host.enable': '本开关所在的宿主组合包（{host}）不在启用范围内（它当前一直是启用的）。',
 				'dialog.primary.disable': '停用 {count} 个插件',
 				'dialog.primary.enable': '启用 {count} 个插件',
 				'dialog.diagnostics': '完整诊断',
@@ -205,6 +243,8 @@ window.__ModuleLoader__.load({
 				'dialog.blocked.enable': '{count} more unofficial plugins are read-only ({reasons}) and cannot be enabled; they are not listed above.',
 				'dialog.self.disable': 'This plugin itself ({self}) is not part of the disable scope.',
 				'dialog.self.enable': 'This plugin itself ({self}) is not part of the enable scope.',
+				'dialog.host.disable': 'The host bundle that carries this switch ({host}) is out of the disable scope too: disabling it would take this very button down with it.',
+				'dialog.host.enable': 'The host bundle that carries this switch ({host}) is not part of the enable scope (it stays enabled).',
 				'dialog.primary.disable': 'Disable {count} plugins',
 				'dialog.primary.enable': 'Enable {count} plugins',
 				'dialog.diagnostics': 'Full diagnostics',
@@ -575,7 +615,9 @@ window.__ModuleLoader__.load({
 		 * 「非官方」三条同时成立：
 		 *   ① 不在 BUILTIN_PROFILE_BUNDLES 中；
 		 *   ② 通过官方页 listed / mine 两道过滤（installed || optional || error；installed || !optional）；
-		 *   ③ 包名不以 `@deepseek-ai/` 开头，且不是本插件自身。
+		 *   ③ 包名不以 `@deepseek-ai/` 开头，且不是本插件自身，也不是承载本开关的宿主组合包
+		 *      （主题侧补丁 f，D82：本文件被 vendor 进主题的束里，宿主同样是非官方插件，
+		 *      只看 `SELF` 会让它出现在自己的停用清单里）。
 		 */
 		function classify(bundles) {
 			const targets = [];
@@ -587,7 +629,7 @@ window.__ModuleLoader__.load({
 				if (!(bundle.installed || bundle.optional || bundle.error !== undefined)) continue;
 				if (!(bundle.installed || !bundle.optional)) continue;
 				if (bundle.name.startsWith(OFFICIAL_SCOPE)) continue;
-				if (bundle.name === SELF) continue;
+				if (isSelfBundle(bundle.name)) continue;
 				// 只读项两个方向都切不动，先归入 blocked，免得被当成可启用目标。
 				if (bundle.readOnlyReason) {
 					blocked.push(bundle);
@@ -1043,7 +1085,12 @@ window.__ModuleLoader__.load({
 
 			const blockedEl = blocked.length > 0 ? el('p', 'dsh-dup-hint') : null;
 			const selfEl = el('p', 'dsh-dup-hint');
-			api.setBody(tools, list, blockedEl, selfEl);
+			/* 主题侧补丁 f（D82）：被排掉的不止本插件自己，还有承载本开关的宿主组合包。
+			 * 宿主不在清单里这件事得说出来 —— 否则看起来像是漏了（清单里明明装着主题）。
+			 * `setBody` 会过滤掉 falsy，所以宿主名取不到时直接传 null 即可。 */
+			const host = hostBundle();
+			const hostEl = host === null ? null : el('p', 'dsh-dup-hint');
+			api.setBody(tools, list, blockedEl, selfEl, hostEl);
 
 			const primary = el('button', 'dsh-dup-action is-primary');
 			primary.type = 'button';
@@ -1064,6 +1111,7 @@ window.__ModuleLoader__.load({
 				noneBtn.textContent = T('dialog.selectNone');
 				if (blockedEl) blockedEl.textContent = T('dialog.blocked.' + mode, { count: blocked.length, reasons });
 				selfEl.textContent = T('dialog.self.' + mode, { self: SELF });
+				if (hostEl) hostEl.textContent = T('dialog.host.' + mode, { host });
 				cancel.textContent = T('cancel');
 				syncFoot();
 			};
