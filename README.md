@@ -10,16 +10,34 @@ designed modes over one removable override layer, a wallpaper paint layer whose
 alphas are solved against a contrast budget rather than picked by eye, a boot
 mask, and four tiered task sounds.
 
-This repository carries **no image bytes for a background**: the paint layer is
+This repository ships **no background picture of its own**: the paint layer is
 here, the artwork is not. Instead the tracked wallpaper manifest names two
 third-party pictures by URL, so a clone draws a background the browser fetches
-from wallhaven at paint time, and nothing in git is anyone else's pixel data. The
-theme's look is otherwise unchanged — the alphas, the boot mask, the brand mark
-and the fonts all come from this repository.
+from wallhaven at paint time. The only pictures in git are the brand marks and
+the two preview screenshots, which naturally show the art the app was painting;
+the theme's look is otherwise unchanged — the alphas, the boot mask, the brand
+mark and the fonts all come from this repository.
 
 **Unofficial fan work.** Not affiliated with, endorsed by, or licensed by
 khara, inc., Hypergryph, or DeepSeek. See
 [Fan work and attribution](#fan-work-and-attribution).
+
+## Preview
+
+Both modes, captured from a running DeepSeek Harness with this package mounted.
+The session list is hidden in both shots; nothing else is retouched.
+
+**Title Card — light**
+
+![Title Card, the light mode](docs/preview-light.jpg)
+
+**Central Dogma — dark**
+
+![Central Dogma, the dark mode](docs/preview-dark.jpg)
+
+The backgrounds are the two wallhaven pictures the tracked manifest names, so
+these are what a clone shows once the browser has fetched them; the credits are
+in [Fan work and attribution](#fan-work-and-attribution).
 
 ## What it is
 
@@ -27,7 +45,7 @@ khara, inc., Hypergryph, or DeepSeek. See
 |---|---|
 | Modes | **Title Card** (light) and **Central Dogma** (dark) |
 | Token layer | 55 measured overrides (41 in the light arm, 14 in the dark arm) on a single removable layer |
-| Wallpaper layer | No image bytes ship in this repository. The tracked manifest points at two third-party pictures on wallhaven, which the browser fetches at paint time; the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
+| Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures on wallhaven; the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
 | Boot mask | Shown on load; unchanged timings and triggers |
 | Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
@@ -170,7 +188,7 @@ build/                shipped assets + the two vendored client halves
 build/wallpapers.json the TRACKED wallpaper manifest — art URLs, not image bytes
 sounds/               the four task WAVs
 tools/                build, self-check, token audit, sound layer gate
-docs/                 design log, recon, audits, render reports
+docs/                 design log, recon, audits, render reports, preview shots
 NOTICE                upstream licences and third-party credits
 LICENSE               this package's layered licence
 LICENSE-CC-BY-NC-SA-4.0.txt  the CC licence text for the brand marks
@@ -264,8 +282,9 @@ in this repository, and since D81 the tracked manifest points at
 them instead of embedding them: a build shows the pictures while this repository
 carries none of their bytes and grants you no rights in them. The browser fetches
 them from wallhaven when the theme paints, so nothing is mirrored here and an
-offline machine simply has no background. Provenance, recorded because it is what
-a takedown request would be about:
+offline machine simply has no background. The one place they do appear in git is
+the two preview screenshots above, which are captures of the app painting them.
+Provenance, recorded because it is what a takedown request would be about:
 
 - Dark — **Central Dogma**, `og33jl`,
   [wallhaven.cc/w/og33jl](https://wallhaven.cc/w/og33jl), 2560×1440. Wallhaven
@@ -279,6 +298,7 @@ a takedown request would be about:
 
 We hold no permission from either artist. If you are one of them and object to
 being linked this way, say so and the entry will be dropped from
-`build/wallpapers.json` — this repository holds no copy of it either way.
+`build/wallpapers.json` and the preview shots with it — nothing here is a copy of
+the picture itself.
 
 本仓库图片来自网络流传，具体作者未确认；如原作者认为不妥，请联系删除。
