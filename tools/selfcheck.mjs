@@ -329,16 +329,19 @@ checks.check('css.11', 'the workspace pin button is styled by contract, not by h
     'the pin button does not start on the official tertiary label colour'
 })
 
-checks.check('css.12', 'the Telegram entry is styled by contract, and the filter owns its rows', () => {
-  /* Round 41 (2026-10-09). The entry button is injected by src/client.js, so this sheet may
-   * key only on the theme's own data attributes. The official header icon-button box is
-   * copied verbatim (28x28, radius-sm, no border, no background, secondary label) so the
-   * control lands on the pixels the three official buttons beside it already occupy, and the
-   * one filtering rule may hide nothing except what this theme itself tagged. */
+checks.check('css.12', 'the WeChat entry is styled by contract, and the switch owns its group', () => {
+  /* Rounds 41-44 (2026-10-09/10) styled two entries on one contract, `data-eva-tg-*`. Round 45
+   * removed the Telegram one and renamed what is left to `data-eva-wx-*`, so nothing in the
+   * sheet is named after the feature the user retired. The entry button is injected by
+   * src/client.js either way, so this sheet may key only on the theme's own data attributes.
+   * The official header icon-button box is copied verbatim (28x28, radius-sm, no border, no
+   * background, secondary label) so the control lands on the pixels the three official buttons
+   * beside it already occupy, and no rule may hide a group or a header unless the theme's own
+   * tag on the tree is part of the selector. */
   const sheet = css.replace(/\/\*[\s\S]*?\*\//g, '')
-  if (!/\[data-eva-tg-button\]\s*\{/.test(sheet)) return 'the Telegram entry has no rule'
-  if (!/\[data-eva-tg-state='on'\]\s*\{/.test(sheet)) return 'the filtering state has no rule'
-  const box = sheet.match(/\[data-eva-tg-button\]\s*\{([\s\S]*?)\}/)?.[1] ?? ''
+  if (!/\[data-eva-wx-button\]\s*\{/.test(sheet)) return 'the WeChat entry has no rule'
+  if (!/\[data-eva-wx-state='on'\]\s*\{/.test(sheet)) return 'the lit state has no rule'
+  const box = sheet.match(/\[data-eva-wx-button\]\s*\{([\s\S]*?)\}/)?.[1] ?? ''
   if (!/width:\s*28px/.test(box) || !/height:\s*28px/.test(box)) {
     return 'the entry does not copy the official 28x28 header icon box'
   }
@@ -348,16 +351,22 @@ checks.check('css.12', 'the Telegram entry is styled by contract, and the filter
   if (!/color:\s*var\(--dsw-alias-label-secondary\)/.test(box)) {
     return 'the entry does not start on the official secondary label colour'
   }
-  const filter = sheet.match(/\[data-eva-tg-tree='on'\]\s*\[data-eva-tg-row='off'\]\s*\{([\s\S]*?)\}/)?.[1] ?? ''
-  if (!/display:\s*none/.test(filter)) return 'the filtering rule does not hide anything'
-  /* Every rule that names a row state must also name the tree, so a row can never be hidden
-   * by the sheet alone -- the theme's own tag on the tree is part of the selector. */
-  const rowRules = sheet.match(/[^{}]*\[data-eva-tg-row[^{}]*\{/g) ?? []
-  const loose = rowRules.filter((rule) => !/\[data-eva-tg-tree=/.test(rule))
+  /* Both directions of the switch have to be in the sheet: the group is out while the entry is
+   * dark, and every other group is out while it is lit. One rule alone would leave the user
+   * with a list that only ever grows. */
+  const off = sheet.match(/\[data-eva-wx-tree='off'\]\s*\[data-eva-wx-group='on'\]\s*\{([\s\S]*?)\}/)?.[1] ?? ''
+  if (!/display:\s*none/.test(off)) return 'the dark state does not take the group out of the list'
+  const on = sheet.match(/\[data-eva-wx-tree='on'\]\s*>\s*:not\(\[data-eva-wx-group='on'\]\)\s*\{([\s\S]*?)\}/)?.[1] ?? ''
+  if (!/display:\s*none/.test(on)) return 'the lit state does not take the other groups out of the list'
+  /* Every rule that names a group or a header must also name the tree, so a group can never be
+   * hidden by the sheet alone -- the theme's own tag on the tree is part of the selector. */
+  const hideRules = sheet.match(/[^{}]*\[data-eva-wx-(?:group|head)[^{}]*\{/g) ?? []
+  const loose = hideRules.filter((rule) => !/\[data-eva-wx-tree=/.test(rule))
   if (loose.length > 0) {
-    return `a row is hidden outside the tree the theme tagged: ${loose.join(' | ')}`
+    return `a group is hidden outside the tree the theme tagged: ${loose.join(' | ')}`
   }
-  return true
+  /* Round 45: the Telegram half is gone, so its contract may not be left behind in the sheet. */
+  return !/data-eva-tg/.test(sheet) || 'the retired Telegram contract is still styled'
 })
 
 
@@ -533,8 +542,12 @@ checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
      The eighth (2026-10-09) is the vendored session-status rail's own disposer, also
      registered from inside its apply().
      The ninth (round 39, 2026-10-09) is the theme's own workspace-pin effect.
-     The tenth (round 41, 2026-10-09) is the theme's own Telegram-conversation filter,
-     the last one registered before the exports map. */
+     The tenth is the 工作区 row's entry, which rounds 41-44 grew into two controls and round
+     45 (2026-10-10) cut back to one: the Telegram filter it was born as was removed at the
+     user's word (「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」) and the 微信
+     switch beside it -- rounds 42 to 44 -- is all that is left, under its own label. The
+     effect was renamed, never added or split: the count is the same 10 it has been since
+     round 41. */
   const effects = client.match(/ctx\.effect\(/g) ?? []
   if (effects.length !== 10) return `${effects.length} ctx.effect() calls, expected exactly 10`
   if (!/tag\.dataset\.pluginCss = PLUGIN_ID \+ '\/theme\.css'/.test(client)) {
@@ -543,7 +556,7 @@ checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
   if (!/'evangelion: boot screen'/.test(client)) return 'the boot mask effect has no label'
   if (!/'evangelion: brand row zones'/.test(client)) return 'the brand row bridge has no label'
   if (!/'evangelion: workspace pins'/.test(client)) return 'the workspace pin effect has no label'
-  if (!/'evangelion: telegram filter'/.test(client)) return 'the Telegram filter effect has no label'
+  if (!/'evangelion: wechat workspace switch'/.test(client)) return 'the WeChat switch has no label'
   if (!/applyPluginToggle\(ctx\)/.test(client)) return 'the vendored toggle is never applied'
   return /applySessionEvaStatus\(ctx\)/.test(client) || 'the vendored session rail is never applied'
 })
@@ -720,67 +733,68 @@ checks.check('cli.25', 'the workspace pin control is injected and moves rows off
   }
   return /data-eva-ws-pin-button/.test(client) || 'the pin control carries no contract attribute'
 })
-/* Round 41 (2026-10-09): the Telegram conversation entry. It is the theme's own code, so it
-   is held to the theme's own standard: the conversations are recognised by the marker their
-   own plugin writes or by the title that plugin gives the Session (never a CSS-Modules class),
-   the rows behind the official five-row collapse come back through the official show-more
-   control rather than by any private expansion, the group that holds them is the group whose
-   header the row sits under in document order, the labels go through the locale service, and
-   nothing about the view is persisted. */
-checks.check('cli.26', 'the Telegram entry reveals the conversations through the official control', () => {
+/* Rounds 41-44 (2026-10-09/10): the 工作区 row's entry button. Round 41 made it a Telegram
+   conversation filter, round 42 added a 微信 one beside it, rounds 43-44 turned the 微信 one
+   into a switch on the dsh-wechat-plugin workspace, and round 45 removed the Telegram one at
+   the user's word (「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」). What is left
+   is one control, and it is held to the theme's own standard: the workspace is recognised by
+   the title its own plugin enforces rather than a workspace uuid (which would break on another
+   machine, a reinstall or a second profile), a folded group is unfolded through its own header
+   -- the click a user makes -- rather than by any private expansion, and the labels go through
+   the locale service. Nothing is persisted and nothing is inserted, moved or deleted: the
+   switch is attributes on the rows plus rules in the sheet. */
+checks.check('cli.26', 'the WeChat entry switches one workspace through the official controls', () => {
   if (!/var SLOT_SELECTOR = "\[data-slot='sidebar\.workspaces'\]"/.test(client)) {
-    return 'the filter does not key on the official workspaces slot'
+    return 'the switch does not key on the official workspaces slot'
   }
   if (!/var MARK_SELECTOR = "\[data-slot='sidebar\.workspaces\.directoryFlow'\]"/.test(client)) {
-    return 'the filter does not key the header row on the official marker slot'
+    return 'the switch does not key the header row on the official marker slot'
   }
-  if (!/var CHANNEL_ATTR = 'data-dsh-im-session-channel'/.test(client)) {
-    return 'the filter does not read the marker the IM plugin writes'
+  if (!/var WX_GROUP_LABEL = '微信会话'/.test(client)) {
+    return 'the switch does not name the workspace by the title its plugin enforces'
   }
-  if (!/var CHANNELS = \[\n\s*\{ id: 'telegram', marker: 'telegram', lead: 'Telegram · ' \},/.test(client)) {
-    return 'the filter has no title marker'
+  if (!/var WORKSPACE_PREFIX = 'workspace:'/.test(client)) {
+    return 'the switch does not read the official workspace row prefix'
   }
-  if (!/cell\.getAttribute\(CHANNEL_ATTR\) === channel\.marker/.test(client)) {
-    return 'the filter does not read the marker where the IM plugin writes it'
+  if (!/key === WORKSPACE_PREFIX\) continue/.test(client)) {
+    return 'the switch would match the Ungrouped bucket as the workspace'
   }
-  if (!/querySelectorAll\('\[data-row-key\]'\)/.test(client)) {
-    return 'the filter does not walk the rows by their official key attribute'
+  if (!/if \(row\.textContent\.replace\(\/\^\[ \\t\\r\\n\]\+\/, ''\)\.replace\(\/\[ \\t\\r\\n\]\+\$\/, ''\) !== WX_GROUP_LABEL\) continue/.test(client)) {
+    return 'the switch does not trim the row text before comparing it'
   }
-  if (!/document\.querySelector\('\[data-row-key="' \+ WORKSPACE_PREFIX \+ key \+ '"\]'\)/.test(client)) {
-    return 'the filter does not address the official group header by its row key'
+  if (!/scope\.querySelectorAll\('\[data-row-key\]'\)/.test(client)) {
+    return 'the switch does not walk the rows by their official key attribute'
   }
-  if (!/document\.querySelector\('\[data-row-key="' \+ OVERFLOW_PREFIX \+ key \+ '"\]'\)/.test(client)) {
-    return 'the filter does not address the official show-more control by its row key'
+  if (!/function wxGroup\(host\)/.test(client) || !/node\.parentElement !== host/.test(client)) {
+    return 'the switch does not walk up to the tree child that holds the group'
   }
-  if (!/aria-expanded/.test(client) || !/header\.click\(\)/.test(client) || !/control\.click\(\)/.test(client)) {
-    return 'the filter does not expand by clicking the official controls'
+  if (!/function wxHeadBox\(group, row\)/.test(client)) {
+    return 'the switch cannot take the group header off without its conversations'
   }
-  if (!/var workspaces = ctx\.get\('workspaces'\)/.test(client) || !/function candidates\(\)/.test(client)) {
-    return 'the filter cannot name the group a conversation lives in'
+  if (!/aria-expanded/.test(client) || !/head\.click\(\)/.test(client)) {
+    return 'the switch does not unfold a folded group through its own header'
   }
-  if (!/var opened = \{\}/.test(client) || !/var unfolded = \{\}/.test(client)) {
-    return 'the filter cannot put back exactly what it opened'
-  }
-  if (!/requestAnimationFrame\(pump\)/.test(client)) {
-    return 'the expansion is not staged one official click per frame'
-  }
-  if (!/var CLICK_LIMIT = 200/.test(client)) return 'the expansion has no stop'
   if (!/locale\.register\(NS, DICT\)/.test(client)) {
     return 'the entry labels are not registered with the locale service'
   }
-  if (!/sessions\.list/.test(client)) return 'the filter never follows the session list'
-  if (!/data-eva-tg-button/.test(client)) return 'the entry carries no contract attribute'
-  if (!/var state = 'off'/.test(client) ||
-      !/key\.indexOf\(SESSION_PREFIX\) === 0 && isChannel\(row, channel\)/.test(client)) {
-    return 'a group header can still stay on screen in filter mode'
+  if (!/var sessions = ctx\.get\('sessions'\)/.test(client) || !/list\.subscribe\(schedule\)/.test(client)) {
+    return 'the switch never follows the session list'
   }
-  if (!/if \(channel === null \|\| key\.indexOf\(SESSION_PREFIX\) === 0 && isChannel\(row, channel\)\) state = 'on'/.test(client)) {
-    return 'the rows are not tagged against the selected channel'
+  if (!/attributeFilter: \['data-row-key'\]/.test(client)) {
+    return 'the switch does not watch the row key, so its own writes would re-enter it'
+  }
+  if (!/data-eva-wx-button/.test(client)) return 'the entry carries no contract attribute'
+  if (!/var state = wxOn \? 'on' : 'off'/.test(client)) {
+    return 'the switch does not write both directions of its tree attribute'
+  }
+  if (!/host\.removeAttribute\(WX_TREE_ATTR\)/.test(client) || !/tagged\.removeAttribute\(GROUP_ATTR\)/.test(client)) {
+    return 'the switch cannot put the list back the way it found it'
   }
   if ((client.match(/setAttribute\('title'/g) ?? []).length !== 1) {
-    return 'the Telegram entry sets hover wording again (only the pin button may carry a title)'
+    return 'the entry sets hover wording again (only the pin button may carry a title)'
   }
-  return /data-eva-tg-tree/.test(client) || 'the filter marks no tree'
+  /* Round 45: the retired contract and its machine may not be left behind in the client half. */
+  return !/data-eva-tg/.test(client) || 'the retired Telegram contract is still written'
 })
 checks.check('cli.12', 'client.js embeds every token from src/tokens.json', () => {
   const embedded = client.match(/var TOKENS = (\{.*?\})\n\n/s)

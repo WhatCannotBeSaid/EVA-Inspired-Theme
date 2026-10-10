@@ -1846,53 +1846,36 @@ body [data-composer-placeholder] {
   color: var(--dsw-alias-label-primary);
 }
 
-/* ---- 第四十一轮（2026-10-09）· 工作区行的 Telegram 会话入口
- * 用户原话：「请将跟 telegram 的对话放置在工作区右侧，与「搜索」「视图选项」等处于同一行，
- * 实现点击即查看全部跟 Telecom 的会话」，约束「不改变任何原有结构；仅改变样式」，
- * 追加要求「但是会话都在未分组，所以要你显示未分组中跟Telegram的对话」。
+/* ---- 工作区行的那枚入口按钮（第 41 → 45 轮）· 现为一个工作区的开关
  *
- * 根因（源码位置，不是观感推断）：dsh-im 的一次对话就是一个普通 Session，cwd 是 IM 目录，
- * 而官方分组对「没有工作区」的会话给的是未分组桶 —— `@deepseek-ai/dsh-client-ui-workspace`
- * 的 workspaceLabel 注释逐字写「directory path, or undefined for the ungrouped bucket」。
- * 未分组桶和其他分组一样受折叠限制：同文件 lib/client.js:2120 逐字
- * `const COLLAPSED_SESSION_LIMIT = 5;`，:2606 的更新器每点一次 +5、最后一步跳到 Infinity，
- * :2609 的标签在 hiddenCount === 0 时变成「收起」——而「收起」时点一次正好回到五行。
- * 所以只藏不取是错的：隐藏只能作用于已经渲染出来的行，而这些对话根本还不在列表里。
- * 取值就必须走官方那个「展开其余 N 个会话」控件本身，也就是用户自己会点的那一下。
+ * 第 41 轮（2026-10-09）在这里放了一个 Telegram 会话筛选入口，第 42 轮（2026-10-10）在它
+ * 右边又加了一个微信入口 —— 当时两个入口共用同一套契约名 `data-eva-tg-*`（tg = telegram），
+ * 一行只持一个视图，是两个入口共用的三值状态（0 官方列表 / 1 Telegram / 2 微信）。
  *
- * 挂点：`src/client.js` 的 `'evangelion: telegram filter'` effect 把入口按钮作为官方
- * 工作区表头行的子元素插在「搜索」槽之前（该行 = `[data-slot='sidebar.workspaces.directoryFlow']`
- * 那个空标记的 parentElement），按钮带 `data-eva-tg-button`（值 telegram | weixin）与
- * `data-eva-tg-state`（on|off）；会话行 / 分组行带 `data-eva-tg-row`（on|off），
- * 会话树带 `data-eva-tg-tree`（on）。会话树用 `[data-slot='sidebar.workspaces']` 里的
- * `[role='tree']` 定位 —— 全页只有一棵，官方四个分组行、十个会话行、两个 overflow 行都在里面，
- * 所以按文档顺序走一遍就能同时认出「这一行是不是某个渠道的会话」和「这个分组里有没有」。
- * 四个都是本主题自己的契约名，不引用任何 CSS-Modules 哈希类（css.6）。
+ * 第 43 轮起微信入口不再筛会话，改成管一个工作区；第 45 轮（2026-10-10）用户点名把 Telegram
+ * 那一个整个删掉：「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」于是：
+ *   - Telegram 入口、它的渠道表、标题前缀判定、逐帧点官方「展开其余会话」控件的展开机、以及
+ *     行级过滤规则 `[data-eva-tg-tree='on'] [data-eva-tg-row='off']` 全部删除，一条不留；
+ *   - 契约名从 `data-eva-tg-*` 改名为 `data-eva-wx-*` —— 按钮与状态两个（`data-eva-wx-button`
+ *     值恒为 weixin、`data-eva-wx-state` 值 on|off），加上第 43/44 轮那三个（见下一段）。
+ *     改名是为了不再留一个以已退役功能命名的契约。
  *
- * 第 42 轮（2026-10-10）：微信入口。用户原话「参考对Telegram会话的处理，将微信的对话也转移到
- * 「工作区」一行中，就放在telegram的图标右边。」，并在「互斥切换 / 可叠加」里选了前者 ——
- * 一行只持一个视图，所以两个入口是同一个三值状态的两位（0 官方列表 / 1 Telegram / 2 微信），
- * 至多一个亮。点亮的那个即回到官方列表，这也正是开启态标签读作「显示全部会话」的原因。
- * 本段因此一条规则都不用改：入口的**值**携带渠道，行标签仍是 on/off，按当前选中渠道算，
- * 于是 `[data-eva-tg-tree='on'] [data-eva-tg-row='off']` 在两个视图里各自藏对的行。
- * 两个按钮都写在搜索槽之前、按文档顺序 Telegram 在前微信紧随其后，官方三个按钮的像素不动。
- *
- * 为什么「仅改变样式」成立：过滤本身只在本段一条规则里，effect 只写自己的属性。
- * 关掉时摘掉 `data-eva-tg-tree`，列表一个属性不差地回到官方原样；滚动位置在开时存、关完再还。
- * 状态不落盘（cli.11c 的两个写名保持原样）——视图不是偏好。
+ * 按钮仍由 `src/client.js` 的同一个 effect 插在官方工作区表头行里、搜索槽之前：那行 =
+ * `[data-slot='sidebar.workspaces.directoryFlow']` 那个空标记的 parentElement，是 flex 行且
+ * 搜索槽带 `margin-left: auto`，所以按钮正好落在「工作区」标签右边，官方「搜索」「视图选项」
+ * 「添加工作区」三个按钮的像素一个不动。定位会话树用的是 `[data-slot='sidebar.workspaces']`
+ * 里的 `[role='tree']` —— 全页只有一棵，官方各分组行与会话行都在里面。
+ * 选择器里所以找不到任何 CSS-Modules 哈希类（css.6），也不含字面色值（css.8），
+ * 令牌一律走 `var(...)`。
  *
  * 尺寸逐字照抄官方表头图标按钮（同文件 `…_iconButton` 逐字）：28×28、
- * `border-radius: var(--dsw-radius-sm)`、`background: 0 0`、`border: none`、`padding: 0`，
+ * `border-radius: var(--dsw-radius-sm)`、`background: transparent`、`border: none`、`padding: 0`，
  * 两级颜色同官方（静止 `--dsw-alias-label-secondary`，hover `--dsw-alias-label-primary`）。
- * 唯一的偏离是开启态：这里用 `--dsw-alias-brand-primary` 表达「筛选中」。
+ * 唯一的偏离是开启态：这里用 `--dsw-alias-brand-primary` 表达「这个工作区被举起中」。
  *
- * 不动：表头行的高度 / 内边距 / 圆角，官方「搜索」「视图选项」「添加工作区」三个按钮的像素
- * （实测插入前后 label 16..58、入口 62、搜索 176、视图选项 208、添加工作区 240，逐字相同；
- * 第 42 轮的微信入口落在 90..118，是 Telegram 那格右边的空档，官方三按钮仍各自不动 ——
- * 入口所以不写 `margin-left: auto`，那会和搜索槽平分空档并把官方按钮挤出这一行），
- * 分组头与行本身的结构（只插一个节点、不移一个节点），官方重复折叠控件的显隐与文案，
- * 以及暗色档 —— 不新增也不修改任何令牌（dark.1 冻结）。回滚 = 删本段四条规则。 */
-[data-eva-tg-button] {
+ * 不动：表头行的高度 / 内边距 / 圆角，官方那三个按钮的像素，以及暗色档 —— 不新增也不修改
+ * 任何令牌（dark.1 冻结）。回滚 = 删本节两条规则。 */
+[data-eva-wx-button] {
   box-sizing: border-box;
   display: inline-flex;
   flex: none;
@@ -1908,14 +1891,65 @@ body [data-composer-placeholder] {
   cursor: pointer;
 }
 
-[data-eva-tg-button]:hover {
+[data-eva-wx-button]:hover {
   color: var(--dsw-alias-label-primary);
 }
 
-[data-eva-tg-state='on'] {
+[data-eva-wx-state='on'] {
   color: var(--dsw-alias-brand-primary);
 }
 
-[data-eva-tg-tree='on'] [data-eva-tg-row='off'] {
+/* ── 第 43–44 轮（2026-10-10）：微信入口改成一个工作区的开关 ───────────────────────────
+ *
+ * 用户原话（m00153）：「1 是那枚筛选按钮 2「微信会话」及其里面的会话一起搬。 3.点亮微信按钮时
+ * 才出现。先去掉微信按钮先前的功能，然后加入我现在要求的功能。」所以这枚按钮不再筛会话，它管
+ * 的是 dsh-wechat-plugin 建出来的那个工作区 —— 那正好是同一棵树上的一组。关着的时候这一组根本
+ * 不在列表里；点亮时反过来，只剩这一组，它的会话标题直接顶到「工作区」标题行下方。
+ *
+ * 用户原话（m00496，第 44 轮的裁定）：「点亮微信按钮时，侧栏工作区列表内只显示「微信会话」下的
+ * 会话条目，其他工作区不得保留，也不得以置顶方式出现；同时不显示「微信会话」这个工作区分组标题，
+ * 只显示该分组下的会话标题。」第 43 轮只做了 `order: -1`，那是一次「提到最前」，不是过滤 ——
+ * 用户看到的正是这个差额：其他工作区一个没少，只是被挤下去了。换成真过滤后才是他要的。
+ *
+ * 三条规则各管一件事，都只认本 effect 自己写的契约属性，所以既不和 React 的渲染抢节点，关掉
+ * 也只是把属性改回去：组属性标记那一组、树属性切换开关、头属性摘掉分组标题。每条都写成
+ * (0,2,0) 的两段式（树属性 + 目标属性），刻意压过 CSS-Modules 只管一层的类选择器 —— 本主题的
+ * 样式表与宿主样式表同级，靠层叠顺序决定谁赢是不安全的。
+ *
+ * 真机实测（1256×821，第 44 轮）：关着时是官方的四组 34/68/232/232；点亮后树里只剩那一组，
+ * 会话行落在表头行（下沿 124）下方的 y=130/164，树内容高从 687 收回这一组自己的高度。
+ * 分组标题由 client.js 打在**它的容器**上（宿主把这一行包在一枚只含它的 SPAN 里），所以隐藏
+ * 容器只摘标题、不动会话；头行不在这样的容器里时（未分组那种形状）才退化成标记行本身。
+ *
+ * 第 45 轮（2026-10-10）只删不改这里的逻辑：Telegram 那半连同行级过滤规则一起退役，本段三条
+ * 一字未动（它们从来只认 `data-eva-wx-*`，与 telegram 无关），只是上面那个 Telegram 筛选规则
+ * 没了之后，这棵树上的隐藏规则就只剩本段这三条，全部带 `data-eva-wx-tree=` 前缀。
+ *
+ * 不动：官方结构（零插入、零移动、零删除）、其他各组的内部结构、表头行、行高、圆角、颜色令牌，
+ * 以及上面那两条入口尺寸规则（本段一律不碰 `data-eva-wx-button` / `data-eva-wx-state`）。
+ * 回滚 = 删本段三条。 */
+[data-eva-wx-tree='off'] [data-eva-wx-group='on'] {
   display: none;
+}
+
+[data-eva-wx-tree='on'] > :not([data-eva-wx-group='on']) {
+  display: none;
+}
+
+[data-eva-wx-tree='on'] [data-eva-wx-head='on'] {
+  display: none;
+}
+
+/* 标题摘掉后，紧跟其后的第一条会话仍带着宿主的 `.groupSection > * + *` 那 2px —— 那 2px 是
+ * 「标题与第一条会话之间」的间隔，标题没了它就只是一条凭空多出来的缝；更要紧的是它会跟组的
+ * 上边距发生折叠，把整组从表头下沿推下去 2px。两条一起收掉，会话标题就正好落在表头行下面。 */
+[data-eva-wx-tree='on'] [data-eva-wx-head='on'] + * {
+  margin-top: 0;
+}
+
+[data-eva-wx-tree='on'] [data-eva-wx-group='on'] {
+  /* 只剩这一组时它仍可能不是 DOM 里的长子（Yu 在前面），宿主的
+     .groupSection + .groupSection 照旧按 DOM 兄弟序收它 4px；那 4px 是给「它下面还有一组」
+     留的缝，而现在下面没有了，所以收掉。 */
+  margin-top: 0;
 }

@@ -820,126 +820,86 @@
         return dispose
       }, 'evangelion: workspace pins')
 
-      /* Round 41 (2026-10-09) -- the Telegram conversations, one click from the 工作区
-         row. User's words: 「请将跟 telegram 的对话放置在工作区右侧，与「搜索」「视图选项」
-         等处于同一行，实现点击即查看全部跟 Telecom 的会话」，约束「不改变任何原有结构；
-         仅改变样式」，追加要求「但是会话都在未分组，所以要你显示未分组中跟Telegram的对话」.
+      /* Round 43 (2026-10-10) -- the 微信 entry, one click from the 工作区 row.
 
-         Where they are: a dsh-im conversation is an ordinary Session whose cwd is the IM
-         directory, so the host groups all of them into the Ungrouped bucket -- and
-         Ungrouped is a group like any other, which means the official list renders five
-         of its rows and keeps the rest behind its own show-more control
-         (@deepseek-ai/dsh-client-ui-workspace lib/client.js:2120 COLLAPSED_SESSION_LIMIT;
-         :2606 the updater that adds five per click and jumps to Infinity on the last
-         step; :2609 the label). A filter that only hid rows would be filtering a list the
-         conversations are not in yet, so the rows come back through that same official
-         control -- the very click a user would make. A fully expanded group collapses
-         back to the official five in exactly one click, which is why every expansion here
-         runs to completion and the way out is one click per group.
+         Round 41 put a Telegram filter on this row and round 42 a 微信 entry beside it.
+         Round 45 (later the same day) removed the Telegram one at the user's word:
+         「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」 Its whole machine --
+         the channel list, the title marker, the staged expansion through the official
+         show-more control, the row tags -- went with it. What is left is a switch on ONE
+         workspace, which is what round 43 had already asked for and what round 44 finished:
+         「1 是那枚筛选按钮 2「微信会话」及其里面的会话一起搬。 3.点亮微信按钮时才出现。
+         先去掉微信按钮先前的功能，然后加入我现在要求的功能。」
 
-         What counts as one: the row dsh-im marks itself (data-dsh-im-session-channel,
-         from its plugin-src/client/session-channel-logos.js) or, when that plugin is not
-         in the profile, the title it gives the Session it opens ('Telegram -- <first
-         message>'). Both are read off the row; no CSS-Modules class is named anywhere.
+         What it acts on: the workspace dsh-wechat-plugin creates and names 微信会话. It
+         arrives as one group of this same tree, so the switch needs no service call and no
+         host-side door -- the group is a DOM node. While the switch is off that group is
+         out of the list; while it is on every OTHER group is out of the list instead, so
+         the list holds the 微信 conversations and nothing else.
 
-         What is added: exactly one button, as a child of the 工作区 row immediately before
-         the search slot. That row is a flex line with justify-content: flex-end and the
-         search slot carries margin-left: auto, so an item placed there sits immediately
-         right of the 工作区 label while the search button and both official icon buttons
-         keep the pixels they already had (measured: label 16..58, entry 62, search 176,
-         view options 208, add workspace 240 -- identical before and after).
+         Round 43 tried to get there with order: -1 alone, which only lifts a group. The
+         other workspaces were still there, merely pushed down, and the user reported
+         exactly that difference: 「点亮微信按钮时，侧栏工作区列表内只显示「微信会话」下的
+         会话条目，其他工作区不得保留，也不得以置顶方式出现；同时不显示「微信会话」这个
+         工作区分组标题，只显示该分组下的会话标题。」 A lift is not a filter, and the sheet
+         has no way to filter with order -- hiding is display: none.
 
-         Where the hiding lives: in the sheet, under one attribute on the session tree.
-         This effect only tags rows (data-eva-tg-row: on | off) and the tree
-         (data-eva-tg-tree), so mode off drops the tag and the list is the official list
-         again, attribute for attribute. Nothing is persisted -- a view is not a
-         preference, and cli.11c keeps its two named writes.
+         The same words pin the other two halves: the group's own header comes off the list
+         too (that is what leaves its Session titles showing bare), and a folded group is
+         unfolded through its own header click -- a folded group renders no Session rows at
+         all and its header is hidden here, so lighting the entry on one would otherwise
+         leave an empty list.
 
-         The expansion is staged one official click per animation frame. A synchronous
-         loop is correct and rude: each click re-renders the whole tree (tens of
-         milliseconds once a group holds a couple of hundred rows), so forty of them in
-         one task would freeze the page the user is looking at.
+         Why nothing is moved: the group is a flex item of the tree, the tree is the scroll
+         box, and every write is one attribute this effect owns. React's own render is never
+         fought, and putting the list back is removing the attributes -- nothing on the
+         screen is inserted, moved or deleted.
 
-         Round 42 (2026-10-10) -- the 微信 conversations, one click further right. User's
-         words: 「参考对Telegram会话的处理，将微信的对话也转移到「工作区」一行中，就放在
-         telegram的图标右边。」, and for what a click means they chose 互斥切换 over
-         可叠加: the row holds one view, not two, so the two entries are two positions of a
-         single three-valued state (0 = the official list, 1 = Telegram, 2 = 微信) and at
-         most one of them can be lit. Clicking the lit one, or switching to the other,
-         re-tags the rows and drives the same official controls to whatever that view needs.
+         The entry is one button, a child of the 工作区 row immediately before the search
+         slot. That row is a flex line with justify-content: flex-end and the search slot
+         carries margin-left: auto, so the button sits immediately right of the 工作区 label
+         while the search button and both official icon buttons keep the pixels they already
+         had. It wore a contract named after Telegram while a Telegram entry shared its box;
+         round 45 renamed the pair to data-eva-wx-button / data-eva-wx-state, so nothing in
+         this theme is named after the feature the user retired.
 
-         What that cost: nothing in the sheet. The button, state, row and tree attributes
-         already say exactly what they said -- the entry's *value* carries the channel now
-         (data-eva-tg-button = telegram | weixin) and the row tag stays on/off, computed
-         against whichever channel is selected, so the tree-on/row-off pair in the sheet
-         hides the right rows in both views without a second rule.
-         Round 41's css.12 therefore keeps passing on the same four rules, verbatim.
-
-         The second entry is inserted immediately after the first, both before the search
-         slot, so the row reads 工作区 · (plane) (bubbles) ... search / view options / add
-         workspace and every official control keeps the pixels it had. The 微信 artwork is
-         drawn from the outline the user supplied (see ICONS below), not copied from the IM
-         plugin's filled logo. */
+         The list is a list of Workspaces, so the workspace title is the only handle that
+         survives a reinstall, a second profile or another machine -- see WX_GROUP_LABEL. */
       ctx.effect(() => {
         if (typeof document === 'undefined') return undefined
 
-        var BUTTON_ATTR = 'data-eva-tg-button'
-        var STATE_ATTR = 'data-eva-tg-state'
-        var ROW_ATTR = 'data-eva-tg-row'
-        var TREE_ATTR = 'data-eva-tg-tree'
-        var SESSION_PREFIX = 'session:'
+        var BUTTON_ATTR = 'data-eva-wx-button'
+        var STATE_ATTR = 'data-eva-wx-state'
+        var GROUP_ATTR = 'data-eva-wx-group'
+        var WX_TREE_ATTR = 'data-eva-wx-tree'
+        var HEAD_ATTR = 'data-eva-wx-head'
         var WORKSPACE_PREFIX = 'workspace:'
-        var OVERFLOW_PREFIX = 'overflow:'
-        var CHANNEL_ATTR = 'data-dsh-im-session-channel'
-        /* The conversations this theme can single out, in the order their two entries sit
-           in the 工作区 row: Telegram first (round 41), 微信 second (round 42). The marker
-           is the value dsh-im writes into data-dsh-im-session-channel -- measured on the
-           live list, it lands on the TITLE SPAN (the row's second child), not on the row
-           itself -- and the lead is the exact prefix that plugin gives the Session it
-           opens: src/channels/shared/session-channel-labels.mjs:2 is
-           weixin: ['微信', 'WeChat'] and parseSessionChannelTitle (:17-27) accepts only the
-           label-plus-space-middot-space lead. The dot is part of the test on purpose: '微信' alone is a prefix of any session whose title
-           merely starts with those two characters (one such row was live when this was
-           written: 微信会话移入工作区行Telegram右侧), and the filter showed it in the 微信
-           view until the lead was made exact. */
-        var CHANNELS = [
-          { id: 'telegram', marker: 'telegram', lead: 'Telegram · ' },
-          { id: 'weixin', marker: 'weixin', lead: '微信 · ' },
-        ]
+        /* The workspace dsh-wechat-plugin creates and names. Its title is enforced by that
+           plugin on every start (lib/host.js:72 WORKSPACE_TITLE = '微信会话', written back at
+           :2632-2633 await workspace.setTitle(title)), so it does not follow the locale, and
+           it is matched against the GROUP ROW'S OWN TEXT rather than a hard-coded workspace
+           id -- a uuid would break on another machine, a reinstall or a second profile, while
+           the title is what the user reads on that row. A missing match costs this entry its
+           effect and nothing else. */
+        var WX_GROUP_LABEL = '微信会话'
         /* The host's own names for the 工作区 area and for the empty marker that is a
            direct child of that row -- both are slots, not CSS-Modules classes. */
         var SLOT_SELECTOR = "[data-slot='sidebar.workspaces']"
         var MARK_SELECTOR = "[data-slot='sidebar.workspaces.directoryFlow']"
-        /* 46 official clicks take a group of 231 rows to fully expanded. The limit stops
-           a control that stops answering; it is not a budget. */
-        var CLICK_LIMIT = 200
+        /* The entry's id: what the button carries in BUTTON_ATTR, which is also the value the
+           sheet's own attribute selectors never have to name -- there is one entry now. */
+        var WX_ENTRY_ID = 'weixin'
 
-        /* The row's own icons are 16x16 in a 16 viewBox, 1px stroke, currentColor. This is the
-           same box, and the artwork is the user's own file (fNsqp0wiUPdzR9MAk8YXg12Iy4SlG7ZD.svg,
-           a trace of the paper plane they asked for) -- its OUTER CONTOUR path, kept verbatim.
-           The user's words for this: 只留你那张图的外轮廓（去掉两条内折线），回到 16px. So of the
-           file's five outline paths only the closed silhouette is drawn; the two long folds,
-           the fin triangle and the file's filled facets are left out. Three changes were needed
-           to put a 220-unit drawing in a 28x28 button --
-             - the file's background square path is dropped: a button has to stay transparent;
-             - the hard-coded grey becomes currentColor, so :hover and the on state work;
-             - the viewBox is tightened to the plane (it spans x 39.86..178.74, y 68.42..151.73,
-               hence 33.86 34.64 150.88 150.88) and the stroke rescaled to one CSS pixel:
-               150.88/16 = 9.43 user units.
-           Measured on the way here: the file's full five-line artwork turns into a dark blob at
-           16px and only reads from about 20px, which is why the contour alone is what stays.
-           Inline SVG, never a bitmap, so the icon keeps its vector edge on a scaled display.
-
-           The 微信 artwork (round 42, 2026-10-10) is the second entry's, and it was drawn
-           from the outline the user supplied rather than copied from the IM plugin's filled
-           24-unit logo, at the user's instruction: 参考这个画一个. The file it came from --
-           _work/wx-ref.html in the working tree, a 204x184 JPEG -- was measured, not
-           traced by eye: the ink is ONE closed contour (5 086 px, one enclosed hole) plus
-           four filled eye disks, so the drawing is two ellipses whose mutual overlap is
-           erased on the back bubble only, two tail triangles, and four dots. The two
-           centre-lines were fitted to the outline pixels (least squares on an iteratively
-           re-assigned boundary set) and land here at A(5.799, 6.142, 5.502x4.488) and
-           B(11.075, 9.405, 4.620x3.817); the eyes at (3.899, 4.681), (7.720, 4.672),
+        /* The row's own icons are 16x16 in a 16 viewBox, 1px stroke, currentColor, and this
+           one is drawn to that box. The artwork is the outline the user supplied rather than
+           a copy of the IM plugin's filled 24-unit logo, at their instruction: 参考这个画一个.
+           The file it came from -- _work/wx-ref.html in the working tree, a 204x184 JPEG --
+           was measured, not traced by eye: the ink is ONE closed contour (5 086 px, one
+           enclosed hole) plus four filled eye disks, so the drawing is two ellipses whose
+           mutual overlap is erased on the back bubble only, two tail triangles, and four
+           dots. The two centre-lines were fitted to the outline pixels (least squares on an
+           iteratively re-assigned boundary set) and land here at A(5.799, 6.142, 5.502x4.488)
+           and B(11.075, 9.405, 4.620x3.817); the eyes at (3.899, 4.681), (7.720, 4.672),
            (9.606, 8.524), (12.618, 8.528); the tails from (2.561, 9.771) to a tip at
            (1.850, 11.200) and from (11.632, 13.194) to (14.337, 14.088). Re-drawing that
            geometry scores 0.827 IoU against the source ink at its own resolution, which is
@@ -950,28 +910,24 @@
            through the front bubble the reference does not have); and the stroke stays at
            ONE user unit like every other icon in this row, where the reference's own
            proportion would be 0.63 and read as a hairline at 16px.
-           Measured the same way as the plane: at 16px the two bubbles and all four eyes
-           resolve; the same artwork at 32px is unambiguous. */
-        var ICONS = {
-          telegram: '<svg width="16" height="16" viewBox="33.86 34.64 150.88 150.88" fill="none" stroke="currentColor" stroke-width="9.43" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-            '<path d="M 84.82 151.73 L 99.95 136.60 L 127.00 149.44 Q 143.55 123.79 178.25 70.49 Q 178.74 69.75 178.64 68.42 L 39.86 108.11 L 70.13 122.47 L 84.82 151.73"/>' +
-            '</svg>',
-          weixin: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-            '<ellipse cx="11.075" cy="9.405" rx="4.62" ry="3.817"/>' +
-            '<path d="M6.684 10.572A5.502 4.488 0 1 1 11.26 5.593"/>' +
-            '<path d="M2.561 9.771L1.85 11.2L4.287 10.458Z M11.632 13.194L14.337 14.088L13.374 12.716Z"/>' +
-            '<path fill="currentColor" stroke="none" d="M3.155 4.681a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M6.976 4.672a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M9.018 8.524a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0M12.029 8.528a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0"/>' +
-            '</svg>',
-        }
+             Measured the same way: at 16px the two bubbles and all four eyes resolve; the
+           same artwork at 32px is unambiguous. Inline SVG, never a bitmap, so the icon keeps
+           its vector edge on a scaled display. */
+        var ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<ellipse cx="11.075" cy="9.405" rx="4.62" ry="3.817"/>' +
+          '<path d="M6.684 10.572A5.502 4.488 0 1 1 11.26 5.593"/>' +
+          '<path d="M2.561 9.771L1.85 11.2L4.287 10.458Z M11.632 13.194L14.337 14.088L13.374 12.716Z"/>' +
+          '<path fill="currentColor" stroke="none" d="M3.155 4.681a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M6.976 4.672a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M9.018 8.524a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0M12.029 8.528a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0"/>' +
+          '</svg>'
 
-        /* Three labels through the official locale service, the door the pin control and
-           the vendored switch already use. A missing or throwing seat costs the wording only.
-           The namespace keeps its round-41 name: renaming it would only cost a registered
-           dictionary if a second copy of this theme were ever mounted beside this one. */
-        var NS = 'eva-telegram-filter'
+        /* Two labels through the official locale service, the door the pin control and the
+           vendored switch already use. A missing or throwing seat costs the wording only.
+           A key is a name, and the wording names the action rather than a view, because
+           that is what the control does: bring the workspace up, and put it back. */
+        var NS = 'eva-wechat-workspace'
         var DICT = {
-          zh: { telegram: '只看 Telegram 会话', weixin: '只看微信会话', all: '显示全部会话' },
-          en: { telegram: 'Show Telegram conversations', weixin: 'Show WeChat conversations', all: 'Show all conversations' },
+          zh: { weixin: '显示「微信会话」工作区', hidewx: '隐藏「微信会话」工作区' },
+          en: { weixin: 'Show the WeChat workspace', hidewx: 'Hide the WeChat workspace' },
         }
         var translate = null
         var locale = ctx.get('locale')
@@ -994,18 +950,12 @@
           return DICT.en[key]
         }
 
-        /* 0 = the official list, 1 = Telegram conversations only, 2 = 微信 conversations
-           only. One number, three views: the two entries are its positions, so switching
-           from one channel to the other is one assignment and never a stacked tag. */
-        var mode = 0
-        var action = 0      /* what the pump is driving toward: 1 reveal, 0 restore */
-        var opened = {}     /* the groups whose show-more control this effect expanded */
-        var unfolded = {}   /* the groups whose folded header this effect unfolded */
-        var frame = 0
-        var clicks = 0
-        var scroll = null
         var scheduled = false
         var disposed = false
+        /* Whether the entry is lit. The group itself is looked up again on every pass rather
+           than remembered across one, because React remounts the tree and a node remembered
+           from the last pass may already be gone. */
+        var wxOn = false
 
         function schedule() {
           if (scheduled || disposed) return
@@ -1023,8 +973,7 @@
         }
 
         /* The session tree. The host renders exactly one role=tree, inside the workspaces
-           slot, and every row -- group headers included -- lives in it, so one walk of the
-           tree sees both the group a Session sits under and the Session itself. */
+           slot, and every row -- group headers included -- lives in it. */
         function tree() {
           var slot = document.querySelector(SLOT_SELECTOR)
           if (slot === null) return null
@@ -1039,110 +988,144 @@
           return typeof key === 'string' ? key : null
         }
 
-        /* dsh-im marks its own rows; the title it gives the Session is the marker that
-           survives a profile without that plugin. Both live on the row's second child --
-           the first is the slot the channel logo sits in -- and the marker is read off
-           that cell rather than the row, which is where the live list puts it. The lead
-           test keeps the trailing dot, or an ordinary session titled 微信... would join
-           the 微信 view. */
-        function isChannel(row, channel) {
-          var cell = row.children.length > 1 ? row.children[1] : null
-          if (cell === null) return false
-          if (cell.getAttribute(CHANNEL_ATTR) === channel.marker) return true
-          if (row.getAttribute(CHANNEL_ATTR) === channel.marker) return true
-          var text = cell.textContent
-          if (typeof text !== 'string') return false
-          return text.replace(/^[ \t\r\n]+/, '').indexOf(channel.lead) === 0
+        /* The group container that holds the 微信 workspace, or null. Every row of the list is
+           a treeitem whose data-row-key carries its kind, so the walk finds the header
+           wherever it sits, and the title is what it is matched on: dsh-wechat-plugin enforces
+           微信会话 on that workspace at every start, while a workspace uuid would break on
+           another machine, a reinstall or a second profile. The Ungrouped header is excluded
+           by its empty suffix.
+
+           The node returned is the tree's OWN child, found by walking up rather than by
+           counting parentElements: the live list wraps a header as tree > groupSection >
+           wrapper > row, but the Ungrouped header hangs straight off its group section. The
+           walk makes both shapes land on the container the sheet has to tag, and the middle
+           of a wrapper is never returned by mistake. */
+        function wxGroup(host) {
+          var row = wxHead(host)
+          if (row === null) return null
+          var node = row
+          while (node.parentElement !== null && node.parentElement !== host) node = node.parentElement
+          return node.parentElement === host ? node : null
         }
 
-        /* The channel the selected view is about, or null for the official list. */
-        function selected() {
-          return mode === 0 ? null : CHANNELS[mode - 1]
-        }
-
-        /* Tag every row for the sheet: a Session row says whether it is a conversation of
-           the selected channel, and every other row -- group headers and the overflow
-           controls alike -- is off. The Ungrouped header goes off with them: the user asked
-           for the 未分组 header itself to disappear in filter mode, leaving the conversations
-           alone, without touching how its Sessions show or switch (m00881). Only a changed
-           value is written: an observer-driven pass has to be silent when nothing changed
-           (round 40). Outside filter mode every row is on, which is what the sheet's
-           selector needs to stop hiding anything the moment the tree attribute goes. */
-        function mark(host) {
-          var channel = selected()
-          var list = host.querySelectorAll('[data-row-key]')
+        /* The 微信 workspace's own header row, wherever it sits. The 分组标题 is hidden
+           through this row's wrapper, so the search lives here and wxGroup() is built on top
+           of it. */
+        function wxHead(scope) {
+          var rows = scope.querySelectorAll('[data-row-key]')
           var i
           var row
           var key
-          for (i = 0; i < list.length; i++) {
-            row = list[i]
+          for (i = 0; i < rows.length; i++) {
+            row = rows[i]
             key = keyOf(row)
-            if (key === null) continue
-            var state = 'off'
-            if (channel === null || key.indexOf(SESSION_PREFIX) === 0 && isChannel(row, channel)) state = 'on'
-            if (row.getAttribute(ROW_ATTR) !== state) row.setAttribute(ROW_ATTR, state)
+            if (key === null || key.indexOf(WORKSPACE_PREFIX) !== 0) continue
+            if (key === WORKSPACE_PREFIX) continue
+            if (row.textContent.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '') !== WX_GROUP_LABEL) continue
+            return row
           }
+          return null
         }
 
-        /* The one attribute the sheet filters on. Absent means the list is the host's. */
-        function view(host) {
-          if (mode !== 0) {
-            if (host.getAttribute(TREE_ATTR) !== 'on') host.setAttribute(TREE_ATTR, 'on')
+        /* What gets hidden to take the 分组标题 off the list: the header row's own container.
+           The live list wraps that row in a SPAN that holds exactly it, so hiding the wrapper
+           hides the title and nothing else; a header hanging straight off its group (the
+           Ungrouped shape) has the group as its parent and is returned as-is, and the caller
+           only tags it when it is not the group itself. */
+        function wxHeadBox(group, row) {
+          var node = row
+          while (node.parentElement !== null && node.parentElement !== group) node = node.parentElement
+          return node
+        }
+
+        /* Three attributes in the shape the sheet reads: one on the tree, one on the group it
+           found, one on the group's own header container. Nothing is inserted, moved or
+           deleted: while the switch is off the group is out of the list with display: none,
+           and while it is on every OTHER group is out of the list instead, so the list holds
+           the 微信 conversations and nothing else. The group's own header is hidden with them,
+           which is what leaves its Session titles showing bare.
+
+           Every write is differenced: this pass runs from a MutationObserver and a write that
+           happens unconditionally would schedule the next pass forever. */
+        function wxView(host) {
+          var group = wxGroup(host)
+          if (group === null) {
+            if (host.getAttribute(WX_TREE_ATTR) !== null) host.removeAttribute(WX_TREE_ATTR)
+            var lost = host.querySelector('[' + HEAD_ATTR + ']')
+            if (lost !== null) lost.removeAttribute(HEAD_ATTR)
             return
           }
-          if (host.getAttribute(TREE_ATTR) !== null) host.removeAttribute(TREE_ATTR)
+          var head = wxHead(group)
+          var box = head === null ? null : wxHeadBox(group, head)
+          /* The header is hidden through the box that holds exactly it. A header hanging
+             straight off its group has no such box, and then the row itself is tagged. */
+          var target = box === null ? null : box === group ? head : box
+          if (target !== null && target.getAttribute(HEAD_ATTR) !== 'on') target.setAttribute(HEAD_ATTR, 'on')
+          if (group.getAttribute(GROUP_ATTR) !== 'on') group.setAttribute(GROUP_ATTR, 'on')
+          var state = wxOn ? 'on' : 'off'
+          if (host.getAttribute(WX_TREE_ATTR) !== state) host.setAttribute(WX_TREE_ATTR, state)
+          /* A folded group renders no Session rows at all -- only its header -- and that
+             header is hidden while the switch is on, so lighting the entry on a folded group
+             would leave an empty list. Its own header click is the unfold, the same official
+             control the user would press; it is pressed only while folded, so it cannot fight
+             a fold the user makes twice. */
+          if (wxOn && head !== null && head.getAttribute('aria-expanded') === 'false') head.click()
         }
 
-        /* A button carries the channel it selects in its value, and is on exactly when that
-           channel is the selected view. With one view lit at a time, clicking the lit entry
-           is also how the user gets back to the official list, which is why the label under
-           it reads 显示全部会话 once it is on. */
-        function decorate(button, channel) {
-          var on = mode !== 0 && CHANNELS[mode - 1].id === channel.id
-          var text = label(on ? 'all' : channel.id)
+        /* The switch itself. It flips the flag and lets one ordinary pass do the writing, so
+           a press and a re-render take exactly the same path and cannot disagree. The scroll
+           nudge that follows is the only scroll this side touches: the list can be scrolled
+           deep when the switch is pressed, and a shorter list that keeps that offset would
+           open on blank space. */
+        function setWx(on) {
+          wxOn = on
+          paint()
+          var host = tree()
+          if (host !== null && wxOn && host.scrollTop !== 0) host.scrollTop = 0
+        }
+
+        /* One stable handler: what was pressed is this entry, and dispose can unhook it
+           without having kept a closure per button. A bubble-phase stopPropagation keeps the
+           host's own onClick out -- React delegates at #root, below document, the same
+           measurement the brand row zones effect relies on. */
+        function onWxToggle(event) {
+          stop(event)
+          setWx(!wxOn)
+        }
+
+        /* The button wears the official header icon-box contract the sheet sizes at 28x28,
+           and its on state answers to its own switch rather than to a selected view. The name
+           lives in aria-label only -- which is not drawn -- so hovering shows no wording in
+           either state; a title left by an earlier build is taken off rather than left to pop
+           up on hover. */
+        function decorateWx(button) {
+          var on = wxOn
+          var text = label(on ? 'hidewx' : 'weixin')
           var state = on ? 'on' : 'off'
-          if (button.getAttribute(BUTTON_ATTR) !== channel.id) button.setAttribute(BUTTON_ATTR, channel.id)
-          /* The name lives in aria-label only -- which is not drawn -- so hovering an entry
-             shows no wording in either state (m00881). A title left by an earlier build is
-             taken off the button rather than left to pop up on hover. */
+          if (button.getAttribute(BUTTON_ATTR) !== WX_ENTRY_ID) button.setAttribute(BUTTON_ATTR, WX_ENTRY_ID)
           if (button.getAttribute('aria-label') !== text) button.setAttribute('aria-label', text)
           if (button.getAttribute('title') !== null) button.removeAttribute('title')
           if (button.getAttribute(STATE_ATTR) !== state || button.firstElementChild === null) {
             button.setAttribute(STATE_ATTR, state)
             button.setAttribute('aria-pressed', on ? 'true' : 'false')
-            button.innerHTML = ICONS[channel.id]
+            button.innerHTML = ICON
           }
         }
 
-        function create(channel) {
+        function create() {
           var button = document.createElement('button')
           button.type = 'button'
+          button.setAttribute(BUTTON_ATTR, WX_ENTRY_ID)
           /* The row's own click opens its group and its mousedown starts a drag; neither
-             belongs to this control. React delegates at #root, below document, so a
-             bubble-phase stopPropagation keeps the host's onClick out -- the same
-             measurement the brand row zones effect relies on. */
+             belongs to this control. */
           button.addEventListener('mousedown', stop)
           button.addEventListener('pointerdown', stop)
-          button.addEventListener('click', onEntryClick)
-          decorate(button, channel)
+          button.addEventListener('click', onWxToggle)
           return button
         }
 
-        /* One stable handler for both entries: which channel was pressed is read back off
-           the button, so dispose can unhook it without having kept a closure per button. */
-        function onEntryClick(event) {
-          var id = this.getAttribute(BUTTON_ATTR)
-          for (var i = 0; i < CHANNELS.length; i++) {
-            if (CHANNELS[i].id === id) {
-              onToggle(event, CHANNELS[i])
-              return
-            }
-          }
-        }
-
-        /* The two entries, in the row's own document order: Telegram first, then 微信
-           immediately to its right, both before the search slot. Each is created only when
-           missing, so a re-render that drops one puts it back beside the other. */
+        /* The entry, in the row's own document order: immediately before the search slot.
+           Created only when missing, so a re-render that drops it puts it back. */
         function entry() {
           var marker = document.querySelector(MARK_SELECTOR)
           if (marker === null || marker.parentElement === null) return
@@ -1151,31 +1134,16 @@
           for (var i = 0; i < host.children.length; i++) {
             if (host.children[i].querySelector('input') !== null) { slot = host.children[i]; break }
           }
-          var previous = null
-          for (var j = 0; j < CHANNELS.length; j++) {
-            var channel = CHANNELS[j]
-            var button = host.querySelector('[' + BUTTON_ATTR + "='" + channel.id + "']")
-            if (button === null) {
-              button = create(channel)
-              /* The node this entry has to sit before to keep the row's order: the entry
-                 to its right if that one is already there, otherwise the search slot --
-                 and the slot's own margin-left: auto keeps every official control where it
-                 was, right of the 工作区 label. */
-              var before = null
-              if (previous !== null && previous.parentElement === host) before = previous.nextSibling
-              else {
-                for (var k = j + 1; k < CHANNELS.length && before === null; k++) {
-                  var later = host.querySelector('[' + BUTTON_ATTR + "='" + CHANNELS[k].id + "']")
-                  if (later !== null) before = later
-                }
-                if (before === null) before = slot
-              }
-              if (before === null) host.appendChild(button)
-              else host.insertBefore(button, before)
-            }
-            decorate(button, channel)
-            previous = button
+          var button = host.querySelector('[' + BUTTON_ATTR + "='" + WX_ENTRY_ID + "']")
+          if (button === null) {
+            button = create()
+            /* The node this entry has to sit before to keep the row's order: the search
+               slot, whose own margin-left: auto keeps every official control where it was,
+               right of the 工作区 label. */
+            if (slot === null) host.appendChild(button)
+            else host.insertBefore(button, slot)
           }
+          decorateWx(button)
         }
 
         function paint() {
@@ -1183,199 +1151,12 @@
           entry()
           var host = tree()
           if (host === null) return
-          mark(host)
-          view(host)
-        }
-
-        /* The groups that hold a conversation of the selected channel, read from the two
-           snapshots the vendored rail already reads instead of guessed from whatever happens
-           to be rendered. The host's own model groups a Session by its cwd -- ui-workspace:
-           'summary.cwd === workspace.path', plus a workspaceBySession map built from
-           workspace.sessionIds -- and its key for the Ungrouped bucket is the empty
-           suffix. This is what makes the entry work cold: a folded group renders no rows
-           at all, so nothing on screen says which group the conversations are in. */
-        function candidates() {
-          var out = []
-          var channel = selected()
-          if (channel === null) return out
-          if (list === null || typeof list.getSnapshot !== 'function') return out
-          var snapshot = null
-          try { snapshot = list.getSnapshot() } catch (error) { snapshot = null }
-          if (snapshot === null || snapshot.byId === undefined || snapshot.byId === null) return out
-          var items = []
-          var wlist = workspaces === undefined || workspaces === null ? null : workspaces.list
-          if (wlist !== null && wlist !== undefined && typeof wlist.getSnapshot === 'function') {
-            try {
-              var wsnapshot = wlist.getSnapshot()
-              if (wsnapshot !== null && wsnapshot.items !== undefined && wsnapshot.items !== null) items = wsnapshot.items
-            } catch (error) { items = [] }
-          }
-          var owner = {}
-          var path = {}
-          var i
-          var j
-          for (i = 0; i < items.length; i++) {
-            var item = items[i]
-            if (item === null || typeof item !== 'object') continue
-            var id = item.workspaceId
-            if (typeof id !== 'string') continue
-            if (typeof item.path === 'string') path[item.path] = id
-            var ids = item.sessionIds
-            if (ids === undefined || ids === null) continue
-            for (j = 0; j < ids.length; j++) owner[ids[j]] = id
-          }
-          for (var key in snapshot.byId) {
-            var session = snapshot.byId[key]
-            if (session === null || typeof session !== 'object') continue
-            var title = session.title
-            if (typeof title !== 'string' || title.indexOf(channel.title) !== 0) continue
-            var group = owner[key]
-            if (group === undefined && typeof session.cwd === 'string') group = path[session.cwd]
-            if (group === undefined) group = ''
-            if (out.indexOf(group) === -1) out.push(group)
-          }
-          return out
-        }
-
-        /* The fallback for a host whose snapshots cannot be read: the groups showing a row
-           of the selected channel right now. It cannot see into a folded group, which is
-           exactly why it is the fallback and not the rule. */
-        function rendered(host) {
-          var out = []
-          var channel = selected()
-          if (host === null || channel === null) return out
-          var rows = host.querySelectorAll('[data-row-key]')
-          var group = null
-          for (var i = 0; i < rows.length; i++) {
-            var key = keyOf(rows[i])
-            if (key === null) continue
-            if (key.indexOf(WORKSPACE_PREFIX) === 0) group = key.slice(WORKSPACE_PREFIX.length)
-            else if (key.indexOf(SESSION_PREFIX) === 0 && group !== null && isChannel(rows[i], channel)) {
-              if (out.indexOf(group) === -1) out.push(group)
-            }
-          }
-          return out
-        }
-
-        /* One official click per frame, in two stages. First the groups themselves: a group
-           that holds Telegram conversations can arrive folded, and a folded group has no
-           rows and no show-more control, so it is unfolded through its own header -- the
-           click a user makes -- and only for the groups the model above names, so no other
-           workspace is touched. Then its show-more control, until the control reports the
-           group fully expanded: aria-expanded true is the state its own single click
-           collapses from, which is what makes the way out one click per group. */
-        function openStep(host) {
-          var keys = candidates()
-          if (keys.length === 0) keys = rendered(host)
-          var key
-          var i
-          for (i = 0; i < keys.length; i++) {
-            key = keys[i]
-            if (unfolded[key] === true) continue
-            var header = document.querySelector('[data-row-key="' + WORKSPACE_PREFIX + key + '"]')
-            if (header === null) continue
-            if (header.getAttribute('aria-expanded') !== 'false') continue
-            unfolded[key] = true
-            header.click()
-            return true
-          }
-          for (i = 0; i < keys.length; i++) {
-            key = keys[i]
-            var control = document.querySelector('[data-row-key="' + OVERFLOW_PREFIX + key + '"]')
-            if (control === null) continue
-            if (control.getAttribute('aria-expanded') === 'true') continue
-            opened[key] = true
-            control.click()
-            return true
-          }
-          return false
-        }
-
-        /* The way out: collapse what this effect expanded -- only what it recorded, so a
-           list the user had already expanded by hand is left exactly as it was -- and then
-           fold back the groups it unfolded. Collapsing comes first on purpose: the official
-           control resets that group's own limit to five, so folding first would leave the
-           group showing every row the next time it is opened. */
-        function closeStep() {
-          var keys = Object.keys(opened)
-          var key
-          var i
-          for (i = 0; i < keys.length; i++) {
-            key = keys[i]
-            var control = document.querySelector('[data-row-key="' + OVERFLOW_PREFIX + key + '"]')
-            if (control !== null && control.getAttribute('aria-expanded') === 'true') {
-              control.click()
-              return true
-            }
-            delete opened[key]
-          }
-          keys = Object.keys(unfolded)
-          for (i = 0; i < keys.length; i++) {
-            key = keys[i]
-            var header = document.querySelector('[data-row-key="' + WORKSPACE_PREFIX + key + '"]')
-            /* Only fold back what is still open: a group the user folded himself while the
-               filter was on is already where it started. */
-            if (header === null || header.getAttribute('aria-expanded') !== 'true') {
-              delete unfolded[key]
-              continue
-            }
-            header.click()
-            return true
-          }
-          return false
-        }
-
-        function pump() {
-          frame = 0
-          if (disposed) return
-          if (clicks >= CLICK_LIMIT) return
-          var host = tree()
-          var more = action === 1 ? openStep(host) : closeStep()
-          if (more === false) {
-            if (action === 0 && scroll !== null) {
-              if (host !== null) host.scrollTop = scroll
-              scroll = null
-            }
-            return
-          }
-          clicks += 1
-          /* React flushes a discrete click before it returns, so the rows the click
-             revealed are already here -- tag them now rather than one frame later. */
-          if (host !== null) mark(host)
-          frame = requestAnimationFrame(pump)
-        }
-
-        /* Pressing an entry selects its channel; pressing the lit one puts the official list
-           back. The two entries are two values of one variable, so the other entry goes dim
-           in the same pass -- never both lit. */
-        function onToggle(event, channel) {
-          var next = 0
-          for (var i = 0; i < CHANNELS.length; i++) {
-            if (CHANNELS[i].id === channel.id) next = i + 1
-          }
-          if (next === mode) next = 0
-          stop(event)
-          mode = next
-          clicks = 0
-          var host = tree()
-          if (mode !== 0) {
-            opened = {}
-            unfolded = {}
-            scroll = host === null ? null : host.scrollTop
-            paint()
-            action = 1
-          } else {
-            paint()
-            action = 0
-          }
-          pump()
+          wxView(host)
         }
 
         function dispose() {
           if (disposed) return
           disposed = true
-          if (frame !== 0) cancelAnimationFrame(frame)
-          frame = 0
           if (observer !== null && observer !== undefined) observer.disconnect()
           observer = null
           if (offSessions !== null && typeof offSessions === 'function') offSessions()
@@ -1383,22 +1164,28 @@
           if (offLocale !== null && typeof offLocale === 'function') offLocale()
           offLocale = null
           var host = tree()
-          if (host !== null && host.getAttribute(TREE_ATTR) !== null) host.removeAttribute(TREE_ATTR)
+          if (host !== null && host.getAttribute(WX_TREE_ATTR) !== null) host.removeAttribute(WX_TREE_ATTR)
+          if (host !== null) {
+            var tagged = host.querySelector('[' + GROUP_ATTR + ']')
+            if (tagged !== null) tagged.removeAttribute(GROUP_ATTR)
+            var headTagged = host.querySelector('[' + HEAD_ATTR + ']')
+            if (headTagged !== null) headTagged.removeAttribute(HEAD_ATTR)
+          }
           var buttons = document.querySelectorAll('[' + BUTTON_ATTR + ']')
           for (var i = 0; i < buttons.length; i++) {
             var button = buttons[i]
             button.removeEventListener('mousedown', stop)
             button.removeEventListener('pointerdown', stop)
-            button.removeEventListener('click', onEntryClick)
+            button.removeEventListener('click', onWxToggle)
             if (button.parentElement !== null) button.parentElement.removeChild(button)
           }
         }
 
-        /* A new Session, a retitled one, a row React re-rendered: the pass has to run
-           again. Only data-row-key is watched, exactly as the pin effect watches it --
-           class is rewritten on every render, the key moves only when the row does, and a
-           filter on that attribute is also what keeps this effect's own data-eva-tg*
-           writes from scheduling another pass. */
+        /* A new Session, a retitled one, a row React re-rendered: the pass has to run again.
+           Only data-row-key is watched, exactly as the pin effect watches it -- class is
+           rewritten on every render, the key moves only when the row does, and a filter on
+           that attribute is also what keeps this effect's own data-eva-wx* writes from
+           scheduling another pass. */
         var observer = null
         if (document.body !== undefined && document.body !== null) {
           observer = new MutationObserver(schedule)
@@ -1409,11 +1196,6 @@
             attributeFilter: ['data-row-key'],
           })
         }
-        /* The workspace half of the same pair the vendored rail reads: sessions say which
-           conversation is a Telegram one, workspaces say which group its row lives in --
-           which is the only way to reach a conversation inside a group that arrives
-           folded, because a folded group renders no rows to look at. */
-        var workspaces = ctx.get('workspaces')
         var sessions = ctx.get('sessions')
         var list = sessions === undefined || sessions === null ? null : sessions.list
         var offSessions = null
@@ -1427,7 +1209,7 @@
         paint()
 
         return dispose
-      }, 'evangelion: telegram filter')
+      }, 'evangelion: wechat workspace switch')
 
       /* Read-only surface for troubleshooting and for the delivery docs. */
       exports.manifest = MANIFEST

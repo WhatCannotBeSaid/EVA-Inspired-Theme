@@ -51,7 +51,7 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Boot mask | Shown on load; unchanged timings and triggers |
 | Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
-| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a Telegram filter on the workspace row |
+| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a switch for the WeChat workspace on the workspace row |
 | Language | All user-facing text goes through the official locale service (zh / en) |
 
 The theme installs one layer and can be removed as one. It ships **no settings panel
@@ -127,10 +127,11 @@ follow the interface language — a Chinese and an English user both read the Ge
   `eva-theme/workspace-pins`; the order it produces is written through the host's own
   insert-before API, so it survives a restart — and, unlike the pin set, it also
   survives removing the theme.
-- A **Telegram filter** on the 「工作区」 row, on the same line as Search and the view
-  options: one click expands the groups and leaves only the conversations `dsh-im`
-  opened for Telegram, and another click puts the official list back. It only tags
-  rows and stores nothing, and it has nothing to show until such conversations exist.
+- A **WeChat workspace switch** on the 「工作区」 row, on the same line as Search and the
+  view options: one click leaves only the workspace `dsh-wechat-plugin` creates — its
+  conversations, without that workspace's own group header — and another click puts the
+  official list back. It only tags rows and stores nothing, and it has nothing to show
+  until such a workspace exists.
 - The vendored **non-official plugin switch**, on the installed group's header in the
   official Plugins page: tick which non-official plugins to disable, or to enable
   again. It switches bundle enablement only — it installs and uninstalls nothing.

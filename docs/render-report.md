@@ -3130,3 +3130,111 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - **回滚 = 把 `CHANNELS` 裁回一条 + 撤 `cli.26` 的两条新断言 + 删本节的微信图标**，`theme.css` 无需回滚（本轮没动它）。
 
 
+
+
+## 43. 第四十三轮：微信入口从「筛会话」改成「开关一个工作区」（D59）（2026-10-10 追加）
+
+### 43.1 用户要求
+
+用户 2026-10-10 逐字（三项一起给的）：
+
+> 1 是那枚筛选按钮 2「微信会话」及其里面的会话一起搬。 3.点亮微信按钮时才出现。先去掉微信按钮先前的功能，然后加入我现在要求的功能。
+
+「微信会话」是 `dsh-wechat-plugin` 启动时自建的工作区（`:64 const WORKSPACE_DIR_NAME = 'dsh_wechat'`、`:72 const WORKSPACE_TITLE = '微信会话'`、`#ensureWorkspace()` 在 `:2602-2604`），目录 `<DSH_HOME>\dsh_wechat`，与 §42 的 `im` 渠道会话不是一回事。
+
+### 43.2 归组口径（决定了这事只能在视图层做）
+
+- 工作区归属存在 `storages/workspace.json` 的 `tables.workspaces[].sessionIds`；
+- 但**会话归到哪个工作区是宿主按 `summary.cwd === workspace.path` 现算的**（`@deepseek-ai/dsh-client-ui-workspace`），主题改不了 cwd，也改不了这个计算；
+- `storages/session_projcache/sessions/<id>.json` 里**没有任何「工作区标签」字段** → 标签不可能下到会话行。
+
+所以「连同其内的会话一起搬」只能是**视图层改这一组的渲染位置**，不是改数据。
+
+### 43.3 §43 的实现（只做了 half，被 §44 修正）
+
+只加了一条 `order: -1` 把该组提到列表最前，关闭态用 `display:none` 藏起来。**`order` 只改视觉顺序、藏不了东西** —— 这是下一轮用户报障的根因。契约名沿用 `data-eva-wx-group` / `data-eva-wx-tree`，未新增 `ctx.effect`（`cli.11d` 的计数 10 不变）。
+
+### 43.4 4px 边距缝（本轮的第二个坑）
+
+宿主 `._9lTDKa_groupSection + ._9lTDKa_groupSection { margin-top: 4px }` **按 DOM 兄弟序生效，而 `order` 只改视觉序**：被提到最前的组仍被收 4px。修法 = 给被提组 `margin-top: 0`，把 4px 还给真正落到它下面的那组。实测修复前微信组 `y=132`（离标题行下沿 124 有 8px 缝），修复后 `y=128` 齐平。§44 沿用同一处理。
+
+## 44. 第四十四轮：把「置顶」改成真过滤（D60）（2026-10-10 追加）
+
+### 44.1 用户报障（逐字）
+
+> 请排查：点击微信按钮点亮后，为什么显示的不止微信会话，其他工作区仍然存在（似乎只是被置顶）？期望行为是：点亮微信按钮时，侧栏工作区列表内只显示「微信会话」下的会话条目，其他工作区不得保留，也不得以置顶方式出现；同时不显示「微信会话」这个工作区分组标题，只显示该分组下的会话标题。
+
+报的是真 bug，且诊断准确：§43 只有 `order`，**没有任何东西被隐藏**。
+
+### 44.2 逐文件改动
+
+`src/theme.css` 追加四条（追加在 §41/§42 那四条之后，旧规则一字未动）：
+
+`[data-eva-wx-tree='off'] [data-eva-wx-group='on'] { display: none; }`
+`[data-eva-wx-tree='on'] > :not([data-eva-wx-group='on']) { display: none; }`
+`[data-eva-wx-tree='on'] [data-eva-wx-head='on'] { display: none; }` + `[data-eva-wx-tree='on'] [data-eva-wx-head='on'] + * { margin-top: 0; }`
+`[data-eva-wx-tree='on'] [data-eva-wx-group='on'] { margin-top: 0; }`
+
+`src/client.js` 新增 `HEAD_ATTR = 'data-eva-wx-head'` 与 `wxHead(scope)` / `wxHeadBox(group, row)`，`wxView(host)` 改为真过滤，并**删掉了 §43 用来强推布局的行内 `host.style.display='flex'`**（`dispose` 里对应还原一并删）。`setWx(on)` 的滚动归位改成 `if (wxOn && host.scrollTop !== 0) host.scrollTop = 0`。
+
+### 44.3 真机验收（19389 / profile `eva-preview`，1256×821）
+
+| 态 | 读数 |
+|---|---|
+| 关 | 可见组 4：Yu `y=128`、EVA `y=166`、未分组 `y=204`；微信组 `display:none` |
+| 亮 | 可见组 **1**（另三组 `display:none`）、**无分组标题**、两条会话 `y=128` / `y=162`（树顶 128 = 表头下沿 124 贴合） |
+
+折叠态点亮会自动 `head.click()` 展开；切换 4 次逐字幂等；空闲 2s 内 MutationObserver 计 0 变动；Telegram 半无回归（tg only / tg+wx / wx only / 全关四种组合读数全对）。`npm run verify` 117 断言全绿。
+
+## 45. 第四十五轮：删掉 Telegram 按钮及其整台筛选机（D61）（2026-10-10 追加）
+
+### 45.1 用户要求
+
+用户 2026-10-10 逐字：
+
+> ok。可以了，再去telegram按钮，毕竟现在不用了，可以删去这个功能了。
+
+「可以了」是对 §44 微信半的验收通过；本轮只有一件事——把 §41 建起来、§42 扩成两个控件的 Telegram 那一半整个拿掉。**微信开关与置顶按钮不在删除范围内。**
+
+### 45.2 两个决策（都是为了「不留已退役功能的痕迹」）
+
+| 决策 | 取舍理由 |
+|---|---|
+| 契约改名 `data-eva-tg-*` → `data-eva-wx-*` | `tg` 就是 telegram 的缩写。功能退役后不该再有一个以它命名的契约；改名也让新门禁能钉住「旧的 tg 契约一个不剩」。按钮 `data-eva-tg-button`（值恒 `weixin`）→ `data-eva-wx-button`，状态 `data-eva-tg-state` → `data-eva-wx-state` |
+| **不删 effect、只改名与裁逻辑** | 微信半本就活在这个 effect 里。删掉它要重排十个 effect 的注释与 `cli.11d` 的计数，属于未点名的扩大改动。标签 `'evangelion: telegram filter'` → `'evangelion: wechat workspace switch'`，`ctx.effect(` 计数**仍是 10** |
+
+### 45.3 逐文件改动
+
+| 文件 | 改动 |
+|---|---|
+| `src/client.js` | 1635 → **1225 行**。删掉 Telegram 专属物：`CHANNELS` 数组、`CHANNEL_ATTR='data-dsh-im-session-channel'`、`SESSION_PREFIX`、`OVERFLOW_PREFIX`、`CLICK_LIMIT=200`、`ROW_ATTR`/`TREE_ATTR`、`isChannel`、`selected`、`mark`、`view`、`decorate`、`onToggle`、`candidates`、`rendered`、`openStep`、`closeStep`、`pump`，以及状态 `mode`/`action`/`opened`/`unfolded`/`frame`/`clicks`/`scroll`、`ICONS.telegram`、`translate` 的 telegram/all 词条、`ctx.get('workspaces')`。`NS` 改 `'eva-wechat-workspace'`，`DICT` 裁到 `zh/en × {weixin, hidewx}` |
+| `src/theme.css` | 1972 → **1951 行**。第 41/42 轮注释块与四条规则替换为新注释块 + **三条** `data-eva-wx-*` 规则（28×28 契约、`:hover`、`state='on'`）。**删掉** `[data-eva-tg-tree='on'] [data-eva-tg-row='off'] { display: none; }` 这条纯 Telegram 规则 |
+| `tools/selfcheck.mjs` | `css.12` 重写为微信侧（含**两条隐藏方向**断言：off 藏该组、on 藏其余组，否则列表只会变长不会变短）；`cli.11d` 保留 10、只换标签断言；`cli.26` 整条重写为 17 条微信断言。断言总数**仍是 117** |
+| `README.md` / `README.zh.md` | 表格末项与正文段落从「Telegram filter / Telegram 过滤按钮」改写为微信会话开关 |
+
+### 45.4 门禁
+
+`node tools/build-client.mjs` → `751524 chars`；`npm run verify` → **`117 assertions, 0 failed, 117 passed`**，`25 checks, 0 failed, 25 passed`，`client.js check: OK (in sync with src/)`。三条改过的门禁逐条 `ok`：`css.12 the WeChat entry is styled by contract, and the switch owns its group`、`cli.11d the client half owns exactly ten effects`、`cli.26 the WeChat entry switches one workspace through the official controls`。
+
+### 45.5 真机验收（19389 / profile `eva-preview`）
+
+| 读数项 | 关 | 亮 |
+|---|---|---|
+| `[data-eva-tg-button]` / `tgTree` / `tgRows` | `0 / 0 / 0` | `0 / 0 / 0` |
+| `[data-eva-wx-button]` | `1`（值 `weixin`、`state=off`、`aria-label="显示「微信会话」工作区"`、`title` 不存在） | `1`（`state=on`、`aria-label="隐藏「微信会话」工作区"`、`aria-pressed=true`） |
+| 可见工作区组 | 4（Yu `y=128` / 微信会话 `display:none` / EVA `y=166` / 未分组 `y=204`） | **1**（只有微信会话，`y=128 h=66`；另三组 `display:none`） |
+| 可见会话 | 5 | **2**（`纯牛奶24盒63元购买记账` `y=128`、`微信渠道记账助手试记账` `y=162`） |
+| 表头下沿 / 树顶 | `124` / `128` | `124` / `128`（贴合，无标题行） |
+
+切换 4 次逐字幂等（`off→on→off→on` 每轮组序与可见会话数完全一致，无属性堆积）；空闲 2s **MutationObserver 计 0 变动**（不自激）。截图：`C:\Work\scratch\tg-removed-off.png`、`C:\Work\scratch\tg-removed-on.png`。
+
+### 45.6 生效方式
+
+只有客户端半改动，**刷新一次窗口**即可。宿主半（`index.js`）本轮一个字没动。
+
+### 45.7 给下一次的提醒
+
+- **`order` 不是筛选**（§43 的教训）：它能改视觉顺序，不能让任何东西消失。要「只留下 X」必须写 `display: none` 选择器，且有**两个方向**——关时藏 X、亮时藏其余。
+- **`exports.inject` 里的 `uiSession` / `sessions` / `workspaces` 是给 vendored 会话状态轨用的**（`cli.23` / `cli.24` 钉着），删 Telegram 时不要顺手把它们删掉。
+- **`setAttribute('title'` 在整个 client 里必须恰好出现 1 次**（那是置顶按钮的，`cli.26` 钉着）。微信按钮用 `removeAttribute('title')`。
+- **回滚本轮** = 恢复 `src/theme.css` 第 41/42 轮那 4 条 tg 规则与注释、把 `src/client.js` 的 Telegram 机器整段贴回、三条门禁改回 §41/§42 的断言、README 两处文字改回。`git` 未提交，`git checkout -- src/ tools/ README.md README.zh.md` 即可全回。
