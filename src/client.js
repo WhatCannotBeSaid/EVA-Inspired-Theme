@@ -858,7 +858,28 @@
          The expansion is staged one official click per animation frame. A synchronous
          loop is correct and rude: each click re-renders the whole tree (tens of
          milliseconds once a group holds a couple of hundred rows), so forty of them in
-         one task would freeze the page the user is looking at. */
+         one task would freeze the page the user is looking at.
+
+         Round 42 (2026-10-10) -- the 微信 conversations, one click further right. User's
+         words: 「参考对Telegram会话的处理，将微信的对话也转移到「工作区」一行中，就放在
+         telegram的图标右边。」, and for what a click means they chose 互斥切换 over
+         可叠加: the row holds one view, not two, so the two entries are two positions of a
+         single three-valued state (0 = the official list, 1 = Telegram, 2 = 微信) and at
+         most one of them can be lit. Clicking the lit one, or switching to the other,
+         re-tags the rows and drives the same official controls to whatever that view needs.
+
+         What that cost: nothing in the sheet. The button, state, row and tree attributes
+         already say exactly what they said -- the entry's *value* carries the channel now
+         (data-eva-tg-button = telegram | weixin) and the row tag stays on/off, computed
+         against whichever channel is selected, so the tree-on/row-off pair in the sheet
+         hides the right rows in both views without a second rule.
+         Round 41's css.12 therefore keeps passing on the same four rules, verbatim.
+
+         The second entry is inserted immediately after the first, both before the search
+         slot, so the row reads 工作区 · (plane) (bubbles) ... search / view options / add
+         workspace and every official control keeps the pixels it had. The 微信 artwork is
+         drawn from the outline the user supplied (see ICONS below), not copied from the IM
+         plugin's filled logo. */
       ctx.effect(() => {
         if (typeof document === 'undefined') return undefined
 
@@ -870,8 +891,21 @@
         var WORKSPACE_PREFIX = 'workspace:'
         var OVERFLOW_PREFIX = 'overflow:'
         var CHANNEL_ATTR = 'data-dsh-im-session-channel'
-        var CHANNEL = 'telegram'
-        var TITLE_PREFIX = 'Telegram'
+        /* The conversations this theme can single out, in the order their two entries sit
+           in the 工作区 row: Telegram first (round 41), 微信 second (round 42). The marker
+           is the value dsh-im writes into data-dsh-im-session-channel -- measured on the
+           live list, it lands on the TITLE SPAN (the row's second child), not on the row
+           itself -- and the lead is the exact prefix that plugin gives the Session it
+           opens: src/channels/shared/session-channel-labels.mjs:2 is
+           weixin: ['微信', 'WeChat'] and parseSessionChannelTitle (:17-27) accepts only the
+           label-plus-space-middot-space lead. The dot is part of the test on purpose: '微信' alone is a prefix of any session whose title
+           merely starts with those two characters (one such row was live when this was
+           written: 微信会话移入工作区行Telegram右侧), and the filter showed it in the 微信
+           view until the lead was made exact. */
+        var CHANNELS = [
+          { id: 'telegram', marker: 'telegram', lead: 'Telegram · ' },
+          { id: 'weixin', marker: 'weixin', lead: '微信 · ' },
+        ]
         /* The host's own names for the 工作区 area and for the empty marker that is a
            direct child of that row -- both are slots, not CSS-Modules classes. */
         var SLOT_SELECTOR = "[data-slot='sidebar.workspaces']"
@@ -894,17 +928,50 @@
                150.88/16 = 9.43 user units.
            Measured on the way here: the file's full five-line artwork turns into a dark blob at
            16px and only reads from about 20px, which is why the contour alone is what stays.
-           Inline SVG, never a bitmap, so the icon keeps its vector edge on a scaled display. */
-        var ICON = '<svg width="16" height="16" viewBox="33.86 34.64 150.88 150.88" fill="none" stroke="currentColor" stroke-width="9.43" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-          '<path d="M 84.82 151.73 L 99.95 136.60 L 127.00 149.44 Q 143.55 123.79 178.25 70.49 Q 178.74 69.75 178.64 68.42 L 39.86 108.11 L 70.13 122.47 L 84.82 151.73"/>' +
-          '</svg>'
+           Inline SVG, never a bitmap, so the icon keeps its vector edge on a scaled display.
 
-        /* Two labels through the official locale service, the door the pin control and the
-           vendored switch already use. A missing or throwing seat costs the wording only. */
+           The 微信 artwork (round 42, 2026-10-10) is the second entry's, and it was drawn
+           from the outline the user supplied rather than copied from the IM plugin's filled
+           24-unit logo, at the user's instruction: 参考这个画一个. The file it came from --
+           _work/wx-ref.html in the working tree, a 204x184 JPEG -- was measured, not
+           traced by eye: the ink is ONE closed contour (5 086 px, one enclosed hole) plus
+           four filled eye disks, so the drawing is two ellipses whose mutual overlap is
+           erased on the back bubble only, two tail triangles, and four dots. The two
+           centre-lines were fitted to the outline pixels (least squares on an iteratively
+           re-assigned boundary set) and land here at A(5.799, 6.142, 5.502x4.488) and
+           B(11.075, 9.405, 4.620x3.817); the eyes at (3.899, 4.681), (7.720, 4.672),
+           (9.606, 8.524), (12.618, 8.528); the tails from (2.561, 9.771) to a tip at
+           (1.850, 11.200) and from (11.632, 13.194) to (14.337, 14.088). Re-drawing that
+           geometry scores 0.827 IoU against the source ink at its own resolution, which is
+           the check that this is the same drawing and not a lookalike.
+             Two deliberate departures from a literal transcription: the back bubble is
+           drawn as its visible ARC rather than a full ellipse (the fit puts its hidden
+           span between t=1.409 and t=6.161 rad, and drawing it whole would put a line
+           through the front bubble the reference does not have); and the stroke stays at
+           ONE user unit like every other icon in this row, where the reference's own
+           proportion would be 0.63 and read as a hairline at 16px.
+           Measured the same way as the plane: at 16px the two bubbles and all four eyes
+           resolve; the same artwork at 32px is unambiguous. */
+        var ICONS = {
+          telegram: '<svg width="16" height="16" viewBox="33.86 34.64 150.88 150.88" fill="none" stroke="currentColor" stroke-width="9.43" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+            '<path d="M 84.82 151.73 L 99.95 136.60 L 127.00 149.44 Q 143.55 123.79 178.25 70.49 Q 178.74 69.75 178.64 68.42 L 39.86 108.11 L 70.13 122.47 L 84.82 151.73"/>' +
+            '</svg>',
+          weixin: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+            '<ellipse cx="11.075" cy="9.405" rx="4.62" ry="3.817"/>' +
+            '<path d="M6.684 10.572A5.502 4.488 0 1 1 11.26 5.593"/>' +
+            '<path d="M2.561 9.771L1.85 11.2L4.287 10.458Z M11.632 13.194L14.337 14.088L13.374 12.716Z"/>' +
+            '<path fill="currentColor" stroke="none" d="M3.155 4.681a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M6.976 4.672a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M9.018 8.524a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0M12.029 8.528a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0"/>' +
+            '</svg>',
+        }
+
+        /* Three labels through the official locale service, the door the pin control and
+           the vendored switch already use. A missing or throwing seat costs the wording only.
+           The namespace keeps its round-41 name: renaming it would only cost a registered
+           dictionary if a second copy of this theme were ever mounted beside this one. */
         var NS = 'eva-telegram-filter'
         var DICT = {
-          zh: { telegram: '只看 Telegram 会话', all: '显示全部会话' },
-          en: { telegram: 'Show Telegram conversations', all: 'Show all conversations' },
+          zh: { telegram: '只看 Telegram 会话', weixin: '只看微信会话', all: '显示全部会话' },
+          en: { telegram: 'Show Telegram conversations', weixin: 'Show WeChat conversations', all: 'Show all conversations' },
         }
         var translate = null
         var locale = ctx.get('locale')
@@ -927,7 +994,10 @@
           return DICT.en[key]
         }
 
-        var mode = 0        /* 0 = the official list, 1 = Telegram conversations only */
+        /* 0 = the official list, 1 = Telegram conversations only, 2 = 微信 conversations
+           only. One number, three views: the two entries are its positions, so switching
+           from one channel to the other is one assignment and never a stacked tag. */
+        var mode = 0
         var action = 0      /* what the pump is driving toward: 1 reveal, 0 restore */
         var opened = {}     /* the groups whose show-more control this effect expanded */
         var unfolded = {}   /* the groups whose folded header this effect unfolded */
@@ -970,25 +1040,36 @@
         }
 
         /* dsh-im marks its own rows; the title it gives the Session is the marker that
-           survives a profile without that plugin. The title cell is the row's second
-           child in every render -- the first is the slot the channel logo sits in. */
-        function isTelegram(row) {
-          if (row.getAttribute(CHANNEL_ATTR) === CHANNEL) return true
+           survives a profile without that plugin. Both live on the row's second child --
+           the first is the slot the channel logo sits in -- and the marker is read off
+           that cell rather than the row, which is where the live list puts it. The lead
+           test keeps the trailing dot, or an ordinary session titled 微信... would join
+           the 微信 view. */
+        function isChannel(row, channel) {
           var cell = row.children.length > 1 ? row.children[1] : null
           if (cell === null) return false
+          if (cell.getAttribute(CHANNEL_ATTR) === channel.marker) return true
+          if (row.getAttribute(CHANNEL_ATTR) === channel.marker) return true
           var text = cell.textContent
           if (typeof text !== 'string') return false
-          return text.replace(/^[ \t\r\n]+/, '').indexOf(TITLE_PREFIX) === 0
+          return text.replace(/^[ \t\r\n]+/, '').indexOf(channel.lead) === 0
         }
 
-        /* Tag every row for the sheet: a Session row says whether it is a Telegram
-           conversation, and every other row -- group headers and the overflow controls
-           alike -- is off. The Ungrouped header goes off with them: the user asked for the
-           未分组 header itself to disappear in filter mode, leaving the conversations alone,
-           without touching how its Sessions show or switch (m00881). Only a changed value
-           is written: an observer-driven pass has to be silent when nothing changed
-           (round 40). */
+        /* The channel the selected view is about, or null for the official list. */
+        function selected() {
+          return mode === 0 ? null : CHANNELS[mode - 1]
+        }
+
+        /* Tag every row for the sheet: a Session row says whether it is a conversation of
+           the selected channel, and every other row -- group headers and the overflow
+           controls alike -- is off. The Ungrouped header goes off with them: the user asked
+           for the 未分组 header itself to disappear in filter mode, leaving the conversations
+           alone, without touching how its Sessions show or switch (m00881). Only a changed
+           value is written: an observer-driven pass has to be silent when nothing changed
+           (round 40). Outside filter mode every row is on, which is what the sheet's
+           selector needs to stop hiding anything the moment the tree attribute goes. */
         function mark(host) {
+          var channel = selected()
           var list = host.querySelectorAll('[data-row-key]')
           var i
           var row
@@ -997,37 +1078,43 @@
             row = list[i]
             key = keyOf(row)
             if (key === null) continue
-            var state = key.indexOf(SESSION_PREFIX) === 0 && isTelegram(row) ? 'on' : 'off'
+            var state = 'off'
+            if (channel === null || key.indexOf(SESSION_PREFIX) === 0 && isChannel(row, channel)) state = 'on'
             if (row.getAttribute(ROW_ATTR) !== state) row.setAttribute(ROW_ATTR, state)
           }
         }
 
         /* The one attribute the sheet filters on. Absent means the list is the host's. */
         function view(host) {
-          if (mode === 1) {
+          if (mode !== 0) {
             if (host.getAttribute(TREE_ATTR) !== 'on') host.setAttribute(TREE_ATTR, 'on')
             return
           }
           if (host.getAttribute(TREE_ATTR) !== null) host.removeAttribute(TREE_ATTR)
         }
 
-        function decorate(button) {
-          var text = label(mode === 1 ? 'all' : 'telegram')
-          var state = mode === 1 ? 'on' : 'off'
-          if (button.getAttribute(BUTTON_ATTR) !== CHANNEL) button.setAttribute(BUTTON_ATTR, CHANNEL)
-          /* The name lives in aria-label only -- which is not drawn -- so hovering the entry
+        /* A button carries the channel it selects in its value, and is on exactly when that
+           channel is the selected view. With one view lit at a time, clicking the lit entry
+           is also how the user gets back to the official list, which is why the label under
+           it reads 显示全部会话 once it is on. */
+        function decorate(button, channel) {
+          var on = mode !== 0 && CHANNELS[mode - 1].id === channel.id
+          var text = label(on ? 'all' : channel.id)
+          var state = on ? 'on' : 'off'
+          if (button.getAttribute(BUTTON_ATTR) !== channel.id) button.setAttribute(BUTTON_ATTR, channel.id)
+          /* The name lives in aria-label only -- which is not drawn -- so hovering an entry
              shows no wording in either state (m00881). A title left by an earlier build is
              taken off the button rather than left to pop up on hover. */
           if (button.getAttribute('aria-label') !== text) button.setAttribute('aria-label', text)
           if (button.getAttribute('title') !== null) button.removeAttribute('title')
           if (button.getAttribute(STATE_ATTR) !== state || button.firstElementChild === null) {
             button.setAttribute(STATE_ATTR, state)
-            button.setAttribute('aria-pressed', mode === 1 ? 'true' : 'false')
-            button.innerHTML = ICON
+            button.setAttribute('aria-pressed', on ? 'true' : 'false')
+            button.innerHTML = ICONS[channel.id]
           }
         }
 
-        function create() {
+        function create(channel) {
           var button = document.createElement('button')
           button.type = 'button'
           /* The row's own click opens its group and its mousedown starts a drag; neither
@@ -1036,28 +1123,59 @@
              measurement the brand row zones effect relies on. */
           button.addEventListener('mousedown', stop)
           button.addEventListener('pointerdown', stop)
-          button.addEventListener('click', onToggle)
-          decorate(button)
+          button.addEventListener('click', onEntryClick)
+          decorate(button, channel)
           return button
         }
 
+        /* One stable handler for both entries: which channel was pressed is read back off
+           the button, so dispose can unhook it without having kept a closure per button. */
+        function onEntryClick(event) {
+          var id = this.getAttribute(BUTTON_ATTR)
+          for (var i = 0; i < CHANNELS.length; i++) {
+            if (CHANNELS[i].id === id) {
+              onToggle(event, CHANNELS[i])
+              return
+            }
+          }
+        }
+
+        /* The two entries, in the row's own document order: Telegram first, then 微信
+           immediately to its right, both before the search slot. Each is created only when
+           missing, so a re-render that drops one puts it back beside the other. */
         function entry() {
           var marker = document.querySelector(MARK_SELECTOR)
           if (marker === null || marker.parentElement === null) return
           var host = marker.parentElement
-          var button = host.querySelector('[' + BUTTON_ATTR + ']')
-          if (button === null) {
-            button = create()
-            var slot = null
-            for (var i = 0; i < host.children.length; i++) {
-              if (host.children[i].querySelector('input') !== null) { slot = host.children[i]; break }
-            }
-            /* Immediately before the search slot: right of the 工作区 label, and the
-               slot's own margin-left: auto keeps every official control where it was. */
-            if (slot === null) host.appendChild(button)
-            else host.insertBefore(button, slot)
+          var slot = null
+          for (var i = 0; i < host.children.length; i++) {
+            if (host.children[i].querySelector('input') !== null) { slot = host.children[i]; break }
           }
-          decorate(button)
+          var previous = null
+          for (var j = 0; j < CHANNELS.length; j++) {
+            var channel = CHANNELS[j]
+            var button = host.querySelector('[' + BUTTON_ATTR + "='" + channel.id + "']")
+            if (button === null) {
+              button = create(channel)
+              /* The node this entry has to sit before to keep the row's order: the entry
+                 to its right if that one is already there, otherwise the search slot --
+                 and the slot's own margin-left: auto keeps every official control where it
+                 was, right of the 工作区 label. */
+              var before = null
+              if (previous !== null && previous.parentElement === host) before = previous.nextSibling
+              else {
+                for (var k = j + 1; k < CHANNELS.length && before === null; k++) {
+                  var later = host.querySelector('[' + BUTTON_ATTR + "='" + CHANNELS[k].id + "']")
+                  if (later !== null) before = later
+                }
+                if (before === null) before = slot
+              }
+              if (before === null) host.appendChild(button)
+              else host.insertBefore(button, before)
+            }
+            decorate(button, channel)
+            previous = button
+          }
         }
 
         function paint() {
@@ -1069,15 +1187,17 @@
           view(host)
         }
 
-        /* The groups that hold a Telegram conversation, read from the two snapshots the
-           vendored rail already reads instead of guessed from whatever happens to be
-           rendered. The host's own model groups a Session by its cwd -- ui-workspace:
+        /* The groups that hold a conversation of the selected channel, read from the two
+           snapshots the vendored rail already reads instead of guessed from whatever happens
+           to be rendered. The host's own model groups a Session by its cwd -- ui-workspace:
            'summary.cwd === workspace.path', plus a workspaceBySession map built from
            workspace.sessionIds -- and its key for the Ungrouped bucket is the empty
            suffix. This is what makes the entry work cold: a folded group renders no rows
            at all, so nothing on screen says which group the conversations are in. */
         function candidates() {
           var out = []
+          var channel = selected()
+          if (channel === null) return out
           if (list === null || typeof list.getSnapshot !== 'function') return out
           var snapshot = null
           try { snapshot = list.getSnapshot() } catch (error) { snapshot = null }
@@ -1108,7 +1228,7 @@
             var session = snapshot.byId[key]
             if (session === null || typeof session !== 'object') continue
             var title = session.title
-            if (typeof title !== 'string' || title.indexOf(TITLE_PREFIX) !== 0) continue
+            if (typeof title !== 'string' || title.indexOf(channel.title) !== 0) continue
             var group = owner[key]
             if (group === undefined && typeof session.cwd === 'string') group = path[session.cwd]
             if (group === undefined) group = ''
@@ -1117,19 +1237,20 @@
           return out
         }
 
-        /* The fallback for a host whose snapshots cannot be read: the groups showing a
-           Telegram row right now. It cannot see into a folded group, which is exactly why
-           it is the fallback and not the rule. */
+        /* The fallback for a host whose snapshots cannot be read: the groups showing a row
+           of the selected channel right now. It cannot see into a folded group, which is
+           exactly why it is the fallback and not the rule. */
         function rendered(host) {
           var out = []
-          if (host === null) return out
+          var channel = selected()
+          if (host === null || channel === null) return out
           var rows = host.querySelectorAll('[data-row-key]')
           var group = null
           for (var i = 0; i < rows.length; i++) {
             var key = keyOf(rows[i])
             if (key === null) continue
             if (key.indexOf(WORKSPACE_PREFIX) === 0) group = key.slice(WORKSPACE_PREFIX.length)
-            else if (key.indexOf(SESSION_PREFIX) === 0 && group !== null && isTelegram(rows[i])) {
+            else if (key.indexOf(SESSION_PREFIX) === 0 && group !== null && isChannel(rows[i], channel)) {
               if (out.indexOf(group) === -1) out.push(group)
             }
           }
@@ -1224,12 +1345,20 @@
           frame = requestAnimationFrame(pump)
         }
 
-        function onToggle(event) {
+        /* Pressing an entry selects its channel; pressing the lit one puts the official list
+           back. The two entries are two values of one variable, so the other entry goes dim
+           in the same pass -- never both lit. */
+        function onToggle(event, channel) {
+          var next = 0
+          for (var i = 0; i < CHANNELS.length; i++) {
+            if (CHANNELS[i].id === channel.id) next = i + 1
+          }
+          if (next === mode) next = 0
           stop(event)
-          mode = mode === 1 ? 0 : 1
+          mode = next
           clicks = 0
           var host = tree()
-          if (mode === 1) {
+          if (mode !== 0) {
             opened = {}
             unfolded = {}
             scroll = host === null ? null : host.scrollTop
@@ -1260,7 +1389,7 @@
             var button = buttons[i]
             button.removeEventListener('mousedown', stop)
             button.removeEventListener('pointerdown', stop)
-            button.removeEventListener('click', onToggle)
+            button.removeEventListener('click', onEntryClick)
             if (button.parentElement !== null) button.parentElement.removeChild(button)
           }
         }

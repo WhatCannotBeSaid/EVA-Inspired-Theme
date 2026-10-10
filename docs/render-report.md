@@ -3039,4 +3039,94 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - **`display:none` 的分组头照样能点开**：官方的展开/收起挂在 React 的 `onClick` 上，`element.click()` 与可见性无关；过滤态下先把分组头隐藏、再靠它自己的 `click()` 展开分组，实测可行（41.6 的 8/229 那一步）。
 - **回滚 = 删 `src/theme.css` 本段四条规则 + 删 `src/client.js` 第十个 effect + `cli.11d` 回到 9 + 撤 `cli.26` / `css.12`**，然后 `node tools/build-client.mjs && npm run verify`。
 
+## 42. 第四十二轮：同一个入口旁边再加一个微信（D58）（2026-10-10 追加）
+
+### 42.1 用户要求
+
+用户 2026-10-10 逐字：
+
+> 参考对Telegram会话的处理，将微信的对话也转移到「工作区」一行中，就放在telegram的图标右边。
+
+「处理」指的就是 §41 那一整条链路：标题行里的入口按钮 + 就地过滤 + 互斥/叠加的取舍。本轮只问了一件事——两个入口是**互斥切换**还是**可叠加**（同时亮、两个渠道一起筛）——用户逐字选了：
+
+> 互斥切换（推荐）
+
+所以一行只持一个视图：再点一次亮的那个就回到官方列表，与 §41 的单按钮行为完全同构，只是状态从两值变三值。
+
+### 42.2 现场事实（量出来的，不是推的）
+
+| 事实 | 值 / 出处 |
+|---|---|
+| 微信会话长什么样 | 与 Telegram 完全同构：cwd 同为 `<DSH_HOME>\im`，标题 `微信 · <首条消息>`。当前共 **1 条**（`微信 · 用户闲聊调侃 AI 助手`） |
+| 渠道标记写在哪 | **不在行上，在行的第二个子节点（标题 span）上**。实测 `document.querySelectorAll('[data-dsh-im-session-channel]')` 命中 9 个 `SPAN.hIlkoa_title`，tally `{weixin:1, telegram:8}`，每个的 `closest('[data-row-key]')` 就是会话行（`depthFromRow=1`）。**§41 的 `row.getAttribute(CHANNEL_ATTR)` 因此永远是 null，一直只靠标题前缀在工作** |
+| 两个渠道的标题前缀 | `@xmanrui/dsh-im` 的 `src/channels/shared/session-channel-labels.mjs:2` 逐字 `weixin: ['微信', 'WeChat']`；同文件 `:17-27` 的 `parseSessionChannelTitle` 只认 `${label} · `（标签 + 空格 + U+00B7 + 空格）这个精确前导 |
+| **踩到的坑** | 前缀若只写 `'微信'`，会误命中一条**普通会话**：现网有一条标题逐字为 `微信会话移入工作区行Telegram右侧`（就是本任务自己的会话）。点微信后它被显示出来，`visible=2`。改成完整 `'微信 · '` 后 `visible=1` |
+| 行结构（两种都见过） | 真渠道行 `childCount=4`：`[SPAN 空(logo 槽), SPAN[marker, 标题], SPAN 时间, SPAN]`；普通会话 `childCount=5`：`[SPAN 进行中 spinner, SPAN 标题, SPAN 时间, SPAN, SPAN]`。**首格不总是 logo 槽**，所以判据必须以 marker 优先、文本前缀兜底（§41 的选择事后看是对的） |
+| 微信入口的落点 | Telegram 那格右边的空档：`[62,248,28,28]` → 微信 `[94,248,28,28]`，官方 🔍 `[176,248,28,28]`、视图选项 `[208,248,60,28]` **一个像素没动** |
+| 微信图标 | 用户 2026-10-10 给了一张 JPEG 参考图（双气泡 WeChat logo）并逐字交代「参考这个画一个」。**没有搬 `dsh-im` 的实心 path**，是按参考图量出来重画的描边图形（见 42.3） |
+
+### 42.3 逐文件改动
+
+| 文件 | 改动 | 备注 |
+|---|---|---|
+| `src/client.js` | 单数常量换成 `var CHANNELS = [{id:'telegram',marker:'telegram',lead:'Telegram · '},{id:'weixin',marker:'weixin',lead:'微信 · '}]`，`var ICONS = {telegram:…, weixin:…}` | `mode` 由两值变三值：0 官方列表 / 1 Telegram / 2 微信；`selected()` 返回 `mode === 0 ? null : CHANNELS[mode - 1]` |
+| `src/client.js` | `isTelegram(row)` → `isChannel(row, channel)`：**先读 `row.children[1]` 上的 marker，再读行自身的 marker，最后才比对完整 `channel.lead` 前缀** | 修掉了 §41 遗留的「行上读 marker」错位与「前缀太短」误命中两个问题（见 42.2） |
+| `src/client.js` | `mark()` / `view()` / `decorate()` / `entry()` 全部按 `selected()` 与 `CHANNELS` 循环改写；`decorate()` 里 `on` 判据是 `CHANNELS[mode-1].id === channel.id`，`BUTTON_ATTR` 的值改成渠道 id（`telegram \| weixin`） | `DICT` 扩为三键：`只看 Telegram 会话` / `只看微信会话` / `显示全部会话`（en 同步）；`NS` 仍是 `'eva-telegram-filter'` |
+| `src/client.js` | `onToggle(event, channel)`：点亮的那个再点回到 0，点另一个切过去；`create()` 绑定的是一个**稳定 handler** `onEntryClick`（用 `this.getAttribute(BUTTON_ATTR)` 反查渠道），`dispose()` 用同一函数解绑 | 两个按钮共享一个 handler，dispose 不需要为每个按钮留闭包 |
+| `src/client.js` | `entry()` 逐个补齐并保证顺序：先看前一个渠道按钮的 `nextSibling`，否则找后面的渠道按钮，否则搜索槽 | 一个按钮被 React 重渲染吃掉时，另一个会把它插回原位 |
+| `src/client.js` | **微信图标：按用户参考图量的描边图形**（`viewBox="0 0 16 16"`、`fill="none"`、`stroke="currentColor"`、`stroke-width="1"`，与纸飞机同规格） | 参考图 204×184 JPEG 解码后：一个连通描边带（5086 px）+ 4 个实心眼；两气泡的最小二乘椭圆 A `cx73.6 cy72.2 rx70.3 ry57.7` / B `cx141.2 cy114.0 rx59.2 ry48.9`（native）；**遮罩关系是单向的**（A 轮廓落在 B 内的点 ink 覆盖率 0.075，B 落在 A 内的 0.94），所以 B 画整圈、A 只画 B 外的可见弧；两交点角度 t=1.40904 / 6.16051；4 个眼是实心盘（面积等价半径 9.52/9.54/7.40/7.74 native px）；两条尾巴是短粗楔形。换算到 16 盒（`S=16/205`）后成文。**native IoU 0.5539**（描边 1 用户单位时）；粗描边参数最优值 0.827 与之不可比 |
+| `src/theme.css` | **四条规则一字未改**，只扩注释：挂点段补第 42 轮说明（用户原话、互斥选择、`data-eva-tg-button` 值域），「不动」段补一句微信入口落在 90..118 | 入口的值携带渠道、行标签仍是 on/off，所以 `[data-eva-tg-tree='on'] [data-eva-tg-row='off']` 一条规则同时服务两个视图 —— 这是本轮唯一「什么都不用改」的地方 |
+| `tools/selfcheck.mjs` | `cli.26` 的 `var TITLE_PREFIX = 'Telegram'` 断言改成 `var CHANNELS = [\n  { id: 'telegram', marker: 'telegram', lead: 'Telegram · ' },`，并**新增** `cell.getAttribute(CHANNEL_ATTR) === channel.marker`（钉住「marker 读在 cell 上」这个刚修对的点）；行标签断言改成 `var state = 'off'` + `isChannel(row, channel)` 两条 | `cli.11d` **仍是 10 effects**：本轮没有新增 `ctx.effect`，只是扩写了第十个 |
+| `client.js` | 重新生成：**760974 chars / 777788 bytes**，55 tokens，2 wallpapers，css 89264 chars | `--check` 判定 in sync |
+
+### 42.4 没做什么，以及刻意的取舍
+
+1. **没有第二个 effect**：微信入口活在 §41 那个 `'evangelion: telegram filter'` effect 里，所以 `cli.11d` 的 10 不动。加第二个 effect 会让「谁在标记这些行」出现两个真相来源。
+2. **`src/theme.css` 一个字没改**（只改注释）：过滤契约本来就是「行 on/off + 树 on」，两个视图共用。
+3. **不做可叠加**：用户选了互斥，所以没有「两个按钮同时亮」的状态，也没有第二个筛选维度。
+4. **不搬 `dsh-im` 的实心 logo**：用户明确要求照参考图重画，且这是本主题自己的图形，所以 `NOTICE` 的第三方素材段**不需要增补**。
+5. **不落盘、不新增持久状态**：鼠标点击只改内存里的 `mode`，刷新即回官方列表（沿用 §41 的取舍）。
+6. **图标不写 `title`**：`cli.26` 仍然钉住「`client.js` 里 `setAttribute('title'` 恰好 1 次」，微信入口与 Telegram 入口一样只有 `aria-label`。
+
+### 42.5 门禁（真跑的输出）
+
+- `node --check src/client.js` → OK；`node --check client.js` → OK；`node --check index.js` → OK
+- `node tools/build-client.mjs` → `wrote client.js 760974 chars (777788 bytes) 55 tokens 2 wallpapers … css 89264 chars`
+- `node tools/selfcheck.mjs` → **117 assertions, 0 failed, 117 passed / all green**
+- `node tools/token-audit.mjs` → `AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)`
+- `node tools/check-sound-layer.mjs` → OK
+- `node tools/build-client.mjs --check` → `client.js check: OK (in sync with src/)`
+- 本轮中途红过两次，都是门禁值了班：`cli.21`（注释里写了反引号与 `${…}`，`src/client.js` 禁止这两个）与 `cli.26`（旧断言还在找 `TITLE_PREFIX`），都已按新代码改写。
+
+### 42.6 真机取证（<DSH_PORT>，用户自己的桌面实例）
+
+页面加载后「工作区」行（`[data-slot='sidebar.workspaces.directoryFlow']` 的 `parentElement`）实测：
+
+| 子节点 | 内容 | 坐标 |
+|---|---|---|
+| 0 | `SPAN` 工作区 | `[16,252,42,20]` |
+| 1 | `BUTTON[data-eva-tg-button=telegram]` | `[62,248,28,28]` |
+| 2 | `BUTTON[data-eva-tg-button=weixin]` | `[94,248,28,28]` |
+| 3 | `DIV` 搜索 | `[176,248,28,28]` |
+| 4 | `DIV` 视图选项 + 添加工作区 | `[208,248,60,28]` |
+| 5/6 | `SPAN` / `DIV`（空） | `[272,262,0,0]` / `[0,0,0,0]` |
+
+- 微信按钮正好在 Telegram 右侧 **+32px**（28 宽 + 4 gap），官方三按钮像素与 §41 完全一致（纵向 288→248 只是列表本身把这一行上移了）。
+- 加载的样式表里 `{"plugin":"EVA-Inspired-Theme","chars":17212}`；页面上 `[data-eva-tg-button]` 计数 **2**。
+- **微信态**（点微信）：`tree=on`、`visible=1`、`titles=["微信 · 用户闲聊调侃 AI 助手"]`、按钮 `off/on`、文案 `显示全部会话`。**普通会话「微信会话移入工作区行Telegram右侧」已不再被误命中**（修 `lead` 之前这里是 2 条）。
+- **Telegram 态**（点 Telegram）：`tree=on`、`visible=8`、八条 `Telegram · …`、按钮 `on/off`。
+- **回全部**（再点 Telegram）：`tree=null`、`visible=231`、`on=231`、按钮 `off/off`、文案双双回到「只看…」。**全程没有两个按钮同时亮的情况。**
+- 微信态下 walk 到的行数从 231 变成 88（分组被官方 `click()` 展开过），说明两个视图共用同一套展开/收起路径，没有各自一套。
+
+### 42.7 生效方式
+
+只有客户端半有改动，**刷新一次窗口**即可看到微信入口；不需要重启 DSH。宿主半（`index.js`）本轮一个字没动。
+
+### 42.8 给下一次的提醒
+
+- **渠道标记在 `row.children[1]` 上，不在行上**：`data-dsh-im-session-channel` 是 `dsh-im` 写在标题 span 上的；任何「读行的属性」的写法都会静默退化成「只按标题前缀判」。
+- **判前缀必须带上 ` · `（U+00B7 两侧各一个空格）**：`'微信'` / `'Telegram'` 这种裸标签会命中任何恰好以此开头的普通会话标题（本轮真踩到了）。
+- **`src/client.js` 禁止反引号与 `${…}`**（`cli.21` 与 `tools/build-client.mjs:139` 双保险），注释里也不行 —— 写文档链接或选择器时用普通引号或直接写文字。
+- **回滚 = 把 `CHANNELS` 裁回一条 + 撤 `cli.26` 的两条新断言 + 删本节的微信图标**，`theme.css` 无需回滚（本轮没动它）。
+
 

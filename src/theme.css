@@ -1862,12 +1862,20 @@ body [data-composer-placeholder] {
  *
  * 挂点：`src/client.js` 的 `'evangelion: telegram filter'` effect 把入口按钮作为官方
  * 工作区表头行的子元素插在「搜索」槽之前（该行 = `[data-slot='sidebar.workspaces.directoryFlow']`
- * 那个空标记的 parentElement），按钮带 `data-eva-tg-button`（值 telegram）与
+ * 那个空标记的 parentElement），按钮带 `data-eva-tg-button`（值 telegram | weixin）与
  * `data-eva-tg-state`（on|off）；会话行 / 分组行带 `data-eva-tg-row`（on|off），
  * 会话树带 `data-eva-tg-tree`（on）。会话树用 `[data-slot='sidebar.workspaces']` 里的
  * `[role='tree']` 定位 —— 全页只有一棵，官方四个分组行、十个会话行、两个 overflow 行都在里面，
- * 所以按文档顺序走一遍就能同时认出「这一行是不是 Telegram」和「这个分组里有没有 Telegram」。
+ * 所以按文档顺序走一遍就能同时认出「这一行是不是某个渠道的会话」和「这个分组里有没有」。
  * 四个都是本主题自己的契约名，不引用任何 CSS-Modules 哈希类（css.6）。
+ *
+ * 第 42 轮（2026-10-10）：微信入口。用户原话「参考对Telegram会话的处理，将微信的对话也转移到
+ * 「工作区」一行中，就放在telegram的图标右边。」，并在「互斥切换 / 可叠加」里选了前者 ——
+ * 一行只持一个视图，所以两个入口是同一个三值状态的两位（0 官方列表 / 1 Telegram / 2 微信），
+ * 至多一个亮。点亮的那个即回到官方列表，这也正是开启态标签读作「显示全部会话」的原因。
+ * 本段因此一条规则都不用改：入口的**值**携带渠道，行标签仍是 on/off，按当前选中渠道算，
+ * 于是 `[data-eva-tg-tree='on'] [data-eva-tg-row='off']` 在两个视图里各自藏对的行。
+ * 两个按钮都写在搜索槽之前、按文档顺序 Telegram 在前微信紧随其后，官方三个按钮的像素不动。
  *
  * 为什么「仅改变样式」成立：过滤本身只在本段一条规则里，effect 只写自己的属性。
  * 关掉时摘掉 `data-eva-tg-tree`，列表一个属性不差地回到官方原样；滚动位置在开时存、关完再还。
@@ -1879,7 +1887,8 @@ body [data-composer-placeholder] {
  * 唯一的偏离是开启态：这里用 `--dsw-alias-brand-primary` 表达「筛选中」。
  *
  * 不动：表头行的高度 / 内边距 / 圆角，官方「搜索」「视图选项」「添加工作区」三个按钮的像素
- * （实测插入前后 label 16..58、入口 62、搜索 176、视图选项 208、添加工作区 240，逐字相同 ——
+ * （实测插入前后 label 16..58、入口 62、搜索 176、视图选项 208、添加工作区 240，逐字相同；
+ * 第 42 轮的微信入口落在 90..118，是 Telegram 那格右边的空档，官方三按钮仍各自不动 ——
  * 入口所以不写 `margin-left: auto`，那会和搜索槽平分空档并把官方按钮挤出这一行），
  * 分组头与行本身的结构（只插一个节点、不移一个节点），官方重复折叠控件的显隐与文案，
  * 以及暗色档 —— 不新增也不修改任何令牌（dark.1 冻结）。回滚 = 删本段四条规则。 */

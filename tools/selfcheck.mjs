@@ -737,7 +737,12 @@ checks.check('cli.26', 'the Telegram entry reveals the conversations through the
   if (!/var CHANNEL_ATTR = 'data-dsh-im-session-channel'/.test(client)) {
     return 'the filter does not read the marker the IM plugin writes'
   }
-  if (!/var TITLE_PREFIX = 'Telegram'/.test(client)) return 'the filter has no title marker'
+  if (!/var CHANNELS = \[\n\s*\{ id: 'telegram', marker: 'telegram', lead: 'Telegram · ' \},/.test(client)) {
+    return 'the filter has no title marker'
+  }
+  if (!/cell\.getAttribute\(CHANNEL_ATTR\) === channel\.marker/.test(client)) {
+    return 'the filter does not read the marker where the IM plugin writes it'
+  }
   if (!/querySelectorAll\('\[data-row-key\]'\)/.test(client)) {
     return 'the filter does not walk the rows by their official key attribute'
   }
@@ -765,8 +770,12 @@ checks.check('cli.26', 'the Telegram entry reveals the conversations through the
   }
   if (!/sessions\.list/.test(client)) return 'the filter never follows the session list'
   if (!/data-eva-tg-button/.test(client)) return 'the entry carries no contract attribute'
-  if (!/var state = key\.indexOf\(SESSION_PREFIX\) === 0 && isTelegram\(row\) \? 'on' : 'off'/.test(client)) {
+  if (!/var state = 'off'/.test(client) ||
+      !/key\.indexOf\(SESSION_PREFIX\) === 0 && isChannel\(row, channel\)/.test(client)) {
     return 'a group header can still stay on screen in filter mode'
+  }
+  if (!/if \(channel === null \|\| key\.indexOf\(SESSION_PREFIX\) === 0 && isChannel\(row, channel\)\) state = 'on'/.test(client)) {
+    return 'the rows are not tagged against the selected channel'
   }
   if ((client.match(/setAttribute\('title'/g) ?? []).length !== 1) {
     return 'the Telegram entry sets hover wording again (only the pin button may carry a title)'
