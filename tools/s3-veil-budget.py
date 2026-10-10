@@ -238,16 +238,39 @@ DARK_CEILING = 0.1164
 # at 0.35 every theme ink run sitting on the wall fails AA -- main tertiary median 2.00 /
 # 5% 1.62 with 31 of 41 runs below 4.5, sidebar primary 3.29/2.47, sidebar tertiary
 # 2.62/1.77. Blur is NOT a lever (alpha 0.35 + blur 48px -> 2.19/1.86; blur 96px ->
-# 2.47/1.97): the constraint is the wall's luminance, not its sharpness. 0.70 is the
-# first value where every theme ink run clears 4.5 (median 5.03 / 5% 4.67, zero runs
-# below; sidebar primary 7.24/6.53, rightbar tertiary 6.99/5.38).
-# So light ships 0.70 and dark stays 0.35. The standing "both modes move together" RULE
+# 2.47/1.97): the constraint is the wall's luminance, not its sharpness. 0.70 was the
+# first value where every ink run this project ACCOUNTED FOR cleared 4.5 (median 5.03 /
+# 5% 4.67, zero runs below; sidebar primary 7.24/6.53, rightbar tertiary 6.99/5.38) --
+# superseded on 2026-10-10, see the round-2 block below.
+# So light shipped 0.70 and dark stayed 0.35. The standing "both modes move together" RULE
 # above is AMENDED (2026-10-08, user): the two modes no longer have to share a scheme and
 # evolve independently; the only shared constraint left is the borderless idea itself.
 # Dark is FROZEN at its current implementation -- any change to it is forbidden from now
 # on, and tools/selfcheck.mjs dark.1 fails the build if its veil alpha ever moves again.
 # Cost, recorded rather than hidden: light show-through drops from 65% to 30%.
-SHIPPED_ALPHA = {"light": 0.70, "dark": 0.35}
+#
+# LIGHT READABILITY, ROUND 2 (2026-10-10): the user reported light-mode text still not
+# clear -- 「目前亮色下的文字还是不太清晰，降低一些透明度以增加文字可读性 … 只需要修改
+# 亮色下的，暗色不需要，文字很清晰」 -- so light goes 0.70 -> 0.84. Dark is NOT touched
+# (frozen; tools/selfcheck.mjs dark.1/dark.2).
+#
+# Why 0.84 and not this solver's own 0.82: `solvedMinAlpha` (0.82) covers the three ink
+# tokens this file accounts for, and on the live app all three already cleared 4.5 at
+# 0.70. The run that did NOT clear is the conversation-tab strip `对话` / `轨迹`, painted
+# in `--dsw-alias-state-business-primary` (#49484d) -- a theme token that is NOT in INKS
+# and therefore invisible to this solver. Measured on the live light UI (1256x821 @1x,
+# worst 26x15 glyph window, text painted transparent for the
+# backdrop): 0.70 -> 3.42, 0.78 -> 4.04, 0.80 -> 4.21, 0.82 -> 4.38, 0.83 -> 4.49,
+# 0.84 -> 4.56 (first pass), 0.85 -> 4.67. So 0.84 is the smallest alpha at which every
+# real rendered text run clears AA, which is the user's actual complaint.
+#
+# Cost, recorded not hidden: light show-through drops 30% -> 16%. Composite at the art's
+# p05 goes #a4a4ac -> #c1c0ca (rel lum 0.3726 -> 0.5341, i.e. the surface stays well
+# above the light-mode floor of 0.50 that min_alpha() enforces). The off-token colours
+# named in src/theme.css stay out of reach at any alpha and are NOT fixed here: official
+# blue #345EBA measures 3.68 at 0.88, brand/link #9a4900 and the state-error/success/warn
+# inks stay under 4.0 even at 0.90.
+SHIPPED_ALPHA = {"light": 0.84, "dark": 0.35}
 
 
 def linearise(value: float) -> float:

@@ -146,7 +146,7 @@ body[data-ds-dark-theme] {
  * LUMINANCE, not its sharpness, and light's art is dark (p05 0.007 / median 0.044). The
  * earlier "light's wallpaper is already flat (p02-p98 0.695-0.890)" note described the
  * OLD light wallpaper and no longer applies. Light therefore ships blur 0px with the
- * veil alpha raised instead (0.70, see the "One veil, four regions" section below).
+ * veil alpha raised instead (0.84 since 2026-10-10, see "One veil, four regions").
  *
  * `inset: calc(-1 * var(--cp-blur))` is load-bearing: a blurred element fades to
  * transparent at its own edges, and without the negative inset that fade shows up
@@ -423,25 +423,34 @@ div[data-windows-menu] {
  * 亮档可读性（2026-10-08 第二十五轮，真机实测）：撤掉 ③ 之后亮档回到 veil-budget 记下的
  * 状态 —— α0.35 下三档墨色不达标（main tertiary n=41 中位 2.00 / 5% 分位 1.62，31/41
  * 低于 4.5；sidebar primary 3.29/2.47）。**模糊不是杠杆**：α0.35 + blur 48px → 2.19/1.86，
- * blur 96px → 2.47/1.97 —— 约束是墙的亮度，不是锐度。所以按同一层纱抬高 α：**0.70 是第一个
- * 让全部主题墨色 run 达标 4.5 的值**（main tertiary 中位 5.03 / 5% 4.67、低于 4.5 计数 0；
+ * blur 96px → 2.47/1.97 —— 约束是墙的亮度，不是锐度。所以按同一层纱抬高 α：0.70 是当时
+ * 「本主题三档墨色全部达标」的第一个值（main tertiary 中位 5.03 / 5% 4.67、低于 4.5 计数 0；
  * sidebar primary 7.24/6.53、sidebar tertiary 5.56/4.80、rightbar tertiary 6.99/5.38）。
- * 代价如实记录：亮档透出由 65% 降到 30%。veil-budget 的解析解（worst-case art 全窗 p05）
- * 要 0.82，0.70 是「真机上所有实际文本位置都达标」的实测阈值。四区仍然只共享这一层纱，
- * 所以无边界不变。范围外缺口（不在本主题 54 令牌内，未改）：官方蓝 `#345EBA` 系 α0.70 下
- * 2.65、导航项 `对话` `rgb(73,72,77)` 3.58。
+ *
+ * 亮档可读性第二轮（2026-10-10，用户点名）：用户报「目前亮色下的文字还是不太清晰，降低一些
+ * 透明度以增加文字可读性 … 只需要修改亮色下的，暗色不需要，文字很清晰」——所以亮档
+ * **0.70 → 0.84**。0.70 之所以仍被抱怨，是因为当年只校准了 veil-budget 里的三档 label 墨色；
+ * 真机逐元素普查发现**唯一不达标的 run 是会话页签 `对话` / `轨迹`**，它画在
+ * `--dsw-alias-state-business-primary`（`#49484d`）上，而这个令牌**不在 veil-budget 的 INKS
+ * 清单里**，因此求解器看不见它。真机实测最坏 26×15 字形窗：0.70 → 3.42、0.78 → 4.04、
+ * 0.80 → 4.21、0.82 → 4.38、0.83 → 4.49、**0.84 → 4.56（首个过 AA）**、0.85 → 4.67。
+ * 代价如实记录：亮档透出由 30% 降到 16%，p05 合成 `#a4a4ac` → `#c1c0ca`（亮度 0.3726 →
+ * 0.5341，仍在亮档下限 0.50 之上）。veil-budget 的解析解（worst-case art 全窗 p05）是 0.82，
+ * 但它只覆盖三档 label 墨色，所以本轮取真机阈值 0.84。四区仍然只共享这一层纱，
+ * 所以无边界不变。范围外缺口（不在本主题 55 令牌内，未改）：官方蓝 `#345EBA` 系任何 α 都
+ * 过不了 4.5（0.88 时 3.68）；品牌/链接 `#9a4900` 与 state-error/success/warn 三色到 0.90 仍 <4.0。
  *
  * 2026-10-08（第二十九轮，用户点名）：main 底部的 `[data-composer-seat]` 已清掉 ——
  * 它是同一令牌的**第三次绘制**。官方 ConversationRoot.module.css:448-452 给座位铺
  *     linear-gradient(180deg, transparent 0px, var(--dsw-alias-bg-base) 36px)
  * 而座位高度随草稿增长（官方上限 14 行 × 24px），所以那条亮带**随输入框变高而变高**。
- * 亮档 α0.70 叠在 `body::after` 同一层上 ⇒ 合成 1-(1-0.70)² = 0.91，实测座位顶边下
- * 36px 处比上方亮 **+38/255**（(172,172,180) → (210,209,220)）。这正是用户点名的
+ * 亮档 α0.70（当时的出货值；现为 0.84）叠在 `body::after` 同一层上 ⇒ 合成 1-(1-0.70)² = 0.91，
+ * 实测座位顶边下 36px 处比上方亮 **+38/255**（(172,172,180) → (210,209,220)）。这正是用户点名的
  * 「main 区域随着输入框变化而扩大的那团白色」。清掉后四区仍只留 `body::after` 一层纱；
  * 座位自身没有可读性损失 —— 输入卡是玻璃面，卡后的文字由卡自己的 backdrop-filter 负责。
  *
  * 仍未动（同属「官方在同一层纱上重复绘制」，但不是用户点名的对象）：markdown
- * `_bannerWrap_7gxqk_24` 的 α0.70 同令牌横带，以及第三方的**不透明**面（推理窗
+ * `_bannerWrap_7gxqk_24` 的 α0.70（当时值）同令牌横带，以及第三方的**不透明**面（推理窗
  * `--dsw-alias-bg-layer-2`、右栏六张入口卡片等，改 α 无效）。
  * ------------------------------------------------------------------------ */
 
@@ -483,8 +492,8 @@ div[data-windows-menu] {
  * `_bannerWrap_7gxqk_24`）
  *
  * 与输入框座、左栏渐隐同一类：官方在已有的一层纱上再铺一次同一令牌。官方给 sticky 的
- * `_bannerWrap` 写 `background: var(--dsw-alias-bg-base)`（本表按档发布成亮档 α0.70 的
- * 那层纱），而它包着的 `[data-code-block-banner]` 标题头是**不透明**的
+ * `_bannerWrap` 写 `background: var(--dsw-alias-bg-base)`（本表按档发布成亮档那层纱；
+ * 写这段时是 α0.70，现为 0.84），而它包着的 `[data-code-block-banner]` 标题头是**不透明**的
  * `--dsw-alias-bg-layer-2`（真机 `rgb(215,214,228)`）。
  *
  * 真机实测（1600×1000 light，同一页面加载内做对照）：头与 wrap 的 rect 逐像素相同

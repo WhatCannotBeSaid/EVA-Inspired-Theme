@@ -170,53 +170,53 @@
     }
    },
    "solvedMinAlpha": 0.82,
-   "chosenAlpha": 0.7,
+   "chosenAlpha": 0.84,
    "chosenBy": "SHIPPED_ALPHA -- chosen for visible transparency, below the solved minimum",
    "atShipped": {
     "--dsw-alias-bg-base": {
      "fill": "#e2e1ed",
-     "alpha": 0.7,
+     "alpha": 0.84,
      "atProbe": {
-      "composite": "#a4a4ac",
-      "compositeLum": 0.3726,
+      "composite": "#c1c0ca",
+      "compositeLum": 0.5341,
       "ink": {
-       "--dsw-alias-label-primary": 6.41,
-       "--dsw-alias-label-secondary": 5.54,
-       "--dsw-alias-label-tertiary": 4.82
+       "--dsw-alias-label-primary": 8.86,
+       "--dsw-alias-label-secondary": 7.66,
+       "--dsw-alias-label-tertiary": 6.67
       },
       "ok": true
      },
      "atMean": {
-      "composite": "#bdbdc5",
-      "compositeLum": 0.5112,
+      "composite": "#ceced8",
+      "compositeLum": 0.6207,
       "ink": {
-       "--dsw-alias-label-primary": 8.51,
-       "--dsw-alias-label-secondary": 7.36,
-       "--dsw-alias-label-tertiary": 6.41
+       "--dsw-alias-label-primary": 10.17,
+       "--dsw-alias-label-secondary": 8.8,
+       "--dsw-alias-label-tertiary": 7.66
       },
       "ok": true
      }
     },
     "--dsw-specific-sidebar-fill": {
      "fill": "#e2e1ed",
-     "alpha": 0.7,
+     "alpha": 0.84,
      "atProbe": {
-      "composite": "#a4a4ac",
-      "compositeLum": 0.3726,
+      "composite": "#c1c0ca",
+      "compositeLum": 0.5341,
       "ink": {
-       "--dsw-alias-label-primary": 6.41,
-       "--dsw-alias-label-secondary": 5.54,
-       "--dsw-alias-label-tertiary": 4.82
+       "--dsw-alias-label-primary": 8.86,
+       "--dsw-alias-label-secondary": 7.66,
+       "--dsw-alias-label-tertiary": 6.67
       },
       "ok": true
      },
      "atMean": {
-      "composite": "#bdbdc5",
-      "compositeLum": 0.5112,
+      "composite": "#ceced8",
+      "compositeLum": 0.6207,
       "ink": {
-       "--dsw-alias-label-primary": 8.51,
-       "--dsw-alias-label-secondary": 7.36,
-       "--dsw-alias-label-tertiary": 6.41
+       "--dsw-alias-label-primary": 10.17,
+       "--dsw-alias-label-secondary": 8.8,
+       "--dsw-alias-label-tertiary": 7.66
       },
       "ok": true
      }
@@ -267,22 +267,22 @@
    },
    "atChosen": {
     "--dsw-alias-bg-base": {
-     "composite": "#a4a4ac",
-     "compositeLum": 0.3726,
+     "composite": "#c1c0ca",
+     "compositeLum": 0.5341,
      "ink": {
-      "--dsw-alias-label-primary": 6.41,
-      "--dsw-alias-label-secondary": 5.54,
-      "--dsw-alias-label-tertiary": 4.82
+      "--dsw-alias-label-primary": 8.86,
+      "--dsw-alias-label-secondary": 7.66,
+      "--dsw-alias-label-tertiary": 6.67
      },
      "ok": true
     },
     "--dsw-specific-sidebar-fill": {
-     "composite": "#a4a4ac",
-     "compositeLum": 0.3726,
+     "composite": "#c1c0ca",
+     "compositeLum": 0.5341,
      "ink": {
-      "--dsw-alias-label-primary": 6.41,
-      "--dsw-alias-label-secondary": 5.54,
-      "--dsw-alias-label-tertiary": 4.82
+      "--dsw-alias-label-primary": 8.86,
+      "--dsw-alias-label-secondary": 7.66,
+      "--dsw-alias-label-tertiary": 6.67
      },
      "ok": true
     }

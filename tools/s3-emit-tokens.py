@@ -46,6 +46,10 @@ PLUGIN_ID = "EVA-Inspired-Theme"
 # `out/s2-palette.json`: that file is measurement evidence and stays untouched.
 # 0.30 means 70% of whatever is behind the surface comes through (2026-10-07, round 10:
 # 「壁纸的透出度调整为70%」 -- keep this in step with SHIPPED_ALPHA in s3-veil-budget.py).
+# NOT moved on 2026-10-10: the light veil went 0.70 -> 0.84 for readability, but these
+# two are local content faces (composer card / menus) that sit ABOVE the veil, not the
+# veil itself; they were not what the user reported as unclear, and the two SOLVED
+# surfaces still come from the budget, so nothing here needs to follow the light change.
 #
 # Consequence, recorded rather than hidden: these two now carry a CHOSEN alpha too, so
 # the "everything else ships byte-for-byte as measured" sentence in this file's
