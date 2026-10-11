@@ -533,7 +533,7 @@ checks.check('cli.11c', 'the client half writes browser storage only for the two
   }
   return true
 })
-checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
+checks.check('cli.11d', 'the client half owns exactly eleven effects', () => {
   /* Five are the theme's own (token layer, liquid-glass maps, paint layer, boot mask,
      and since round 25 the brand row's three-zone bridge).
      Two come from the vendored plugin-toggle switch: it registers its own disposer plus
@@ -547,9 +547,12 @@ checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
      user's word (「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」) and the 微信
      switch beside it -- rounds 42 to 44 -- is all that is left, under its own label. The
      effect was renamed, never added or split: the count is the same 10 it has been since
-     round 41. */
+     round 41.
+     The eleventh (2026-10-11) is the theme's own host motion budget: the user asked for the
+     fix to ship inside the theme (「我还会上传到仓库给别人用。」), so the animations the host's
+     status surfaces loop forever are stopped from here, under our own label. */
   const effects = client.match(/ctx\.effect\(/g) ?? []
-  if (effects.length !== 10) return `${effects.length} ctx.effect() calls, expected exactly 10`
+  if (effects.length !== 11) return `${effects.length} ctx.effect() calls, expected exactly 11`
   if (!/tag\.dataset\.pluginCss = PLUGIN_ID \+ '\/theme\.css'/.test(client)) {
     return 'the paint layer is not namespaced'
   }
@@ -557,8 +560,47 @@ checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
   if (!/'evangelion: brand row zones'/.test(client)) return 'the brand row bridge has no label'
   if (!/'evangelion: workspace pins'/.test(client)) return 'the workspace pin effect has no label'
   if (!/'evangelion: wechat workspace switch'/.test(client)) return 'the WeChat switch has no label'
+  if (!/'evangelion: host motion budget'/.test(client)) return 'the host motion budget has no label'
   if (!/applyPluginToggle\(ctx\)/.test(client)) return 'the vendored toggle is never applied'
   return /applySessionEvaStatus\(ctx\)/.test(client) || 'the vendored session rail is never applied'
+})
+/* The host motion budget (2026-10-11, asked for by name). Four guarantees, because each
+   of them is a way this effect could go wrong without anyone noticing: the label (so the
+   effect is retractable and countable), the name filter (the one handle the host does not
+   hash -- drop it and the effect either stops a plugin's spinner or stops nothing), the
+   Infinity test (a one-shot animation is someone's transition, not a decoration that bills
+   every frame), and the pair of listener calls (an animationstart listener that is added
+   but never removed outlives the disposer). The off-switch attribute and the inline-style
+   restore are pinned with them: those are the two things that keep the change reversible.
+   The rule is by animation NAME, never by selector: the host's own reduced-motion block
+   would say the same thing, but this theme's sheet may carry no @media (css.7) and the
+   host's selectors are hashes (css.6, cli.17). */
+checks.check('cli.29', 'the host motion budget keeps its four narrow guarantees', () => {
+  if (!/'evangelion: host motion budget'/.test(client)) {
+    return 'the host motion budget carries no label in the built client'
+  }
+  if (!/document\.getAnimations/.test(clientJs)) {
+    return 'the host motion budget no longer asks the engine what is animating'
+  }
+  if (!/animationName/.test(clientJs) || !/indexOf\(HOST_PREFIX\) !== 0/.test(clientJs)) {
+    return 'the host motion budget no longer filters by animation name'
+  }
+  if (!/timing\.iterations !== Infinity/.test(clientJs)) {
+    return 'the host motion budget would stop a one-shot animation'
+  }
+  if (!/data-eva-host-motion/.test(clientJs)) {
+    return 'the off-switch attribute is gone, so the host motion can no longer be given back'
+  }
+  if (!/addEventListener\('animationstart', budget, true\)/.test(clientJs)) {
+    return 'the host motion budget is not driven by animationstart'
+  }
+  if (!/removeEventListener\('animationstart', budget, true\)/.test(clientJs)) {
+    return 'the animationstart listener would outlive the disposer'
+  }
+  if (!/style\.animation = ''/.test(clientJs)) {
+    return 'the disposer no longer hands the host its animation back'
+  }
+  return true
 })
 /* Round 24 (2026-10-07): liquid glass. The two halves of the effect live in two
    files on purpose -- the sheet names a filter by id, and src/client.js draws the
@@ -569,15 +611,20 @@ checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
    which looks close enough to ship. So both directions are pinned, plus the two
    invariants that make the fallback real: the blur line has to precede the url() line
    (an engine that cannot parse url() drops that declaration, not the earlier one), and
-   the map has to be drawn per element rather than fixed. */
+   the map has to be drawn per element rather than fixed.
+   C1 (2026-10-11, asked for by name): the composer card stopped applying its url()
+   filter for cost, not for looks. The sheet therefore names one id (the guide's) while
+   src/client.js still builds two. That asymmetry is the rollback path, so it is pinned
+   rather than tolerated: a count that merely tracked the sheet would let the unused
+   filter rot out of the build, and re-adding the two CSS lines would then silently
+   degrade the composer to blur-only instead of failing loudly. */
 const cssRules = css.replace(/\/\*[\s\S]*?\*\//g, '')
 checks.check('glass.1', 'the sheet names the liquid-glass filters the client half builds', () => {
   const named = [...new Set([...cssRules.matchAll(/url\(#(eva-lg-[a-z-]+)\)/g)].map((m) => m[1]))]
-  /* Two since the borderless round: the composer card and the six guide entries in
-     the right column. Both were asked for by name, so the count is pinned rather
-     than left open — a third surface must come with a third declared intent. */
-  if (named.length !== 2) {
-    return `${named.length} liquid-glass filter ids in the sheet, expected 2`
+  /* One since C1: the six guide entries in the right column. Pinned rather than left
+     open — a further surface must come with its own declared intent. */
+  if (named.length !== 1) {
+    return `${named.length} liquid-glass filter ids in the sheet, expected 1`
   }
   for (const id of named) {
     if (!clientJs.includes(`'${id}'`)) {
@@ -585,15 +632,20 @@ checks.check('glass.1', 'the sheet names the liquid-glass filters the client hal
     }
   }
   const built = [...new Set([...clientJs.matchAll(/id: '(eva-lg-[a-z-]+)'/g)].map((m) => m[1]))]
-  if (built.length !== named.length) {
-    return `src/client.js builds ${built.length} glass filters, the sheet names ${named.length}`
+  /* Two always: the composer card's filter is unused by the sheet yet must stay
+     constructed, or restoring C1's two CSS lines would land on a filter that is gone. */
+  if (!built.includes('eva-lg-input')) {
+    return 'src/client.js no longer builds eva-lg-input, so C1 has no rollback path'
+  }
+  if (built.length !== 2) {
+    return `src/client.js builds ${built.length} glass filters, expected 2 (input + guide)`
   }
   return true
 })
 checks.check('glass.2', 'every url() filter keeps its blur-only fallback in front of it', () => {
   const rules = cssRules.split('}').filter((rule) => rule.includes('url(#eva-lg-'))
-  /* One rule per id glass.1 counts: the composer card's rule and the guide's rule. */
-  if (rules.length !== 2) return `${rules.length} rules name a url() glass filter, expected 2`
+  /* The guide's rule only, since C1 dropped the composer card's url() line. */
+  if (rules.length !== 1) return `${rules.length} rules name a url() glass filter, expected 1`
   for (const rule of rules) {
     for (const prop of ['backdrop-filter', '-webkit-backdrop-filter']) {
       const blur = rule.indexOf(`${prop}: blur(`)

@@ -524,3 +524,146 @@ B 层因此多一项（13 → 14）；第三十三轮按 D74 曾把 B 层抬到 
 权威数字在 `tools\s2-palette.py`（真源）→ `out\s2-palette.json`（产物）；
 筛选过程与全部实测见 `docs\render-report.md` §14，逐令牌差异见 `docs\tokens-diff.md`，
 对比度预算见 `docs\contrast-budget.md`（`rows=40 bad=0 officialFail=12`）。
+
+## 10. 宿主动效预算（2026-10-11）
+
+### 10.1 为什么主题要管宿主的动画
+
+用户的原话是这一节的起点：
+
+> 我需要的是通过EVA主题优化，因为我还会上传到仓库给别人用。
+
+也就是说，任何只改本机启动参数、只改系统设置的办法都不算数——修复必须落在主题源码里，随仓库分发，
+安装到谁的机器上都生效。而这一次真正烧掉一整个 CPU 核的东西，恰好不是主题自己的动画。
+
+### 10.2 真凶：宿主四个无限动画（逐字名）
+
+宿主样式表 `dsh-app://app/assets/index-BPHePDI_.css` 里有八个一直在跑的 CSS 动画，
+它们是四个关键帧、各出现两次（同一套东西在页面里有两处）：
+
+| 关键帧名（逐字） | 挂在哪个元素上 | 位置 | 数量 |
+|---|---|---|---|
+| `_dsh-state-dot-spin_1i3xo_1` | `g._spinnerMotion_1i3xo_42` | `sidebar.workspaces` 的会话行「进行中」；`conversation.session.header.actions` 的「1 个后台任务运行中」 | ×2 |
+| `_dsh-state-dot-dash_1i3xo_1` | `circle._spinnerArc_1i3xo_48` | 同上（同一个状态点的两段：旋转 + 描边） | ×2 |
+| `_dsh-row-shimmer-sweep_1rdzk_1` | `span._sweep_1rdzk_34` | `tool.call.toolview` 的工具行「正在运行命令」；`conversation.view` 的「深度求索中，用时 …」 | ×2 |
+| `_dsh-row-shimmer-highlight_1rdzk_1` | `span._content_1rdzk_11._highlight_1rdzk_54` | 同上 | ×2 |
+
+关键声明（逐字节选）：
+
+```css
+._spinnerMotion_1i3xo_42 {
+  transform-origin: center center;
+  animation: 1.5s linear 0s infinite normal none running _dsh-state-dot-spin_1i3xo_1;
+}
+._spinnerTrack_1i3xo_47, ._spinnerArc_1i3xo_48 {
+  fill: none; stroke: currentcolor; stroke-width: 2; stroke-linecap: round;
+}
+._sweep_1rdzk_34 {
+  position: absolute; inset: 0px; overflow: hidden;
+  color: var(--dsw-alias-label-shimmer);
+  mask-image: linear-gradient(105deg, transparent 0%, black 40%, black 60%, transparent 100%);
+  transform: translate(-100%);
+  animation-name: _dsh-row-shimmer-sweep_1rdzk_1;
+}
+._highlight_1rdzk_54 {
+  width: 100%; height: 100%; transform: translate(100%);
+  animation-name: _dsh-row-shimmer-highlight_1rdzk_1;
+}
+```
+
+### 10.3 实测：这些动画值多少
+
+同一台机器、同一个窗口、同一个页面，CDP Performance 域，每次 3 秒窗口：
+
+| 场景 | TaskDuration（主线程任务 / 秒） |
+|---|---|
+| 基线（八个动画都在跑） | **948 ms/s** |
+| 用 `document.getAnimations().forEach(a => a.pause())` 全停 | **145 ms/s** |
+| 只停两条微光（sweep + highlight） | 737 ms/s（占约 17%） |
+| **只停两个状态点（spin + dash）** | **130 ms/s（占约 95%）** |
+| 等价的 `animation: none` 探针（四类各一条） | **108 ms/s（8.3×）** |
+| 把主题整张样式表 `disabled` | 948 → 913 ms/s（**只占 3.7%**，主题约 64 ms/s 重算） |
+
+结论很直接：**主题不是主线程持续烧核的原因**（整张表 disabled 只挪动 3.7%），
+这八个动画才是；其中两个状态点占 95%。
+
+进程级（同一时刻，`--force-prefers-reduced-motion` 生效前后，10 秒采样）：
+
+| 进程 | 前 | 后 |
+|---|---|---|
+| 主界面渲染进程 | 95.2% 核 | **10.2%** |
+| GPU 进程 | 62.7% 核 | **1.1%** |
+| 宿主 Node 进程 | 14.7% | 7.5% |
+| 合计 | ≈174% 核 | **18.8% 核（约 9.3×）** |
+
+（窗口当时可见、非最小化且在前台——已排除「被遮挡所以省电」。）
+
+另外，同一页面还有第二个烧核来源，**不属于主题**：`dsh-better-sidebar` 的
+`src/client/sidebar/dock-fallback.tsx:157` 每 500 ms 调一次 `measure()`（`:128`），
+而 `measure()` 从锚点左侧逐像素左移最多 400 步、每步若干次
+`document.elementsFromPoint`（`:78` `slotOccupied`）——实测 102 次/秒 hit-test、
+230 次/秒 `getBoundingClientRect`，即 trace 里 150–194 ms/s 的 `HitTest`。
+组件本身渲染为空（`[data-dsh-dock-fallback]` 一个都没有）却仍挂着定时器。
+这一处不动：它属于第三方插件，改动需要用户点名。本节只记录，免得下次又归错账。
+
+### 10.4 为什么不写成 CSS
+
+宿主自己已经回答过这个问题：`index-BPHePDI_.css` 里有 **69 条
+`@media (prefers-reduced-motion: reduce)`**，其中一条正好把上面两个家族设成
+`animation: none`：
+
+```css
+._spinnerMotion_1i3xo_42, ._spinnerArc_1i3xo_48 {
+  animation: auto ease 0s 1 normal none running none;
+}
+._sweep_1rdzk_34, ._highlight_1rdzk_54 {
+  animation: auto ease 0s 1 normal none running none;
+}
+```
+
+但把这两条抄进主题，在这个仓库里被三重门禁挡死：
+
+- `tools/selfcheck.mjs` 的 `css.6`（`:256`）禁止 paint layer 出现 CSS-Modules 哈希类名，
+  哈希识别在 `:81-84`（`HASH_CLASS`，形如 `BynINW_frame`）；
+- `css.7`（`:260`）要求 `theme.css` 的每个选择器都锚在 `body` / `:root` / `#root` /
+  body 伪元素 / `data-*` 契约上，而且**不许 `@media`、不许 `@keyframes`**
+  （`src/theme.css:794` 与 `src/client.js:369-374` 都把这条写死了）；
+- `cli.17`（`:848-857`）对 `src/client.js`、`src/boot-screen.js`、`src/theme.css`、
+  paint layer 扫同一套哈希类名。
+
+所以 CSS 那条路只能靠 `[class*="_spinnerMotion_"]` 这类前缀选择器绕，
+而它有两个毛病：得给自己开门禁例外；宿主一改哈希后缀就**静默失效**（不报错，只是不省了）。
+
+### 10.5 实际做法：认动画名，不认选择器
+
+动画名是宿主唯一没有哈希化的把手：它的设计系统里所有动画都叫 `_dsh-…`（上表四个名字）。
+于是规则是：「无限循环 + 动画名以 `_dsh-` 开头」的动画，就是宿主自己的装饰动画，停掉它。
+
+实现（`src/client.js`，标签 `'evangelion: host motion budget'`，挂在 paint layer 之后、
+boot mask 之前）：
+
+- `document.getAnimations()` 里筛 `animation.animationName` 以 `_dsh-` 开头、
+  且 `animation.effect.getTiming().iterations === Infinity` 的；
+- 给它的 `effect.target` 内联 `animation: none`；
+- 触发只用一个 `animationstart`（document 捕获相）——开机一次，之后每次有动画启动再来一次。
+  **没有定时器、没有轮询、不观察应用的 DOM 变更**。React 重渲染把内联样式冲掉会重启动画，
+  重启就再触发一次事件，所以是自愈而不是死循环（每一轮结束状态都是「动画已经没了」）；
+- 关闭开关：`<html data-eva-host-motion="on">`，由挂在 documentElement 上的
+  MutationObserver 只盯这一个属性，加上就还宿主动效、去掉就再停；
+- 诊断：`window.__evaMotionBudget = { stopped, last, prefix }`——将来宿主改名了，
+  在 devtools 里会看到 `stopped: 0`，而不是无声地不省了；
+- disposer：摘掉监听、断观察器、把每个碰过的元素 `style.animation = ''` 还回去。
+
+「停掉」的语义与宿主自己的 reduced-motion 块完全一致：元素停在动画的起始帧，
+形状不变、什么都不隐藏，只是不动了。插件自己的转圈（名字由那个插件命名）和主题自己的
+呼吸轨（`dsh-session-eva-status-breathe`，无前导下划线）都不在命中范围内。
+
+### 10.6 脆弱点（写清楚，免得下一个人踩）
+
+1. **宿主改动画名**（换前缀、改名）：`stopped` 变 0，静默失效。诊断变量就是为这个留的。
+2. **宿主改哈希后缀**：无影响——我们不认哈希。
+3. **浏览器不支持 `document.getAnimations`**：函数不存在就什么都不做，页面照常。
+4. **这不是「主题就该关掉宿主动效」**：这是一个按用户点名、把实测 95% 的那部分账单
+   从每个装机用户身上拿掉的取舍；要还回去只有一个属性。
+5. 上表里的类名、哈希、URL **不能**出现在 `src/client.js` 的注释里（`cli.17` 扫源码、
+   `cli.18` 扫产物里的绝对路径），所以逐字名只出现在这份文档里。

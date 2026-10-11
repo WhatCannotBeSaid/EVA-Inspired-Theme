@@ -240,7 +240,11 @@ body::after {
 #root *:has(> [data-conversation-content]),
 #root *:has(> [data-dsh-center-col]),
 [data-slot='root'] > *,
-div:has(> [data-slot='sidebar']),
+/* C2（2026-10-11，用户点名「收窄裸 :has() 主语」）：原来只写 `div:has(> …)`，主语是
+   **全文任意 div** —— 每次样式失效都要对文档里每个 div 求一次 `:has()`。收窄到根槽的
+   孙辈（已知链：根槽 < frame < 侧栏列 < 侧栏槽），实测命中集一字不变：长会话页与 hero
+   页各 1 个，就是侧栏列那个 div（祖先链见本表 css 注释里的等价性记录）。 */
+[data-slot='root'] > * > div:has(> [data-slot='sidebar']),
 [data-slot='sidebar'] > div,
 [data-dockkit-empty='true'],
 /* 2026-10-07 实测补漏：**插件/外壳自己画的同色 veil**。用真会话（不是空白页）
@@ -358,8 +362,24 @@ div[data-windows-menu] {
   pointer-events: none;
   -webkit-backdrop-filter: blur(var(--cp-glass-composer)) saturate(135%);
   backdrop-filter: blur(var(--cp-glass-composer)) saturate(135%);
-  -webkit-backdrop-filter: url(#eva-lg-input) blur(var(--cp-glass-composer)) saturate(135%);
-  backdrop-filter: url(#eva-lg-input) blur(var(--cp-glass-composer)) saturate(135%);
+  /* ----------------------------------------------------------------------
+   * C1（2026-10-11，用户点名「玻璃去掉 url(#eva-lg-input)」）：位移折射不再挂在输入卡上。
+   *
+   * 本块末尾原来还有两行 `url(#eva-lg-input) …`，把 SVG 位移串在 blur 之前；位移贴图由
+   * src/client.js 逐元素测量后画进 svg#eva-lg-defs。同页消融（同一静止重页、20 s 一相、
+   * 两次原样对照差 0.6%）：
+   *     原样（url + blur）330 → 只留 blur 232 → 连 backdrop-filter 一起关 183（ms/s 渲染器）
+   * 即 SVG 位移一项 ≈ +98 ms/s，占该页主题开销约三成。去掉后玻璃只剩 blur + saturate，
+   * 磨砂与着色不变；代价是失去折射位移，这是用户点名要付的代价。
+   *
+   * 回退（只改 CSS，不碰 JS）：把下面两行重新加回本块末尾即可 ——
+   *     -webkit-backdrop-filter: url(#eva-lg-input) blur(var(--cp-glass-composer)) saturate(135%);
+   *     backdrop-filter: url(#eva-lg-input) blur(var(--cp-glass-composer)) saturate(135%);
+   * `#eva-lg-input` 的滤镜定义仍由 src/client.js 照常构建（tools/selfcheck.mjs 的 glass.1
+   * 钉住「client 半仍造这枚滤镜」），所以 JS 端从未被拆掉。
+   * 连门禁一起回退：glass.1 的 named 期望数 1 → 2、glass.2 的 rules 期望数 1 → 2。
+   * 改动前的逐字原样见 src/theme.css.bak-20261011-1530-c1c2。
+   * ------------------------------------------------------------------- */
 }
 
 /* --------------------------------------------------------------------------
@@ -506,7 +526,12 @@ div[data-windows-menu] {
  * `data-code-block-banner` 反查它的父元素；该选择器同时满足 css.7（含 `[data-`）。
  * 两档共用、无模式分支、不新增也不修改任何令牌。
  * ------------------------------------------------------------------------ */
-div:has(> [data-code-block-banner]) {
+/* C2（2026-10-11，同一次收窄）：包 `[data-code-block-banner]` 的那个 div 自身没有 data-*
+   （哈希类名被 css.6 禁止），只能反查；但主语不再放任到「全文任意 div」—— 官方把它放在带
+   `data-code-wrap='true'` 的代码块包装器里（实测链：banner < 横幅包装 div < 包装器 < markdown
+   body < …）。加一层祖先限定后主语只剩「代码块包装器的子元素」；长会话页实测旧式命中 1 个
+   （就是那个横幅包装 div），新式是它的子集且包含它 ⇒ 命中集相等。 */
+[data-code-wrap='true'] > div:has(> [data-code-block-banner]) {
   background-color: transparent !important;
 }
 
@@ -1603,13 +1628,20 @@ html[data-windows-titlebar] body:not([data-ds-dark-theme]) {
  * 子节点），规则失配 → 该页退回官方文案，不会误伤其它页面。
  * 回滚 = 删本节四条规则。
  * ------------------------------------------------------------------------ */
+/* C2（2026-10-11，用户点名收窄裸 :has() 主语）：本节两条藏元素的规则原来以
+ * `div:has(> span > [mark])` 作主语（主语是全文任意 div），现改为以**紧贴 mark 的那枚 span**
+ * 作主语：`span:has(> [mark])` 藏 mark 那枚 span，`span:has(> [mark]) + span > span` 藏标题组
+ * 里那两个子 span。hero 页按文档序 id 实测命中集一字不变：[538] 与 [543,544]。
+ * 下一节要落 container-type 与德语 ::before 的两条无法用 span 作主语（属性必须落在标题行 div
+ * 上），改为加祖先门：`[data-phase='hero'] div:has(> span > [mark])`，实测 = 同一个 [537]。
+ * 门与主语都是 data-* 契约（css.7）；宿主若改 hero 结构则本节失配、退回官方文案。 */
 [data-slot='conversation.hero.brand.mark'] {
   display: none !important;
 }
-div:has(> span > [data-slot='conversation.hero.brand.mark']) > span:has(> [data-slot='conversation.hero.brand.mark']) {
+span:has(> [data-slot='conversation.hero.brand.mark']) {
   display: none !important;
 }
-div:has(> span > [data-slot='conversation.hero.brand.mark']) > span:has(> span) > span {
+span:has(> [data-slot='conversation.hero.brand.mark']) + span > span {
   display: none !important;
 }
 /* 第三十五轮（D75，2026-10-08，用户点名）：用户逐字「调整字号，文字任何情况下都要在
@@ -1643,10 +1675,10 @@ div:has(> span > [data-slot='conversation.hero.brand.mark']) > span:has(> span) 
  * 文件、字节数与 bundle 里的 @font-face 三者一致。font-display: block 同理：真出现回退
  * 时 block 至少不会先画一帧 1.7 倍宽的兜底字再跳。
  * 回滚 = 删本条 container-type ＋ ::before 里那五行以外的一切（规则回到第三十四轮） */
-div:has(> span > [data-slot='conversation.hero.brand.mark']) {
+[data-phase='hero'] div:has(> span > [data-slot='conversation.hero.brand.mark']) {
   container-type: inline-size;
 }
-div:has(> span > [data-slot='conversation.hero.brand.mark']) > span:has(> span)::before {
+[data-phase='hero'] div:has(> span > [data-slot='conversation.hero.brand.mark']) > span:has(> span)::before {
   content: 'Wovon man nicht sprechen kann, darüber muss man schweigen';
   font-family: 'Great Vibes', cursive;
   font-weight: 400;

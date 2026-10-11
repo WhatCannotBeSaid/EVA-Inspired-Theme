@@ -394,6 +394,123 @@
         }
       }, 'evangelion: paint layer')
 
+      /* ---- Host motion budget (2026-10-11, the user's own condition: 「我需要的是通过
+         EVA主题优化，因为我还会上传到仓库给别人用。」)
+
+         What it is for. The host's status surfaces carry four decorative animations, each
+         looping forever: the state dot (one rotation plus one dash, so two animations) and
+         the running-row shimmer (a sweep plus a highlight, two more). Measured on a live
+         desktop window the same afternoon (CDP Performance domain, 3 s windows, one
+         window, one page): with those eight running the renderer spent 948 ms of
+         main-thread task time per second; with the very same animations stopped by a
+         stylesheet probe it spent 108 ms/s, and stopping only the two dots reached
+         130 ms/s while stopping only the two shimmers reached 737 ms/s -- the dots are
+         ~95% of the bill. Process-level, on the same machine: renderer 95.2% -> 10.2% of
+         a core and the GPU process 62.7% -> 1.1%, once the host's own reduced-motion path
+         stopped them. They are not this theme's animations -- disabling the theme's whole
+         stylesheet moves the total by 3.7% (948 -> 913 ms/s, theme ~64 ms/s of style
+         recalculation) -- but they are paid for on every machine the theme is installed
+         on, which is why the budget lives here and ships with it.
+
+         Why by animation NAME, not by selector. The host already answers this question
+         with prefers-reduced-motion: its stylesheet carries 69 such blocks, and one of
+         them stops exactly these four. That route is closed to this theme twice over --
+         the paint layer may not carry @media at all (selfcheck css.7 rejects an at-block
+         there) and the host's selectors are CSS-Modules hashes (css.6 / cli.17 forbid
+         naming one). The animation name is the one handle the host does not hash: every
+         animation its design system declares is named with one fixed prefix (the four
+         names are recorded verbatim in docs/design.md section 10 -- they cannot be
+         written here, cli.17 scans this file for hashed names). So the rule is: an
+         ANIMATION that loops forever and whose name starts with that prefix is the host's
+         own decoration, and it stops. A plugin's spinner is named by that plugin and is
+         left alone; so is this theme's own breathing rail
+         (dsh-session-eva-status-breathe, no leading underscore).
+
+         What "stops" means: one inline 'animation: none' on the animated element. The
+         element keeps its shape at the animation's start state, which is exactly what the
+         host's own reduced-motion block does to the same two families (it sets
+         animation: none; it does not hide anything) -- and the disposer retracts the
+         inline style, so turning the theme off gives the motion back.
+
+         Cost: one pass at mount, then one pass per animationstart, through a single
+         capture-phase listener on document. No timer, no polling, no observer of the
+         app's mutations. A React re-render can drop the inline style, which restarts the
+         animation, which fires the event again -- self-healing without being a loop, since
+         every pass ends with the animation gone.
+
+         The off-switch is one attribute on the document element:
+         <html data-eva-host-motion="on"> gives the host its motion back, live -- a
+         MutationObserver watches that one attribute -- and removing it stops them again.
+         window.__evaMotionBudget reports what the last pass did, so a future host rename
+         shows up as stopped: 0 in a devtools console instead of as a silent regression. */
+      ctx.effect(() => {
+        if (typeof document === 'undefined') return undefined
+        var root = document.documentElement
+        if (root === null || root === undefined) return undefined
+
+        var SWITCH_ATTR = 'data-eva-host-motion'
+        var HOST_PREFIX = '_dsh-'
+        var stopped = []
+
+        /* A CSSAnimation carries the name of the keyframes it runs. Anything else (a
+           script-driven animation, or an engine that reports no name) is not ours to
+           judge and is skipped. Iterations must be Infinity: a one-shot animation is
+           someone's transition, not a decoration that bills every frame. */
+        var budget = function () {
+          if (root.getAttribute(SWITCH_ATTR) === 'on') return
+          var running = typeof document.getAnimations === 'function' ? document.getAnimations() : []
+          var last = ''
+          for (var i = 0; i < running.length; i += 1) {
+            var animation = running[i]
+            var name = animation.animationName
+            if (typeof name !== 'string' || name.indexOf(HOST_PREFIX) !== 0) continue
+            var effect = animation.effect
+            if (effect === null || effect === undefined) continue
+            var timing = typeof effect.getTiming === 'function' ? effect.getTiming() : null
+            if (timing === null || timing.iterations !== Infinity) continue
+            var target = effect.target
+            if (target === null || target === undefined || target.style === undefined) continue
+            if (target.style.animation === 'none') continue
+            target.style.animation = 'none'
+            stopped.push(target)
+            last = name
+          }
+          if (typeof window !== 'undefined') {
+            window.__evaMotionBudget = { stopped: stopped.length, last: last, prefix: HOST_PREFIX }
+          }
+        }
+
+        /* Every element this effect touched goes back to the sheet's own animation, which
+           is also the state a host rename leaves behind: nothing of ours is sticky. */
+        var restore = function () {
+          for (var i = 0; i < stopped.length; i += 1) {
+            if (stopped[i] !== null && stopped[i].style !== undefined) stopped[i].style.animation = ''
+          }
+          stopped = []
+        }
+
+        budget()
+        document.addEventListener('animationstart', budget, true)
+        var watcher = typeof MutationObserver === 'function'
+          ? new MutationObserver(function () {
+              if (root.getAttribute(SWITCH_ATTR) === 'on') restore()
+              else budget()
+            })
+          : null
+        if (watcher !== null) {
+          watcher.observe(root, { attributes: true, attributeFilter: [SWITCH_ATTR] })
+        }
+
+        return () => {
+          document.removeEventListener('animationstart', budget, true)
+          if (watcher !== null) watcher.disconnect()
+          restore()
+          if (typeof window !== 'undefined') {
+            window.__evaMotionBudget = { stopped: 0, last: '', prefix: HOST_PREFIX }
+          }
+        }
+      }, 'evangelion: host motion budget')
+
       /* Boot mask -- 「闸门开启」. One page load plays it once (the in-page
          window.__evaBootMark guard), then it deletes itself. The disposer returned
          by mountBootScreen IS destroyBoot, so turning the theme off mid-play takes
@@ -1336,10 +1453,46 @@
            Only data-row-key is watched, exactly as the pin effect watches it -- class is
            rewritten on every render, the key moves only when the row does, and a filter on
            that attribute is also what keeps this effect's own data-eva-wx* writes from
-           scheduling another pass. */
+           scheduling another pass.
+
+           Round 47 (2026-10-11) -- WHICH batches reach the pass: the same rule the pin
+           effect above already applies. Before this filter the pass ran for every childList
+           batch in the document, so a streaming answer in the conversation pane paid for a
+           sidebar walk. Measured on the 6563-element session page: 120 conversation-only
+           mutations cost 601 queries inside the sidebar (markerNode, tree, entry's own
+           input scan, wxHead's row walk) plus one textContent build per batch -- the same
+           shape the round-1 fix removed from the status rail. A batch that provably misses
+           the workspaces slot is not this pass's business: the pass reads no row outside
+           it. Three things still schedule, and they are the whole of the rule -- a target
+           inside the slot, a node added or removed CONTAINING it (React replacing the
+           sidebar is the remount this watch exists for), and a remembered host that is no
+           longer attached. */
+        function touches(records) {
+          var host = slotHost
+          if (host === null || !host.isConnected) return true
+          for (var i = 0; i < records.length; i++) {
+            var record = records[i]
+            var target = record.target
+            if (target !== null && target !== undefined && (target === host || host.contains(target))) return true
+            var bags = [record.addedNodes, record.removedNodes]
+            for (var b = 0; b < bags.length; b++) {
+              var bag = bags[b]
+              if (bag === undefined || bag === null) continue
+              for (var n = 0; n < bag.length; n++) {
+                var node = bag[n]
+                if (node === host || (typeof node.contains === 'function' && node.contains(host))) return true
+              }
+            }
+          }
+          return false
+        }
+
         var observer = null
         if (document.body !== undefined && document.body !== null) {
-          observer = new MutationObserver(schedule)
+          observer = new MutationObserver(function (records) {
+            if (!touches(records)) return
+            schedule()
+          })
           observer.observe(document.body, {
             childList: true,
             subtree: true,

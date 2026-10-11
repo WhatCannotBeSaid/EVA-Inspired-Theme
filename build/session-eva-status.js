@@ -416,7 +416,36 @@ window.__ModuleLoader__.load({
         sessionList.subscribe(schedule),
         workspaceList.subscribe(schedule),
       ]
-      const observer = new MutationObserver(schedule)
+      /**
+       * 主题侧补丁 e：观察器只放行「落在侧栏插槽里」的批次。
+       *
+       * 补丁 d 收窄了每次对账要走的行集合，但唤醒条件还是整篇文档：主区流式回复的每一批
+       * childList（每到一个 token 一批）都会把侧栏的状态轨叫醒一次，rAF 合帧后仍然每帧重扫
+       * 一遍会话行。实测（2026-10-11，6563 元素会话页，隔离实例）：120 次只发生在主对话区的
+       * 追加，探针记到 120 次侧栏 ROW_SELECTOR 查询 —— 与补丁 d 之前同一形状的浪费，只是换了
+       * 入口。放行规则与 src/client.js 的 touches() 逐字同义：目标是侧栏（含侧栏自身）；或
+       * 增删的节点就是侧栏／包含侧栏（React 整块重挂，旧的已断开）；或记忆的侧栏已断开
+       * （重挂中，必须重新解析）。属性记录只观察 data-row-key，目标就是行本身 → 天然放行。
+       * 三条订阅（状态 / 会话表 / 工作区表）不走这条过滤，照旧直接 schedule()。
+       */
+      function touches(records) {
+        const host = scopeHost
+        if (host === null || !host.isConnected) return true
+        for (const record of records) {
+          const target = record.target
+          if (target !== null && target !== undefined && (target === host || host.contains(target))) return true
+          for (const bag of [record.addedNodes, record.removedNodes]) {
+            for (const node of bag) {
+              if (node === host || (typeof node.contains === 'function' && node.contains(host))) return true
+            }
+          }
+        }
+        return false
+      }
+      const observer = new MutationObserver((records) => {
+        if (!touches(records)) return
+        schedule()
+      })
       // 只盯行键：React 重渲染整段重写 class，但 data-row-key 只在换行时变。
       observer.observe(document.body, {
         childList: true, subtree: true, attributes: true, attributeFilter: ['data-row-key'],
