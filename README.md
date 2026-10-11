@@ -145,13 +145,6 @@ follow the interface language — a Chinese and an English user both read the Ge
   main area, purple while it finished unread. A pinned row gets a rainbow title
   instead of a rail.
 - The **boot mask** once per page load, and the four **task sounds**.
-- A **host motion budget**: the host's own looping status animations — the state dot beside
-  a running or waiting session, and the shimmer across a running tool row — are stopped when
-  the theme loads, because between them they were spending a full CPU core on this machine
-  (measured: 948 ms of main-thread task time per second, 95% of it in the two dots). Only
-  animations the host's design system names are touched, so a plugin's spinner and this
-  theme's own rail keep running. Put `data-eva-host-motion="on"` on the document element to
-  get them back live; removing the attribute stops them again.
 
 Settings themselves remain the official dialog. The single change there is that the
 dim tint behind it is removed; the panel and click-outside-to-close are untouched.

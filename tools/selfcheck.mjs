@@ -561,7 +561,7 @@ checks.check('cli.11c', 'the client half writes browser storage only for the two
   }
   return true
 })
-checks.check('cli.11d', 'the client half owns exactly eleven effects', () => {
+checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
   /* Five are the theme's own (token layer, liquid-glass maps, paint layer, boot mask,
      and since round 25 the brand row's three-zone bridge).
      Two come from the vendored plugin-toggle switch: it registers its own disposer plus
@@ -578,12 +578,9 @@ checks.check('cli.11d', 'the client half owns exactly eleven effects', () => {
      back (「我不想用dsh-wechat，给我把dsh-im换回来。包括工作区旁边的图标按钮及其功能。」), and
      round 49 (m00694「Telegram呢！！！」) restored the pair: two channel filters, two buttons,
      one three-valued state. The effect was renamed and rewritten, never added or split, so the
-     count is unchanged.
-     The eleventh (2026-10-11) is the theme's own host motion budget: the user asked for the
-     fix to ship inside the theme (「我还会上传到仓库给别人用。」), so the animations the host's
-     status surfaces loop forever are stopped from here, under our own label. */
+     count is unchanged. */
   const effects = client.match(/ctx\.effect\(/g) ?? []
-  if (effects.length !== 11) return `${effects.length} ctx.effect() calls, expected exactly 11`
+  if (effects.length !== 10) return `${effects.length} ctx.effect() calls, expected exactly 10`
   if (!/tag\.dataset\.pluginCss = PLUGIN_ID \+ '\/theme\.css'/.test(client)) {
     return 'the paint layer is not namespaced'
   }
@@ -591,47 +588,8 @@ checks.check('cli.11d', 'the client half owns exactly eleven effects', () => {
   if (!/'evangelion: brand row zones'/.test(client)) return 'the brand row bridge has no label'
   if (!/'evangelion: workspace pins'/.test(client)) return 'the workspace pin effect has no label'
   if (!/'evangelion: im filter'/.test(client)) return 'the channel filter has no label'
-  if (!/'evangelion: host motion budget'/.test(client)) return 'the host motion budget has no label'
   if (!/applyPluginToggle\(ctx\)/.test(client)) return 'the vendored toggle is never applied'
   return /applySessionEvaStatus\(ctx\)/.test(client) || 'the vendored session rail is never applied'
-})
-/* The host motion budget (2026-10-11, asked for by name). Four guarantees, because each
-   of them is a way this effect could go wrong without anyone noticing: the label (so the
-   effect is retractable and countable), the name filter (the one handle the host does not
-   hash -- drop it and the effect either stops a plugin's spinner or stops nothing), the
-   Infinity test (a one-shot animation is someone's transition, not a decoration that bills
-   every frame), and the pair of listener calls (an animationstart listener that is added
-   but never removed outlives the disposer). The off-switch attribute and the inline-style
-   restore are pinned with them: those are the two things that keep the change reversible.
-   The rule is by animation NAME, never by selector: the host's own reduced-motion block
-   would say the same thing, but this theme's sheet may carry no @media (css.7) and the
-   host's selectors are hashes (css.6, cli.17). */
-checks.check('cli.29', 'the host motion budget keeps its four narrow guarantees', () => {
-  if (!/'evangelion: host motion budget'/.test(client)) {
-    return 'the host motion budget carries no label in the built client'
-  }
-  if (!/document\.getAnimations/.test(clientJs)) {
-    return 'the host motion budget no longer asks the engine what is animating'
-  }
-  if (!/animationName/.test(clientJs) || !/indexOf\(HOST_PREFIX\) !== 0/.test(clientJs)) {
-    return 'the host motion budget no longer filters by animation name'
-  }
-  if (!/timing\.iterations !== Infinity/.test(clientJs)) {
-    return 'the host motion budget would stop a one-shot animation'
-  }
-  if (!/data-eva-host-motion/.test(clientJs)) {
-    return 'the off-switch attribute is gone, so the host motion can no longer be given back'
-  }
-  if (!/addEventListener\('animationstart', budget, true\)/.test(clientJs)) {
-    return 'the host motion budget is not driven by animationstart'
-  }
-  if (!/removeEventListener\('animationstart', budget, true\)/.test(clientJs)) {
-    return 'the animationstart listener would outlive the disposer'
-  }
-  if (!/style\.animation = ''/.test(clientJs)) {
-    return 'the disposer no longer hands the host its animation back'
-  }
-  return true
 })
 /* Round 24 (2026-10-07): liquid glass. The two halves of the effect live in two
    files on purpose -- the sheet names a filter by id, and src/client.js draws the

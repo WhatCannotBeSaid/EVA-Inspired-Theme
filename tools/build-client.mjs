@@ -440,7 +440,7 @@ const banner = `/**
  *   ${wallpaperFile}  ${MANIFEST.wallpapers.length} wallpapers (embedded art or URL)${wallpaperNote}
  *   build/fonts.json       ${MANIFEST.fonts.length} font, embedded as an @font-face data URL
  *
- * Ten blocks, eleven effects — eight of our own plus the two the vendored switch
+ * Nine blocks, ten effects — seven of our own plus the two the vendored switch
  * installs and the one the vendored session-status rail installs — all mounted through \`ctx.effect\` so unloading the plugin retracts
  * everything it added:
  *
@@ -468,26 +468,14 @@ const banner = `/**
  *      2026-10-07 it makes no request at all, and the startup chime it used to ask
  *      the host for is gone (see 2b in the host half's header).
  *
- *   5. the host motion budget (2026-10-11) — the host's own status animations (the state
- *      dot beside a running or waiting session, the shimmer across a running tool row)
- *      loop forever and, measured on this machine, cost the renderer 948 ms of main-thread
- *      task time per second between them, 95% of it in the two dots. They are not this
- *      theme's animations, but they are paid for on every machine this theme is installed
- *      on, so they are stopped from here: an animation that loops forever and whose name
- *      starts with the host's own prefix gets one inline animation: none, driven by
- *      animationstart rather than a timer, reversible in one attribute
- *      (data-eva-host-motion) and retracted by the disposer. The host's reduced-motion
- *      block would say the same thing -- it is unreachable from here, because this theme's
- *      sheet may carry no @media and the host's selectors are hashed.
- *
- *   6. the sidebar brand row's three zones (since round 25) — that row is ONE
+ *   5. the sidebar brand row's three zones (since round 25) — that row is ONE
  *      official button whose click starts a session, and two of the three labels
  *      drawn on it open surfaces this theme hides, so a capture-phase click
  *      listener reroutes by coordinate. It is the one effect that has to be a
  *      listener instead of a style: React delegates at #root, which sits BELOW
  *      document, so nothing registered later can win the event first.
  *
- *   7. the workspace list's pin control (round 39) — one button per workspace row,
+ *   6. the workspace list's pin control (round 39) — one button per workspace row,
  *      injected into that row's own action span, plus the durable reordering it drives.
  *      The set of pinned workspaces is the one thing this theme keeps in browser
  *      storage: the host half has no node_modules of its own, the remote protocol it
@@ -496,24 +484,24 @@ const banner = `/**
  *      other door. The ORDER is already durable on the host, so each reorder goes
  *      through the official insertBefore and survives a restart.
  *
- *   8. the WeChat workspace switch (rounds 42-44) — one row holds one view: a click leaves
+ *   7. the WeChat workspace switch (rounds 42-44) — one row holds one view: a click leaves
  *      only the workspace the WeChat plugin creates, another click puts the official list
  *      back (the exclusive switch the user chose over a stacking one). Its MutationObserver
  *      reads batches, not the whole document: records outside its own row are dropped
  *      before any query runs.
  *
- *   9. build/plugin-toggle.js — vendored byte for byte (MIT, same author) and
+ *   8. build/plugin-toggle.js — vendored byte for byte (MIT, same author) and
  *      wrapped in an IIFE; it registers the two disposers for the switch's own
  *      remote and locale services.
  *
- *  10. build/session-eva-status.js — the user's other plugin, vendored byte for byte
+ *   9. build/session-eva-status.js — the user's other plugin, vendored byte for byte
  *      (MIT, same author) and wrapped the same way. It registers the last disposer
  *      and paints the session list's left rail (waiting on you / selected / unread
  *      completion, plus the pinned row's rainbow). Its own apply() reads the uiSession,
  *      sessions and workspaces services, which is why the exports map below names all
  *      three in its inject list.
  *
- * Eleven is pinned by tools/selfcheck.mjs (cli.11d), so another effect cannot slip in
+ * Ten is pinned by tools/selfcheck.mjs (cli.11d), so another effect cannot slip in
  * unnoticed.
  *
  * The effect disposers are the whole uninstall story: the theme is one removable
