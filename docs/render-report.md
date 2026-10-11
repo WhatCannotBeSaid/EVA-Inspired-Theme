@@ -3310,3 +3310,74 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - 前缀必须带完整的 `label + 空格 + U+00B7 + 空格`，裸标签会误命中一条普通会话「微信会话移入工作区行Telegram右侧」。
 - 里层的 `[data-row-key]` 不可省（见 §46.4）。
 - **回滚本轮** = `git revert` 本提交即可（第 42 轮那版实现由 `git show fd1194c` 可取）。
+
+---
+
+## 47. 第四十九轮：两枚入口（Telegram + 微信）回到「筛选各自渠道的会话」（D63）（2026-10-11 追加）
+
+### 47.1 用户原话与裁定
+
+- 用户：**「Telegram呢！！！」** —— 第 45 轮把那枚入口删掉后，dsh-im 装回来时 Telegram 渠道会自行恢复（配置、绑定工作区、tokenRef 都在盘上），但侧栏没有对应入口。
+- 用户选定：**「恢复成第 42 轮那对入口：Telegram + 微信，两枚并排、三态互斥」**（官方列表 / 只看 Telegram / 只看微信）。
+- 契约改名的理由：第 45 轮用 `data-eva-wx-*` 是为了不留已退役功能的命名；现在两个渠道并存，故改成渠道中性的 `data-eva-im-*`（IM = `@xmanrui/dsh-im`）。
+
+### 47.2 来源与装配（脚本可重放）
+
+以第 42 轮那版为基（`git show 7252007^:src/client.js` 的 **823–1430 行**，608 行）落盘 `C:\Work\scratch\old-effect.js.txt`：
+
+| 脚本 | 作用 | 结果 |
+|---|---|---|
+| `C:\Work\scratch\build-im-effect.mjs` | 15 处**逐条断言**的内容替换（锚点缺失或不唯一即抛错，末尾一次性写盘） | `C:\Work\scratch\new-effect.js.txt` = 704 行 / 37476 字符 |
+| `C:\Work\scratch\splice-im-effect.mjs` | 按内容锚点替换进 `src/client.js` | 替换 23870 → 37476 字符；`src/client.js` 84328 → 97933 字符、1509 → 1784 行 |
+| `C:\Work\scratch\patch-css-im.mjs` | 换掉主题入口那段（四条 rule） | 3472 → 3512 字符；`src/theme.css` 91691 字符 |
+
+装配项：`data-eva-tg` → `data-eva-im` 全局改名、effect 标签 `'evangelion: im filter'`、`var NS = 'eva-im-filter'`；两渠道 `CHANNELS`（`telegram` / `weixin`）与两枚 `ICONS`；`var mode = 0` + `selected()`；`candidates()` 的 `channel.title` → `channel.lead`（见 §47.4）；第 46–48 轮加固（`slotNode()` / `markerNode()` / `touches()` / `attributeFilter: ['data-row-key']`）；第 48 轮的 Design F `mark()`（点亮只给留下的行写标签、熄灭清干净、`marked` 早退）；`dispose()` 补清所有行标签；滚到位移记起、退出泵末再恢复。
+
+### 47.3 真机探针与验收读数
+
+装置：`make-probe.mjs` 从**构建产物**抠出 effect 与 4 条 CSS → `wx-effect-module.mjs` / `wx-entry.css`（与产物**逐行同一**，`diffCount 0`）；`wx-effect-server.mjs`（`127.0.0.1:19401`，按请求读盘、`no-store`、CORS `*`）交给 19388 的 AI 实例；`probe-im-filter.mjs` 在真实侧栏上追加 **5 行合成行**（每渠道各一行只带 marker、一行只带标题前缀，另加一行对照）后，以假 ctx 挂载 effect，再走 关 → Telegram → 微信 → 熄灭 → dispose。
+
+| 读数 | 关 | Telegram | 微信 | 熄灭 | dispose 后 |
+|---|---|---|---|---|---|
+| `data-eva-im-tree` | `null` | `telegram` | `weixin` | `null` | `null` |
+| 带行标签的行 | 0 | **2**（`…-tg-1/2`） | **2**（`…-wx-1/2`） | 0 | 0 |
+| 可见行 | 26 | 恰那 2 行 | 恰那 2 行 | 26 | — |
+| 行总数 | 26 | 105（泵展开过） | 105 | **26** | — |
+| 入口按钮 | 2 枚 | Telegram 亮 / 微信暗 | 微信亮 / Telegram 暗 | 2 枚复位 | 0 枚 |
+
+- 两枚按钮 `childIndex` 1 / 2（「工作区」标签与搜索槽之间），`rect` Telegram `[62,170,28,28]`、微信 `[94,170,28,28]`，computed `28px × 28px`、`border-radius: 8px`、`background: transparent`、静止 `rgb(97,102,107)`（`--dsw-alias-label-secondary`）、亮起 `rgb(15,17,21)`（该实例**未装主题**，故 `--dsw-alias-brand-primary` 取官方值）；各 1 枚 `svg`、无 `title`；aria 随渠道与状态变（`Show Telegram conversations` / `Show WeChat conversations` → `Show all conversations`），`aria-pressed` 同步。
+- **官方「搜索 176 / 视图选项 208 / 添加工作区 240」三个按钮的像素在挂载前、挂载后、dispose 后逐字相同。**
+- 「只带 marker」与「只带标题前缀」两类合成行**各自都能被认出来**，证明主路径与回退路径都活着。
+- 熄灭那一步行总数回到 `26 = rowsAtStart`：泵自己展开的组被折回去了。
+
+**重要教训**：探针的等待必须 ≥ 泵的帧数。第一版 `click` 只等 **120 ms**（≈7 帧），而泵是**每帧一步**，于是「熄灭后行数」量到 81（真实值 26），我一度把它当成主题缺陷并为此改了 `onToggle`。定向探针 `probe-im-unwind.mjs`（单渠道 22 → 101 → 22，`overflow:` 控件 aria 回到 `false`）证明折回本来就是对的；把等待改成 2500 ms 后，两渠道复测 `backRows = 26`。
+
+### 47.4 两处真缺陷（只有真机看得见）
+
+1. `candidates()` 读 `channel.title`，而 `CHANNELS` 只有 `id` / `marker` / `lead` → `title.indexOf(undefined) === -1` → **该函数恒返回空数组**，`openStep()` 实际只走 `rendered()` 回退，**看不见折叠组的会话**。改成 `channel.lead`。
+2. `onToggle()` 每次进入视图都**无条件**清空 `opened` / `unfolded`，于是从 Telegram 切到微信时把「刚为 Telegram 展开过的组」的记录丢掉，最后熄灭时 `closeStep()` 无可折。改成 `var was = mode`，把清空与 `scroll` 记录包进 `if (was === 0) { … }` —— 只有「从官方列表进入」才算新一轮。这一条在单渠道下不显形（退出本来就会折回），只有两渠道互切才暴露。
+
+### 47.5 残留（如实记录）
+
+`dispose()` 在点亮态下只 `cancelAnimationFrame`，**不折回宿主已经被展开的组**（第 42 轮即如此）。那些行是**宿主自己的渲染状态**，宿主下一次重渲染或刷新即恢复；主题自己的按钮、树属性、行标签在 dispose 后全部清干净（实测 0 / `null` / 0）。要修就得在 dispose 里同步补一次「折回」，属于超出「恢复旧行为」的改动，留作可选后续。
+
+### 47.6 门禁
+
+`css.12`（标题改成「两条渠道入口由契约定样式，筛选归行所有」）＋ `cli.26`（改成断言两条渠道记录、`isChannel(row, channel)`、两级前缀兜底、`var was = mode` + 切换保留记账、`ICONS[channel.id]`、`TREE_ATTR` 写渠道 id、泵三件套、`touches()` / `slotNode()` / `markerNode()`）＋ `cli.11d`（标签改名，effect 计数仍 **11**）。
+
+`node tools/build-client.mjs` → `wrote client.js 786187 chars (805177 bytes), 55 tokens, 2 wallpapers`；`node --check` 0；`tools/selfcheck.mjs` → **`118 assertions, 0 failed, 118 passed`**；`token-audit` → `AUDIT OK — 55 overrides (A 41 + B 14)`；`check-sound-layer` → `0 failed`；`build-client --check` → `OK (in sync with src/)`。
+
+`src/client.js` 仍**不许出现反引号**（`build-client.mjs:139`）。`cli.26` 末尾的 `!/data-eva-tg/.test(client)` 读的是**含注释的构建产物**，所以 docstring 里也不能写这个字面量。
+
+### 47.7 生效方式与用户侧待办
+
+- 客户端半（本仓库）：桌面 profile 里的 `EVA-Inspired-Theme` 是指向本仓库的 **Junction**，**刷新页面即吃到**新产物。
+- 宿主半：`@xmanrui/dsh-im` 4.38.0 已装回 desktop profile（卸掉 `dsh-wechat-plugin`），要**重启 DSH** 才会注册渠道图标与 `data-dsh-im-session-channel` 标记；在那之前主题走**标题前缀回退**（`Telegram · ` / `微信 · `）。
+- 用户待办：在**设置 → IM机器人**里重新扫码绑定微信；Telegram 的 token 与绑定工作区仍在盘上，会自行恢复。
+
+### 47.8 给下一次的提醒
+
+- 藏行规则的里层 `[data-row-key]` 不可省（`[data-eva-im-tree] [data-row-key]:not([data-eva-im-row='on'])`）；标记写在行的**第二个子节点（标题 span）**上。
+- 前缀要整段 `label + 空格 + U+00B7 + 空格`，裸标签会误命中普通会话。
+- **量泵相关读数一律等 ≥2 s**，120 ms 量不到收敛值。
+- 回滚本轮 = `git revert` 本提交即可。

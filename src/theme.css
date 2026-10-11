@@ -1878,43 +1878,41 @@ body [data-composer-placeholder] {
   color: var(--dsw-alias-label-primary);
 }
 
-/* ---- 工作区行的那枚入口按钮（第 41 → 42 → 48 轮）· 微信会话筛选
+/* ---- 工作区行的那对入口按钮（第 41 → 42 → 49 轮）· Telegram / 微信渠道筛选
  *
- * 第 41 轮（2026-10-09）在这里放了一个 Telegram 会话筛选入口，第 42 轮（2026-10-10）在它
- * 右边又加了一个微信入口，两个入口共用同一套契约名 `data-eva-tg-*`（tg = telegram），
- * 一行只持一个视图，是两个入口共用的三值状态（0 官方列表 / 1 Telegram / 2 微信）。
- * 第 43 轮微信入口改成一个工作区的开关；第 45 轮（2026-10-10）用户点名把 Telegram 那一个
- * 整个删掉：「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」，契约名随之从
- * `data-eva-tg-*` 改名为 `data-eva-wx-*`，改名是为了不再留一个以已退役功能命名的契约。
+ * 第 41 轮（2026-10-09）在这行放了一个 Telegram 会话筛选入口，第 42 轮（2026-10-10）在它右边
+ * 又加了微信入口：一行只持一个视图，两枚按钮是同一个三值状态的两个位置（0 官方列表 / 1 Telegram
+ * / 2 微信），契约名同为 `data-eva-tg-*`（tg = telegram）。第 43 轮微信入口改成工作区开关；
+ * 第 45 轮用户点名删掉 Telegram 那一个，契约名随之从 `data-eva-tg-*` 改为 `data-eva-wx-*`
+ * ——不再留一个以已退役功能命名的契约。第 48 轮插件互换（卸 dsh-wechat-plugin、装回
+ * @xmanrui/dsh-im 4.38.0），微信入口回到「筛选该渠道的会话」，但只剩一条渠道，状态是两值的。
  *
- * 第 48 轮（2026-10-11）：插件互换。用户原话「我不想用dsh-wechat，给我把dsh-im换回来。
- * 包括工作区旁边的图标按钮及其功能。」于是 dsh-wechat-plugin 卸载、@xmanrui/dsh-im 4.38.0
- * 装回，这枚按钮也回到第 42 轮那套形制并在当天被用户验收过：
- *   - `data-eva-wx-button`（值恒为 weixin）与 `data-eva-wx-state`（on|off）仍在按钮上；
- *   - 行标签从第 43/44 轮的工作区三值（tree/group/head）换回第 42 轮的行级单个
- *     `data-eva-wx-row='on'`，会话树上是 `data-eva-wx-tree='on'`；
- *   - 一行只持一个视图这件事没有了 —— 只剩微信一条渠道，所以状态回到两值：关 = 官方列表
- *     （不写行标签），开 = 只剩微信会话行。
- * 这是**唯一一处改了选择器**的地方（第 43 轮起本段曾只认 tree/group/head 三条），下面
- * 第一条规则因此从「藏包含微信组的那一组」改成「藏没有标签的行」。
+ * 第 49 轮（2026-10-11）：用户原话「Telegram呢！！！」——dsh-im 装回后 Telegram 渠道自己回来了
+ * （工作区 C:\Users\Axiom\.dsh\im），那枚入口却还停在第 45 轮删掉的状态。给出的选项里用户选了
+ * 「恢复成第 42 轮那对入口：Telegram + 微信，两枚并排、三态互斥」。契约名因此改成渠道中性的
+ * `data-eva-im-*`（IM = 插件名 @xmanrui/dsh-im）：两条渠道并存时再叫 wx，正是第 45 轮要避免的
+ * 那个错误的反面。
+ *   - `data-eva-im-button`（值 = telegram | weixin）与 `data-eva-im-state`（on|off）在按钮上；
+ *   - 会话行上是 `data-eva-im-row='on'`，会话树上是 `data-eva-im-tree`，**值 = 当前点亮的渠道 id**，
+ *     属性缺失 = 官方列表原样；
+ *   - 行标签只在点亮时写给「留下的那些行」（该渠道的会话行），熄灭时由 client.js 全部摘掉。
  *
  * 按钮由 `src/client.js` 的同一个 effect 插在官方工作区表头行里、搜索槽之前：那行 =
  * `[data-slot='sidebar.workspaces.directoryFlow']` 那个空标记的 parentElement，是 flex 行且
- * 搜索槽带 `margin-left: auto`，所以按钮正好落在「工作区」标签右边，官方「搜索」「视图选项」
- * 「添加工作区」三个按钮的像素一个不动（第 41/42 轮实测：入口 62、微信 94、搜索 176、
+ * 搜索槽带 `margin-left: auto`，所以两枚按钮正好落在「工作区」标签右边，官方「搜索」「视图选项」
+ * 「添加工作区」三个按钮的像素一个不动（第 41/42 轮实测：Telegram 62、微信 94、搜索 176、
  * 视图选项 208、添加工作区 240）。定位会话树用的是 `[data-slot='sidebar.workspaces']` 里的
  * `[role='tree']` —— 全页只有一棵，官方各分组行与会话行都在里面。
- * 选择器里所以找不到任何 CSS-Modules 哈希类（css.6），也不含字面色值（css.8），
- * 令牌一律走 `var(...)`。
+ * 选择器里所以找不到任何 CSS-Modules 哈希类（css.6），也不含字面色值（css.8），令牌一律走 `var(...)`。
  *
  * 尺寸逐字照抄官方表头图标按钮（同文件 `…_iconButton` 逐字）：28×28、
  * `border-radius: var(--dsw-radius-sm)`、`background: transparent`、`border: none`、`padding: 0`，
  * 两级颜色同官方（静止 `--dsw-alias-label-secondary`，hover `--dsw-alias-label-primary`）。
- * 唯一的偏离是开启态：这里用 `--dsw-alias-brand-primary` 表达「筛选中」。
+ * 唯一的偏离是开启态：这里用 `--dsw-alias-brand-primary` 表达「我在筛」。
  *
  * 不动：表头行的高度 / 内边距 / 圆角，官方那三个按钮的像素，以及暗色档 —— 不新增也不修改
  * 任何令牌（dark.1 冻结）。回滚 = 删本节四条规则。 */
-[data-eva-wx-button] {
+[data-eva-im-button] {
   box-sizing: border-box;
   display: inline-flex;
   flex: none;
@@ -1930,40 +1928,39 @@ body [data-composer-placeholder] {
   cursor: pointer;
 }
 
-[data-eva-wx-button]:hover {
+[data-eva-im-button]:hover {
   color: var(--dsw-alias-label-primary);
 }
 
-[data-eva-wx-state='on'] {
+[data-eva-im-state='on'] {
   color: var(--dsw-alias-brand-primary);
 }
 
-/* ── 第 42 / 48 轮：筛选本身，只有这一条规则 ──────────────────────────────────────
- *
- * 第 42 轮用户原话：「参考对Telegram会话的处理，将微信的对话也转移到「工作区」一行中，
- * 就放在telegram的图标右边。」、「侧栏就地过滤：只保留 Telegram 会话行，再点恢复」，
- * 并选了「跟 telegram 的对话」在「未分组」里也要显示。第 48 轮换回的就是这套行为。
+/* ── 第 42 / 48 / 49 轮：筛选本身，只有这一条规则 ──────────────────────────────────
  *
  * 规则写成 (0,3,0) 的三段式：树属性 + 宿主自己的 `[data-row-key]` + 行标签的否定。
  * 刻意压过 CSS-Modules 只管一层的类选择器 —— 本主题的样式表与宿主样式表同级，靠层叠顺序
  * 决定谁赢是不安全的。中间那一节不可省：只有它把「没有标签的行」也拉进选择范围。
  * 第 48 轮真机探针先写成 `[data-eva-wx-row]:not([data-eva-wx-row='on'])`，那条只匹配
  * 「带着标签、值不是 on」的行，而 client.js 的关态是**不写**标签，于是点亮后一行也没藏住
- * （实测 18 行全可见）—— 探针逮到的就是这个缺口。
+ * （实测 18 行全可见）—— 探针逮到的就是这个缺口（教训：选择器不能要求一个由 JS「不写」的属性）。
  *
- * 另一头由 client.js 负责：点亮时只给「微信 · 」那条渠道的会话行写 `data-eva-wx-row='on'`，
- * 其余行不写；熄灭时把这一个属性和树上的属性一起摘掉，宿主行上不留本主题的任何痕迹。
- * 所以关态列表就是官方原样，零插入、零移动、零删除。
+ * 另一头由 client.js 负责：点亮时只给该渠道的会话行写 `data-eva-im-row='on'`，其余行不写；
+ * 熄灭时把这一个属性和树上的属性一起摘掉，宿主行上不留本主题的任何痕迹。所以关态列表就是
+ * 官方原样，零插入、零移动、零删除。
  *
- * 真机实测（第 42 轮，1600×1000）：点亮后只剩 8 条 Telegram 会话 / 微信态只剩 1 条，
- * 四个分组头与 229 条其它会话行 `display: none`；再点一次回到与初始逐行相同、scrollTop 0。
- * 第 48 轮同一套读数在 微信 · <首条消息> 这一类会话上复测，并确认会话树是扁的：
- * 每个 `[data-row-key]` 都是 depth-0 的 treeitem，所以藏掉分组头不会连带藏掉微信会话行。
+ * 为什么只藏行就够：dsh-im 的会话 cwd 是 IM 目录，宿主把它们归进「未分组」，而未分组像其他组
+ * 一样只渲染 5 行、其余藏在自己的 show-more 里，所以 client.js 会逐帧驱动**官方自己的那个控件**
+ * 把行放回来（第 42 轮的泵，一次一帧，同步循环会冻住整棵树），藏行这条规则才轮到生效。
  *
- * 不动：官方结构（零插入、零移动、零删除）、其他各组的内部结构、表头行、行高、圆角、
- * 颜色令牌，以及上面三条入口规则（本段一律不碰 `data-eva-wx-button` / `data-eva-wx-state`）。
- * 回滚 = 删本条。 */
-[data-eva-wx-tree='on'] [data-row-key]:not([data-eva-wx-row='on']) {
+ * 真机实测（第 42 轮，1600×1000）：Telegram 态只剩 8 条会话、微信态只剩 1 条，四个分组头与
+ * 229 条其它会话行 `display: none`；再点一次回到与初始逐行相同、scrollTop 0。第 48 轮同一套
+ * 读数在「微信 · <首条消息>」这一类会话上复测，并确认会话树是扁的：每个 `[data-row-key]` 都是
+ * depth-0 的 treeitem，所以藏掉分组头不会连带藏掉渠道会话行。
+ *
+ * 不动：官方结构（零插入、零移动、零删除）、其他各组的内部结构、表头行、行高、圆角、颜色令牌，
+ * 以及上面三条入口规则（本段一律不碰 `data-eva-im-button` / `data-eva-im-state`）。回滚 = 删本条。 */
+[data-eva-im-tree] [data-row-key]:not([data-eva-im-row='on']) {
   display: none;
 }
 

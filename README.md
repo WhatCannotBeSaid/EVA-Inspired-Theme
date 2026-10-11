@@ -127,12 +127,16 @@ follow the interface language — a Chinese and an English user both read the Ge
   `eva-theme/workspace-pins`; the order it produces is written through the host's own
   insert-before API, so it survives a restart — and, unlike the pin set, it also
   survives removing the theme.
-- A **WeChat entry** on the 「工作区」 row, on the same line as Search and the view
-  options: one click leaves only the conversations the `@xmanrui/dsh-im` WeChat channel
-  stamps — its own rows, marked by that plugin — and another click puts the official list
-  back. It only tags rows and stores nothing, and it has nothing to show until that
-  channel has a conversation. Until the plugin has drawn its channel logo, the entry
-  recognises those rows by the 「微信 · 」 prefix on their titles.
+- **Telegram and WeChat entries** on the 「工作区」 row, on the same line as Search and the
+  view options: one click leaves only the conversations the matching `@xmanrui/dsh-im`
+  channel stamps — its own rows, marked by that plugin — and another click puts the
+  official list back. The two are mutually exclusive, and each one's label says which
+  view it is in. They only tag rows and store nothing, and they have nothing to show
+  until that channel has a conversation. When a channel keeps its own conversations
+  folded behind the list's own show-more control, an entry works that control itself —
+  one official click per frame — so the rows exist before they are filtered, and folds
+  back whatever it expanded on the way out. Until the plugin has drawn its channel logo,
+  an entry recognises its rows by the 「Telegram · 」/「微信 · 」 prefix on their titles.
 - The vendored **non-official plugin switch**, on the installed group's header in the
   official Plugins page: tick which non-official plugins to disable, or to enable
   again. It switches bundle enablement only — it installs and uninstalls nothing.
