@@ -3238,3 +3238,75 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - **`exports.inject` 里的 `uiSession` / `sessions` / `workspaces` 是给 vendored 会话状态轨用的**（`cli.23` / `cli.24` 钉着），删 Telegram 时不要顺手把它们删掉。
 - **`setAttribute('title'` 在整个 client 里必须恰好出现 1 次**（那是置顶按钮的，`cli.26` 钉着）。微信按钮用 `removeAttribute('title')`。
 - **回滚本轮** = 恢复 `src/theme.css` 第 41/42 轮那 4 条 tg 规则与注释、把 `src/client.js` 的 Telegram 机器整段贴回、三条门禁改回 §41/§42 的断言、README 两处文字改回。`git` 未提交，`git checkout -- src/ tools/ README.md README.zh.md` 即可全回。
+
+## 46. 第四十八轮：换回 dsh-im，微信入口回到「筛选该渠道的会话」（D62）（2026-10-11 追加）
+
+（本节号跳过 46/47 两个空号：第四十六、四十七轮是把查询收窄到侧栏的只读加固，没有单独成节。）
+
+### 46.1 用户要求
+
+用户 2026-10-11 逐字：
+
+> 我不想用dsh-wechat，给我把dsh-im换回来。包括工作区旁边的图标按钮及其功能。
+
+三问裁定（逐条选定）：①范围 = 卸载 `dsh-wechat-plugin` + 装回 `@xmanrui/dsh-im` 4.38.0（两套微信互斥，同留会抢同一条通道）；②微信通道 = 先只装回插件，**凭据不动**，用户自己在设置里重新扫码；③按钮 = 按第 42 轮那套「筛选微信会话」的行为改回来。
+
+### 46.2 插件互换（profile 侧，不属于本仓库）
+
+| 项 | 改动 |
+|---|---|
+| `C:\Users\Axiom\.dsh\profiles\desktop\package.json` | `dependencies` 加 `"@xmanrui/dsh-im": "4.38.0"`、删 `"dsh-wechat-plugin": "^0.36.5"`；`dsh.profile.bundles` 同步（24 deps / 29 bundles） |
+| 同目录 `pnpm-workspace.yaml` | `minimumReleaseAgeExclude` 恢复 `- '@xmanrui/dsh-im@4.36.1 \|\| 4.37.0 \|\| 4.38.0'`；`allowBuilds` 的 sharp 注释补一行「dsh-im 装回后 sharp 重新有依赖方」 |
+| 安装 | 应用内置 pnpm：`Packages: +27 -30`。**坑**：镜像 `registry.npmmirror.com` 上 `oss-prompt-optimizer@^1.13.1`（既有依赖，与本轮无关）最高只有 1.9.0 → `ERR_PNPM_NO_MATCHING_VERSION`；解法是**命令行**覆盖 `--registry https://registry.npmjs.org/`，不动用户全局 npmrc |
+| 回退资产 | `package.json.bak-20261011-175146-before-swap-back-to-dsh-im` 等三份 |
+
+生效需**重启 DSH**（宿主半与渠道图标、渠道标记都在重启后才注册）。`C:\Users\Axiom\.dsh\wechat\state.json`（含明文凭据）与 `C:\Users\Axiom\.dsh\dsh_wechat` 工作区均未动。
+
+### 46.3 契约改动（D62）：从「工作区开关」回到「渠道筛选」
+
+| 项 | 第 43–45 轮（撤） | 第 48 轮（现行） |
+|---|---|---|
+| 契约 | 三值 + 分组：`data-eva-wx-tree` / `-group` / `-head` | 两值 + 行级：`data-eva-wx-tree='on'` 配 `data-eva-wx-row='on'` |
+| 选择器 | 三条（树 off 藏组、树 on 藏其余组、头 + 兄弟、组 margin-top） | **一条**：`[data-eva-wx-tree='on'] [data-row-key]:not([data-eva-wx-row='on']) { display: none; }` |
+| 藏的是什么 | 整个 `dsh-wechat-plugin` 建的工作区分组 | 除 dsh-im 微信渠道会话行之外的一切行 |
+| effect 标签 | `'evangelion: wechat workspace switch'` | `'evangelion: wechat filter'`（`cli.11d` 仍是 11 个 effect） |
+
+`mark()` 只在**点亮时**给渠道行写 `data-eva-wx-row='on'`，其余行 `removeAttribute`；熄灭 = 清掉所有行标签与树上属性（`marked` 早退，关态一趟零读取），宿主行上不留任何痕迹。`isChannel(row)` 先读**标题 span**（`row.children[1]`）上的 `data-dsh-im-session-channel`，再退回行本身，最后退回标题的 `微信 · ` 前缀。
+
+### 46.4 真机探针逮到的缺陷（本轮最重要的一条）
+
+第一版规则照老习惯写成 `[data-eva-wx-tree='on'] [data-eva-wx-row]:not([data-eva-wx-row='on'])`：第一节要求行**带** `data-eva-wx-row`，而 client.js 的关态是 `removeAttribute`（**不写**「off」值）——于是点亮后一行也没藏住（实测 `taggedOn = 2` 却 `visible = 18`）。`css.12` 与 `cli.26` 各自自洽，静态门禁看不出来；逮到它的是把**随包发出的那段 effect 源码**（从构建产物 `client.js` 抠出、去空白逐行比对 `diffs = []`）在真实侧栏 DOM 上跑起来。
+
+**教训**：选择器的第一节不能要求一个由另一半「不写」的属性；跨半契约（CSS ↔ JS）必须合起来验，而且两边要用**同一份产物源码**。
+
+### 46.5 真机验收（19388 实例的真实侧栏 DOM：15 行原生 + 3 行合成）
+
+| 读数 | 关 | 亮 | 再点（还原） | dispose 后 |
+|---|---|---|---|---|
+| `data-eva-wx-tree` | `null` | `on` | `null` | `null` |
+| 带行标签的行数 | 0 | **2**（`session:wx-probe-1/2`） | 0 | 0 |
+| 可见行数 | 18 | **2** | 18 | 18 |
+| 其余 16 行 | — | `display: none` | 逐行还原 | — |
+
+按钮：`childIndex = 1`（「工作区」标签与搜索槽之间）、`rect [62,170,28,28]`、computed `28px × 28px`、`border-radius: 8px`、`background: transparent`、静止 `rgb(97,102,107)`（`--dsw-alias-label-secondary`）、亮起 `rgb(15,17,21)`（该实例**未装主题**，故 `--dsw-alias-brand-primary` 取官方值；装了主题就是 NERV 品牌色）。官方「搜索 176 / 视图选项 208 / 添加工作区 240」三个按钮的像素在**挂载前、挂载后、dispose 后逐字相同**。aria 在「只看微信会话 / 显示全部会话」两态切换（该实例语言为 en，实测英文串），`aria-pressed` 同步，`title` 不存在，`svg` 1 枚。
+
+会话树是**扁的**：每个 `[data-row-key]` 都是 depth-0 的 treeitem，所以藏掉分组头不会连带藏掉微信会话行。
+
+### 46.6 门禁
+
+`node tools/build-client.mjs` → `771255 chars`；`node tools/selfcheck.mjs` → **`118 assertions, 0 failed, 118 passed`**；`token-audit` → `AUDIT OK — 55 overrides`；`check-sound-layer` → `0 failed`；`build-client --check` → `OK (in sync with src/)`。改过的三条：`css.12`（行级单规则 + 禁止旧契约残留 + 「凡藏行规则必须带树上属性」）、`cli.26`（标记读取位置、回退前缀、写/清标签、关态清理正则、禁 `WORKSPACE_PREFIX`/`OVERFLOW_PREFIX` 残留）、`cli.11d`（标签改名，计数仍 11）。
+
+`src/client.js` **不许出现反引号**（`build-client.mjs:139`）：本轮注释里写 `` `marked` `` 就报 `found "\`" at offset 72590`，去掉才过。
+
+### 46.7 生效方式与用户侧待办
+
+- 客户端半（本仓库）：桌面 profile 里的 `EVA-Inspired-Theme` 是指向本仓库的 **Junction**，**刷新页面即吃到**新产物。
+- 宿主半：dsh-im 的渠道图标与 `data-dsh-im-session-channel` 标记要**重启 DSH** 之后才存在；在那之前主题走**标题前缀回退**（`微信 · `）。
+- 用户待办：在**设置 → IM机器人**里重新扫码绑定微信。
+
+### 46.8 给下一次的提醒
+
+- 渠道标记写在行的**第二个子节点（标题 span）**上，不在行上（第 41 轮读 `row.getAttribute` 永远读不到）。
+- 前缀必须带完整的 `label + 空格 + U+00B7 + 空格`，裸标签会误命中一条普通会话「微信会话移入工作区行Telegram右侧」。
+- 里层的 `[data-row-key]` 不可省（见 §46.4）。
+- **回滚本轮** = `git revert` 本提交即可（第 42 轮那版实现由 `git show fd1194c` 可取）。

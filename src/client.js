@@ -1065,74 +1065,74 @@
         return dispose
       }, 'evangelion: workspace pins')
 
-      /* Round 43 (2026-10-10) -- the 微信 entry, one click from the 工作区 row.
+      /* Round 42's 微信 filter, restored on a live @xmanrui/dsh-im (round 48, 2026-10-11).
+         A filter on a channel, not a switch on a workspace.
 
-         Round 41 put a Telegram filter on this row and round 42 a 微信 entry beside it.
-         Round 45 (later the same day) removed the Telegram one at the user's word:
-         「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」 Its whole machine --
-         the channel list, the title marker, the staged expansion through the official
-         show-more control, the row tags -- went with it. What is left is a switch on ONE
-         workspace, which is what round 43 had already asked for and what round 44 finished:
-         「1 是那枚筛选按钮 2「微信会话」及其里面的会话一起搬。 3.点亮微信按钮时才出现。
-         先去掉微信按钮先前的功能，然后加入我现在要求的功能。」
+         Round 41 put a Telegram filter on this row, round 42 a 微信 entry beside it, round 43
+         moved the 微信 one off filtering and onto the workspace dsh-wechat-plugin creates --
+         and round 45 removed the Telegram half entirely. Then the plugins changed places:
+         dsh-wechat-plugin was uninstalled and @xmanrui/dsh-im 4.38.0 reinstalled, at the
+         user's word: 「我不想用dsh-wechat，给我把dsh-im换回来。包括工作区旁边的图标按钮及其
+         功能。」 The button goes back to what round 42 built and the user accepted: light it
+         and the list holds the dsh-im 微信 conversations and nothing else; press it again and
+         the official list is back.
 
-         What it acts on: the workspace dsh-wechat-plugin creates and names 微信会话. It
-         arrives as one group of this same tree, so the switch needs no service call and no
-         host-side door -- the group is a DOM node. While the switch is off that group is
-         out of the list; while it is on every OTHER group is out of the list instead, so
-         the list holds the 微信 conversations and nothing else.
+         What it matches, and why both handles are needed: a dsh-im Session is an ordinary
+         Session whose title starts with the label that channel's own session-channel-labels.mjs
+         gives -- weixin: ['微信', 'WeChat'], so 「微信 · <first message>」 -- and whose title
+         span is also stamped data-dsh-im-session-channel=weixin by dsh-im's own Session
+         channel logos (lib/client.js:20356 CHANNEL_ATTR, written at :20454-20473 on the SPAN,
+         which is the row's second child, never the row). The stamp is the exact fact, the
+         title is the fallback that survives a plugin still loading; a bare '微信' prefix would
+         also match an ordinary Session that merely happens to start with it, so the prefix
+         carries the whole label + space + U+00B7 + space parseSessionChannelTitle() accepts.
 
-         Round 43 tried to get there with order: -1 alone, which only lifts a group. The
-         other workspaces were still there, merely pushed down, and the user reported
-         exactly that difference: 「点亮微信按钮时，侧栏工作区列表内只显示「微信会话」下的
-         会话条目，其他工作区不得保留，也不得以置顶方式出现；同时不显示「微信会话」这个
-         工作区分组标题，只显示该分组下的会话标题。」 A lift is not a filter, and the sheet
-         has no way to filter with order -- hiding is display: none.
+         Why it is a row tag and a stylesheet rule rather than a DOM edit: React owns this
+         list, and everything here is one attribute this effect owns. Only the rows that stay
+         carry the tag, and only while the filter is lit -- one 微信 Session of dsh-im's is the
+         whole of what the sheet's rule lets through, so the group headers go with the other
+         sessions, exactly as they did in round 42. Putting the list back is taking that tag and
+         the tree's own attribute off, which is all one press does: nothing on the screen is
+         inserted, moved or deleted, and nothing of this effect's is left on the host's rows.
 
-         The same words pin the other two halves: the group's own header comes off the list
-         too (that is what leaves its Session titles showing bare), and a folded group is
-         unfolded through its own header click -- a folded group renders no Session rows at
-         all and its header is hidden here, so lighting the entry on one would otherwise
-         leave an empty list.
+         The entry is one button, a child of the 工作区 row immediately before the search slot.
+         That row is a flex line with justify-content: flex-end and the search slot carries
+         margin-left: auto, so the button sits immediately right of the 工作区 label while the
+         search button and both official icon buttons keep the pixels they already had. Every
+         contract name stays data-eva-wx-*, the names round 45 gave the pair after the Telegram
+         entry was retired, so no rebuild of the sheet is needed for the rename alone.
 
-         Why nothing is moved: the group is a flex item of the tree, the tree is the scroll
-         box, and every write is one attribute this effect owns. React's own render is never
-         fought, and putting the list back is removing the attributes -- nothing on the
-         screen is inserted, moved or deleted.
-
-         The entry is one button, a child of the 工作区 row immediately before the search
-         slot. That row is a flex line with justify-content: flex-end and the search slot
-         carries margin-left: auto, so the button sits immediately right of the 工作区 label
-         while the search button and both official icon buttons keep the pixels they already
-         had. It wore a contract named after Telegram while a Telegram entry shared its box;
-         round 45 renamed the pair to data-eva-wx-button / data-eva-wx-state, so nothing in
-         this theme is named after the feature the user retired.
-
-         The list is a list of Workspaces, so the workspace title is the only handle that
-         survives a reinstall, a second profile or another machine -- see WX_GROUP_LABEL. */
+         The list is a list of Sessions, and the only handle that survives a reinstall, a
+         second profile or another machine is what dsh-im itself puts on the row -- see
+         CHANNEL_ATTR and CHANNEL_LEAD. A dsh-im that is not installed costs this entry its
+         effect and nothing else. */
       ctx.effect(() => {
         if (typeof document === 'undefined') return undefined
 
         var BUTTON_ATTR = 'data-eva-wx-button'
         var STATE_ATTR = 'data-eva-wx-state'
-        var GROUP_ATTR = 'data-eva-wx-group'
-        var WX_TREE_ATTR = 'data-eva-wx-tree'
-        var HEAD_ATTR = 'data-eva-wx-head'
-        var WORKSPACE_PREFIX = 'workspace:'
-        /* The workspace dsh-wechat-plugin creates and names. Its title is enforced by that
-           plugin on every start (lib/host.js:72 WORKSPACE_TITLE = '微信会话', written back at
-           :2632-2633 await workspace.setTitle(title)), so it does not follow the locale, and
-           it is matched against the GROUP ROW'S OWN TEXT rather than a hard-coded workspace
-           id -- a uuid would break on another machine, a reinstall or a second profile, while
-           the title is what the user reads on that row. A missing match costs this entry its
-           effect and nothing else. */
-        var WX_GROUP_LABEL = '微信会话'
+        var ROW_ATTR = 'data-eva-wx-row'
+        var TREE_ATTR = 'data-eva-wx-tree'
+        /* The marker dsh-im writes on the title span of every Session it owns, and the exact
+           leading prefix that channel's own parser accepts. Both come from the plugin, not
+           from this theme: lib/client.js:20356 CHANNEL_ATTR and
+           src/channels/shared/session-channel-labels.mjs:2 weixin: ['微信', 'WeChat'], whose
+           parseSessionChannelTitle() requires label + space + U+00B7 + space. */
+        var CHANNEL_ATTR = 'data-dsh-im-session-channel'
+        var CHANNEL = 'weixin'
+        var CHANNEL_LEAD = '微信 · '
+        /* The host namespaces its row keys: workspace: for a 工作区 group header, session: for
+           a conversation, overflow: for the bucket a group's tail is folded into. Only the
+           Session one is read here -- a filter over the channel does not care where the row
+           sits, and the tree is flat (every [data-row-key] is a depth-0 treeitem), so a hidden
+           group header never takes a 微信 Session down with it. */
+        var SESSION_PREFIX = 'session:'
         /* The host's own names for the 工作区 area and for the empty marker that is a
            direct child of that row -- both are slots, not CSS-Modules classes. */
         var SLOT_SELECTOR = "[data-slot='sidebar.workspaces']"
         var MARK_SELECTOR = "[data-slot='sidebar.workspaces.directoryFlow']"
-        /* The entry's id: what the button carries in BUTTON_ATTR, which is also the value the
-           sheet's own attribute selectors never have to name -- there is one entry now. */
+        /* The entry's id: what the button carries in BUTTON_ATTR, so the sheet's own selectors
+           never have to name it -- there is one entry. */
         var WX_ENTRY_ID = 'weixin'
 
         /* The row's own icons are 16x16 in a 16 viewBox, 1px stroke, currentColor, and this
@@ -1165,14 +1165,15 @@
           '<path fill="currentColor" stroke="none" d="M3.155 4.681a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M6.976 4.672a0.744 0.744 0 1 0 1.488 0a0.744 0.744 0 1 0 -1.488 0M9.018 8.524a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0M12.029 8.528a0.589 0.589 0 1 0 1.178 0a0.589 0.589 0 1 0 -1.178 0"/>' +
           '</svg>'
 
-        /* Two labels through the official locale service, the door the pin control and the
+        /* Three labels through the official locale service, the door the pin control and the
            vendored switch already use. A missing or throwing seat costs the wording only.
-           A key is a name, and the wording names the action rather than a view, because
-           that is what the control does: bring the workspace up, and put it back. */
-        var NS = 'eva-wechat-workspace'
+           The lit label names the way back rather than the state -- round 41's wording, kept
+           through rounds 43-45 and now restored with the behaviour: the control shows a view,
+           so the next press is what it says. */
+        var NS = 'eva-wechat-filter'
         var DICT = {
-          zh: { weixin: '显示「微信会话」工作区', hidewx: '隐藏「微信会话」工作区' },
-          en: { weixin: 'Show the WeChat workspace', hidewx: 'Hide the WeChat workspace' },
+          zh: { weixin: '只看微信会话', all: '显示全部会话' },
+          en: { weixin: 'Show only WeChat Sessions', all: 'Show every Session' },
         }
         var translate = null
         var locale = ctx.get('locale')
@@ -1197,10 +1198,12 @@
 
         var scheduled = false
         var disposed = false
-        /* Whether the entry is lit. The group itself is looked up again on every pass rather
-           than remembered across one, because React remounts the tree and a node remembered
-           from the last pass may already be gone. */
-        var wxOn = false
+        /* Whether the filter is lit. */
+        var on = false
+        /* Whether any row still carries the tag this effect writes. It goes true on the first
+           filter and stays true, so a pass with the filter off costs no property reads once
+           those writes are gone. */
+        var marked = false
 
         function schedule() {
           if (scheduled || disposed) return
@@ -1244,119 +1247,95 @@
           return typeof key === 'string' ? key : null
         }
 
-        /* The group container that holds the 微信 workspace, or null. Every row of the list is
-           a treeitem whose data-row-key carries its kind, so the walk finds the header
-           wherever it sits, and the title is what it is matched on: dsh-wechat-plugin enforces
-           微信会话 on that workspace at every start, while a workspace uuid would break on
-           another machine, a reinstall or a second profile. The Ungrouped header is excluded
-           by its empty suffix.
-
-           The node returned is the tree's OWN child, found by walking up rather than by
-           counting parentElements: the live list wraps a header as tree > groupSection >
-           wrapper > row, but the Ungrouped header hangs straight off its group section. The
-           walk makes both shapes land on the container the sheet has to tag, and the middle
-           of a wrapper is never returned by mistake. */
-        function wxGroup(host) {
-          var row = wxHead(host)
-          if (row === null) return null
-          var node = row
-          while (node.parentElement !== null && node.parentElement !== host) node = node.parentElement
-          return node.parentElement === host ? node : null
+        /* Whether one row is an 微信 Session of dsh-im's. The marker is read where the plugin
+           writes it -- the row's own title span -- then on the row itself for a build that
+           ever moved it, and the title prefix is the last word: a string test catches the
+           Session whose logo has not been stamped yet, and the full lead keeps an
+           ordinary Session that merely starts with 微信 out of the view. */
+        function isChannel(row) {
+          var cell = row.children[1] === undefined ? null : row.children[1]
+          if (cell !== null && cell.getAttribute(CHANNEL_ATTR) === CHANNEL) return true
+          if (row.getAttribute(CHANNEL_ATTR) === CHANNEL) return true
+          if (cell !== null && typeof cell.textContent === 'string' && cell.textContent.indexOf(CHANNEL_LEAD) === 0) return true
+          if (typeof row.textContent === 'string' && row.textContent.indexOf(CHANNEL_LEAD) === 0) return true
+          return false
         }
 
-        /* The 微信 workspace's own header row, wherever it sits. The 分组标题 is hidden
-           through this row's wrapper, so the search lives here and wxGroup() is built on top
-           of it. */
-        function wxHead(scope) {
-          var rows = scope.querySelectorAll('[data-row-key]')
+        /* Every row of the tree, tagged against what is on screen -- and only while the filter
+           is lit. The tag names the rows that stay: a 微信 Session of dsh-im's, which is the
+           whole of what the sheet's rule lets through; every other row is untagged and therefore
+           hidden. With the filter off no row carries the tag at all, so a pass costs a read of
+           one flag: the official list is the host's own and this effect leaves nothing of its
+           own on it. The marked flag is what keeps that free. It is only true while tags are out
+           there, the pass that takes them off clears it, and the walk below cannot schedule
+           itself again because what it writes is not what the observer watches. */
+        function mark(host) {
           var i
           var row
           var key
+          var rows
+          var seen = false
+          if (!on) {
+            if (!marked) return
+            rows = host.querySelectorAll('[' + ROW_ATTR + ']')
+            for (i = 0; i < rows.length; i++) rows[i].removeAttribute(ROW_ATTR)
+            marked = false
+            return
+          }
+          rows = host.querySelectorAll('[data-row-key]')
           for (i = 0; i < rows.length; i++) {
             row = rows[i]
             key = keyOf(row)
-            if (key === null || key.indexOf(WORKSPACE_PREFIX) !== 0) continue
-            if (key === WORKSPACE_PREFIX) continue
-            if (row.textContent.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '') !== WX_GROUP_LABEL) continue
-            return row
+            if (key === null) continue
+            if (key.indexOf(SESSION_PREFIX) === 0 && isChannel(row)) {
+              seen = true
+              if (row.getAttribute(ROW_ATTR) !== 'on') row.setAttribute(ROW_ATTR, 'on')
+            } else if (row.getAttribute(ROW_ATTR) !== null) {
+              row.removeAttribute(ROW_ATTR)
+            }
           }
-          return null
+          if (seen) marked = true
         }
 
-        /* What gets hidden to take the 分组标题 off the list: the header row's own container.
-           The live list wraps that row in a SPAN that holds exactly it, so hiding the wrapper
-           hides the title and nothing else; a header hanging straight off its group (the
-           Ungrouped shape) has the group as its parent and is returned as-is, and the caller
-           only tags it when it is not the group itself. */
-        function wxHeadBox(group, row) {
-          var node = row
-          while (node.parentElement !== null && node.parentElement !== group) node = node.parentElement
-          return node
-        }
-
-        /* Three attributes in the shape the sheet reads: one on the tree, one on the group it
-           found, one on the group's own header container. Nothing is inserted, moved or
-           deleted: while the switch is off the group is out of the list with display: none,
-           and while it is on every OTHER group is out of the list instead, so the list holds
-           the 微信 conversations and nothing else. The group's own header is hidden with them,
-           which is what leaves its Session titles showing bare.
-
-           Every write is differenced: this pass runs from a MutationObserver and a write that
-           happens unconditionally would schedule the next pass forever. */
+        /* The tag that drives the sheet: one attribute on the tree, present only while the
+           filter is lit. That is also the whole of the undo -- taking it off puts the official
+           list back with no row left behind. */
         function wxView(host) {
-          var group = wxGroup(host)
-          if (group === null) {
-            if (host.getAttribute(WX_TREE_ATTR) !== null) host.removeAttribute(WX_TREE_ATTR)
-            var lost = host.querySelector('[' + HEAD_ATTR + ']')
-            if (lost !== null) lost.removeAttribute(HEAD_ATTR)
-            return
+          mark(host)
+          if (on) {
+            if (host.getAttribute(TREE_ATTR) !== 'on') host.setAttribute(TREE_ATTR, 'on')
+          } else if (host.getAttribute(TREE_ATTR) !== null) {
+            host.removeAttribute(TREE_ATTR)
           }
-          var head = wxHead(group)
-          var box = head === null ? null : wxHeadBox(group, head)
-          /* The header is hidden through the box that holds exactly it. A header hanging
-             straight off its group has no such box, and then the row itself is tagged. */
-          var target = box === null ? null : box === group ? head : box
-          if (target !== null && target.getAttribute(HEAD_ATTR) !== 'on') target.setAttribute(HEAD_ATTR, 'on')
-          if (group.getAttribute(GROUP_ATTR) !== 'on') group.setAttribute(GROUP_ATTR, 'on')
-          var state = wxOn ? 'on' : 'off'
-          if (host.getAttribute(WX_TREE_ATTR) !== state) host.setAttribute(WX_TREE_ATTR, state)
-          /* A folded group renders no Session rows at all -- only its header -- and that
-             header is hidden while the switch is on, so lighting the entry on a folded group
-             would leave an empty list. Its own header click is the unfold, the same official
-             control the user would press; it is pressed only while folded, so it cannot fight
-             a fold the user makes twice. */
-          if (wxOn && head !== null && head.getAttribute('aria-expanded') === 'false') head.click()
         }
 
         /* The switch itself. It flips the flag and lets one ordinary pass do the writing, so
            a press and a re-render take exactly the same path and cannot disagree. The scroll
            nudge that follows is the only scroll this side touches: the list can be scrolled
-           deep when the switch is pressed, and a shorter list that keeps that offset would
+           deep when the filter is pressed, and a shorter list that keeps that offset would
            open on blank space. */
-        function setWx(on) {
-          wxOn = on
+        function setView(next) {
+          on = next
           paint()
           var host = tree()
-          if (host !== null && wxOn && host.scrollTop !== 0) host.scrollTop = 0
+          if (host !== null && on && host.scrollTop !== 0) host.scrollTop = 0
         }
 
         /* One stable handler: what was pressed is this entry, and dispose can unhook it
            without having kept a closure per button. A bubble-phase stopPropagation keeps the
            host's own onClick out -- React delegates at #root, below document, the same
            measurement the brand row zones effect relies on. */
-        function onWxToggle(event) {
+        function onToggle(event) {
           stop(event)
-          setWx(!wxOn)
+          setView(!on)
         }
 
         /* The button wears the official header icon-box contract the sheet sizes at 28x28,
-           and its on state answers to its own switch rather than to a selected view. The name
-           lives in aria-label only -- which is not drawn -- so hovering shows no wording in
-           either state; a title left by an earlier build is taken off rather than left to pop
-           up on hover. */
-        function decorateWx(button) {
-          var on = wxOn
-          var text = label(on ? 'hidewx' : 'weixin')
+           and its on state answers to its own filter. The name lives in aria-label only --
+           which is not drawn -- so hovering shows no wording in either state; a title left by
+           an earlier build is taken off rather than left to pop up on hover. */
+        function decorate(button) {
+          var text = label(on ? 'all' : 'weixin')
           var state = on ? 'on' : 'off'
           if (button.getAttribute(BUTTON_ATTR) !== WX_ENTRY_ID) button.setAttribute(BUTTON_ATTR, WX_ENTRY_ID)
           if (button.getAttribute('aria-label') !== text) button.setAttribute('aria-label', text)
@@ -1376,7 +1355,7 @@
              belongs to this control. */
           button.addEventListener('mousedown', stop)
           button.addEventListener('pointerdown', stop)
-          button.addEventListener('click', onWxToggle)
+          button.addEventListener('click', onToggle)
           return button
         }
 
@@ -1411,7 +1390,7 @@
             if (slot === null) host.appendChild(button)
             else host.insertBefore(button, slot)
           }
-          decorateWx(button)
+          decorate(button)
         }
 
         function paint() {
@@ -1432,19 +1411,17 @@
           if (offLocale !== null && typeof offLocale === 'function') offLocale()
           offLocale = null
           var host = tree()
-          if (host !== null && host.getAttribute(WX_TREE_ATTR) !== null) host.removeAttribute(WX_TREE_ATTR)
           if (host !== null) {
-            var tagged = host.querySelector('[' + GROUP_ATTR + ']')
-            if (tagged !== null) tagged.removeAttribute(GROUP_ATTR)
-            var headTagged = host.querySelector('[' + HEAD_ATTR + ']')
-            if (headTagged !== null) headTagged.removeAttribute(HEAD_ATTR)
+            if (host.getAttribute(TREE_ATTR) !== null) host.removeAttribute(TREE_ATTR)
+            var tagged = host.querySelectorAll('[' + ROW_ATTR + ']')
+            for (var i = 0; i < tagged.length; i++) tagged[i].removeAttribute(ROW_ATTR)
           }
           var buttons = document.querySelectorAll('[' + BUTTON_ATTR + ']')
-          for (var i = 0; i < buttons.length; i++) {
-            var button = buttons[i]
+          for (var j = 0; j < buttons.length; j++) {
+            var button = buttons[j]
             button.removeEventListener('mousedown', stop)
             button.removeEventListener('pointerdown', stop)
-            button.removeEventListener('click', onWxToggle)
+            button.removeEventListener('click', onToggle)
             if (button.parentElement !== null) button.parentElement.removeChild(button)
           }
         }
@@ -1460,13 +1437,12 @@
            batch in the document, so a streaming answer in the conversation pane paid for a
            sidebar walk. Measured on the 6563-element session page: 120 conversation-only
            mutations cost 601 queries inside the sidebar (markerNode, tree, entry's own
-           input scan, wxHead's row walk) plus one textContent build per batch -- the same
-           shape the round-1 fix removed from the status rail. A batch that provably misses
-           the workspaces slot is not this pass's business: the pass reads no row outside
-           it. Three things still schedule, and they are the whole of the rule -- a target
-           inside the slot, a node added or removed CONTAINING it (React replacing the
-           sidebar is the remount this watch exists for), and a remembered host that is no
-           longer attached. */
+           input scan) plus one textContent build per batch -- the same shape the round-1 fix
+           removed from the status rail. A batch that provably misses the workspaces slot is
+           not this pass's business: the pass reads no row outside it. Three things still
+           schedule, and they are the whole of the rule -- a target inside the slot, a node
+           added or removed CONTAINING it (React replacing the sidebar is the remount this
+           watch exists for), and a remembered host that is no longer attached. */
         function touches(records) {
           var host = slotHost
           if (host === null || !host.isConnected) return true
@@ -1500,6 +1476,9 @@
             attributeFilter: ['data-row-key'],
           })
         }
+        /* The session list is not read -- the rows on screen are the whole input -- but a
+           retitle with no row churn still has to re-tag, and that is what the list tells us;
+           the locale service is what makes the two labels swap with the language. */
         var sessions = ctx.get('sessions')
         var list = sessions === undefined || sessions === null ? null : sessions.list
         var offSessions = null
@@ -1513,7 +1492,7 @@
         paint()
 
         return dispose
-      }, 'evangelion: wechat workspace switch')
+      }, 'evangelion: wechat filter')
 
       /* Read-only surface for troubleshooting and for the delivery docs. */
       exports.manifest = MANIFEST
