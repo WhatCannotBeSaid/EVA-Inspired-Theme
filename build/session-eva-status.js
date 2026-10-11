@@ -36,12 +36,15 @@
  * 一条直轨。::before 绝对定位在行内、不受行圆角裁剪，才是整行高、两端直角的一条轨。
  *
  * ── 主题侧补丁（EVA-Inspired-Theme）─────────────────────────────────────────
- * 这份副本已不是上游 v0.1.0 的逐字节拷贝：主题仓库对热路径打了三处补丁（见 D78）——
+ * 这份副本已不是上游 v0.1.0 的逐字节拷贝：主题仓库对热路径打了五处补丁（见 D78）——
  *   a. schedule() 由 queueMicrotask 改为 rAF 合并：微任务只合并同一批观察记录，流式
  *      回复里每到一个 token 就是一批，一帧能落好几次对账；rAF 把上限压到每帧一次。
  *   b. 置顶属性 data-eva-pinned 改为先比后写：它被样式表选中，同值重写也会让该行样式失效。
  *   c. dispose() 补 window.cancelAnimationFrame，清掉挂起的那一帧。
- * 刷新上游仍按 D29/D77 的办法：用新版 lib/client.js 覆盖本文件，再把 a/b/c 贴回来
+ *   d. sync() 的行查询先收窄到工作区侧栏子树，侧栏不在或查不到行时回退整份文档。
+ *   e. 呼吸由逐帧插值 background 改为动画 opacity：低点 35% 是同一个合成结果，
+ *      但 background 是绘制属性、每帧都要重绘，opacity 落在合成器上。
+ * 刷新上游仍按 D29/D77 的办法：用新版 lib/client.js 覆盖本文件，再把 a/b/c/d/e 贴回来
  * （本机已无该 checkout，无法先改上游再 vendor）。
  */
 window.__ModuleLoader__.load({
@@ -105,9 +108,17 @@ window.__ModuleLoader__.load({
     /** 呼吸低点的不透明度（%）。 */
     const BREATHE_LOW = 35
     /**
-     * 蓝轨色值的自定义属性名。两档共用同一份 @keyframes 靠它切换：关键帧里的 var()
-     * 是在被动画的那个元素上求值的，所以暗档读到 `pending`、亮档读到 `pendingLight`，
-     * 而动画声明与关键帧本身只有一份 —— 呼吸的周期、缓动与低点比例因此逐字不变。
+     * 蓝轨色值的自定义属性名。两档共用同一条轨声明，靠它切换色值：暗档读到
+     * `pending`、亮档读到 `pendingLight`，而形状、位置、层级与动画本身只有一份。
+     *
+     * 主题侧补丁 e（2026-10-11）：呼吸改动画 `opacity`，不再动画 `background`。
+     * 原写法在关键帧里逐帧插值 `background` —— 那是绘制属性，每一帧都要重新上色并
+     * 重绘，主线程与栅格线程都得跟着跑；而这条动画是 `infinite`，一秒 60 次，只要
+     * 有一行 pending 就永不停止。低点 35% 原本写成
+     * `color-mix(in srgb, <蓝> 35%, transparent)`，等价于把同一支蓝以 0.35 的 alpha
+     * 压在行背景上 —— 与直接给伪元素 `opacity:.35` 是同一种合成，视觉逐像素一致
+     * （伪元素里只有这一条背景，没有别的内容会被一起淡掉）。改后动画只动合成器，
+     * 主线程不再参与。关键帧因此不再出现任何颜色，`var()` 只服务于基准色与亮档覆盖。
      */
     const PENDING_VAR = `${PLUGIN_ID}-pending`
 
@@ -139,10 +150,9 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** 半透明版本，用于呼吸低点。 */
-    const faint = (color, percent) => `color-mix(in srgb, ${color} ${percent}%, transparent)`
-
-    /** 一条左轨的声明：绝对定位、整行高、直角收尾（含收尾的右花括号）。 */
+    /**
+     * 一条左轨的声明：绝对定位、整行高、直角收尾（含收尾的右花括号）。
+     */
     const railRule = (color, extra = '') => [
       'content:"";position:absolute;left:0;top:0;bottom:0;',
       `width:${RAIL_WIDTH}px;background:${color};`,
@@ -170,14 +180,13 @@ window.__ModuleLoader__.load({
     function buildCss(config) {
       const { pending, pendingLight, selected, selectedLight, unread } = config.colors
       const pendingRef = `var(--${PENDING_VAR})`
-      const pendingLow = faint(pendingRef, BREATHE_LOW)
       const lines = [
         // 行本身要当定位上下文，伪元素轨才挂得住。
         `html ${ROW_SELECTOR}[${STATE_ATTR}="pending"],`,
         `html ${ROW_SELECTOR}[${STATE_ATTR}="selected"],`,
         `html ${ROW_SELECTOR}[${STATE_ATTR}="unread"]{position:relative}`,
-        // 左轨：整行高的一条，两端直角。呼吸只属于「要你动手」的那一档。
-        // 蓝轨色值走自定义属性（见 PENDING_VAR），好让两档共用同一份 @keyframes。
+        // 左轨：整行高的一条，两端直角。呼吸只属于「要你动手」的那一档，且只动
+        // opacity（补丁 e）；蓝轨色值走自定义属性，两档共用同一条轨声明与同一份关键帧。
         `html ${ROW_SELECTOR}[${STATE_ATTR}="pending"]::before{`,
         `--${PENDING_VAR}:${pending};`,
         railRule(pendingRef, `animation:${PLUGIN_ID}-breathe ${config.breatheMs}ms ease-in-out infinite`),
@@ -207,8 +216,8 @@ window.__ModuleLoader__.load({
       }
       lines.push(
         `@keyframes ${PLUGIN_ID}-breathe{`,
-        `0%,100%{background:${pendingRef}}`,
-        `50%{background:${pendingLow}}}`,
+        `0%,100%{opacity:1}`,
+        `50%{opacity:${BREATHE_LOW / 100}}}`,
         `@media (prefers-reduced-motion: reduce){`,
         `html ${ROW_SELECTOR}[${STATE_ATTR}="pending"]::before{animation:none}}`,
       )
@@ -327,9 +336,38 @@ window.__ModuleLoader__.load({
         return ids
       }
 
+      /**
+       * 主题侧补丁 d：会话行先在工作区侧栏里找，找不到再退回整份文档。
+       *
+       * 实测（2026-10-11，隔离实例 + CDP Performance 指标）：原来这一句是整份文档级
+       * querySelectorAll，而每一批 DOM 变更都会唤醒 sync() —— 流式回复里约 30 批/秒，
+       * 探针因此记到 1080 次/40 秒全文档扫描，prof 里 querySelectorAll 是最大的自耗时
+       * JS 帧。会话行全部住在 [data-slot='sidebar.workspaces'] 里那棵唯一的 role=tree
+       * 下（同一棵树上也就是工作区行），所以先在这个子树里查。侧栏不在（别的布局）、
+       * 或者侧栏里一条会话行都没有（整棵收起）时回退原写法 —— 收窄是优化，不是前提；
+       * 回退路径与补丁前的写法逐字等价，下面读行、写属性的逻辑一概不变。
+       */
+      const SCOPE_SELECTOR = "[data-slot='sidebar.workspaces']"
+      let scopeHost = null
+      /** 侧栏节点：还挂着就复用，卸载后重新解析，所以不会记住一棵已被 React 换掉的树。 */
+      function rowScope() {
+        if (scopeHost !== null && scopeHost.isConnected) return scopeHost
+        scopeHost = document.querySelector(SCOPE_SELECTOR)
+        return scopeHost
+      }
+      /** 本次对账要走的行集合。 */
+      function rowsNow() {
+        const host = rowScope()
+        if (host !== null) {
+          const scoped = host.querySelectorAll(ROW_SELECTOR)
+          if (scoped.length > 0) return scoped
+        }
+        return document.querySelectorAll(ROW_SELECTOR)
+      }
+
       /** 全量对账一次：读官方快照，逐行写/清 data 属性。 */
       function sync() {
-        const rows = document.querySelectorAll(ROW_SELECTOR)
+        const rows = rowsNow()
         if (rows.length === 0) return
         const statuses = status.getSnapshot()
         const list = sessionList.getSnapshot()

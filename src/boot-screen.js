@@ -11,8 +11,10 @@
      *
      * 五条硬约束（照抄 dsh-theme-endfield 的实测教训，别省）：
      *   1. 进度按已过墙钟时间算，不逐帧累加，帧率再抖也不漂移；
-     *   2. rAF 与 setInterval 双时钟驱动同一个幂等 step()，标签页被挂起时
-     *      不会有一块全屏挡板永远盖着应用；
+     *   2. 有 rAF 就只由 rAF 驱动：进度是墙钟的函数，两个时钟只是把同一个值多画一遍
+     *      （2026-10-11 收敛，见下），没有 rAF 的环境才退回 setInterval；
+     *      标签页被挂起时保证全屏挡板不会永远盖着应用的是第 3 条那两级兜底定时器
+     *      —— 它们是 setTimeout，后台里被节流也会到点；
      *   3. fuse（强制收尾）+ hard kill（无条件删节点）两级兜底；
      *   4. 收尾动画由 JS 逐帧写，不用 CSS transition——有的渲染器不跑它；
      *   5. destroyBoot 幂等，且是 ctx.effect 的 disposer，主题一关挡板就撤。
@@ -24,6 +26,13 @@
      *   rail::after 的 scaleX（样式表里加了 contain: layout paint 与
      *   will-change: transform），呼吸写在自己的节点上，且逐帧值先比再写。
      *   双时钟与 fuse / hard kill 两级兜底都原样保留。
+     *
+     * 2026-10-11 性能（同一处，只收敛时钟数量，时序与外观一字不改）：双时钟原本
+     *   无条件并行 —— 60ms 的 setInterval 与 rAF 一起叫同一个 step()，实测每帧多跑
+     *   一次。进度是墙钟的纯函数，多叫一次不改变任何一帧的取值，所以现在有 rAF 就
+     *   只走 rAF，setInterval 只在没有 rAF 的环境里顶上。收益很小（挡板每次构建只播
+     *   一次，全程约 2.5 秒），记录在此是为了说明这不是被漏掉的定时器：bootTick 一直
+     *   在 bootClearTimers() 里清，没有泄漏。
      * ---------------------------------------------------------------- */
     var BOOT_KEY = PLUGIN_ID + '/boot'
     /* 「这份构建已播过」的标记落点：同一构建只播一次靠它。 */
@@ -78,6 +87,13 @@
         return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
           && window.matchMedia('(prefers-reduced-motion: reduce)').matches
       } catch (e) { return false }
+    }
+
+    /* 帧驱动：能拿到 rAF 就只用 rAF。进度与收尾都是「已过墙钟」的纯函数，第二个时钟
+       并不会让它更准，只是把同一个值在一帧里多画一遍（2026-10-09 的实测记录里，
+       step() 被两个时钟各叫一次）。没有 rAF 的环境仍靠 setInterval 推进。 */
+    function bootHasRaf() {
+      return typeof requestAnimationFrame === 'function'
     }
 
     function bootClearTimers() {
@@ -197,10 +213,10 @@
             if (exitOp !== exitValue) { exitOp = exitValue; el.style.opacity = exitValue }
           }
           if (elapsed >= BOOT_SLIDE_MS + BOOT_FADE_MS) { destroyBoot(); return }
-          bootRaf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(slide) : null
+          bootRaf = bootHasRaf() ? requestAnimationFrame(slide) : null
         }
         slide()
-        if (typeof setInterval === 'function') bootTick = setInterval(slide, 30)
+        if (!bootHasRaf() && typeof setInterval === 'function') bootTick = setInterval(slide, 30)
         if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
           bootExit = window.setTimeout(destroyBoot, BOOT_SLIDE_MS + BOOT_FADE_MS + 300)
         }
@@ -246,10 +262,10 @@
           } else finish()
           return
         }
-        bootRaf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(step) : null
+        bootRaf = bootHasRaf() ? requestAnimationFrame(step) : null
       }
       step()
-      if (typeof setInterval === 'function') bootTick = setInterval(step, 60)
+      if (!bootHasRaf() && typeof setInterval === 'function') bootTick = setInterval(step, 60)
       if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
         bootFuse = window.setTimeout(function () { finished = false; finish() }, BOOT_MS + 1400)
         bootKill = window.setTimeout(destroyBoot, BOOT_MS + 1400 + BOOT_SLIDE_MS + BOOT_FADE_MS + 300)

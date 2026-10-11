@@ -293,8 +293,42 @@
           }
         }
 
+        /* The scan exists to catch a surface that has just been mounted, so it only has to
+           run when a batch could have mounted or unmounted one. Testing the handful of nodes
+           the batch actually added or removed is exact rather than a guess: this observer
+           watches childList only, so nothing but an addition or a removal can change which
+           elements match a selector. Without this test every batch paid a document-wide
+           query for each target. One of the two targets, [data-sidebar-right-guide-entry],
+           is not rendered at all on a plain new-Session page: there the query could never
+           find anything, and it still ran once per batch -- under a streaming reply, once
+           per coalesced frame, for nothing. */
+        var could = function (records, selector) {
+          for (var r = 0; r < records.length; r += 1) {
+            var bags = [records[r].addedNodes, records[r].removedNodes]
+            for (var b = 0; b < bags.length; b += 1) {
+              var bag = bags[b]
+              if (bag === undefined || bag === null) continue
+              for (var n = 0; n < bag.length; n += 1) {
+                var node = bag[n]
+                if (node === null || node === undefined) continue
+                if (typeof node.matches === 'function' && node.matches(selector)) return true
+                if (typeof node.querySelector === 'function' && node.querySelector(selector) !== null) return true
+              }
+            }
+          }
+          return false
+        }
+
+        var mounted = function (records) {
+          for (var s = 0; s < states.length; s += 1) {
+            if (could(records, states[s].target.selector)) return true
+          }
+          return false
+        }
+
         var queued = false
-        var mounts = typeof MutationObserver === 'function' ? new MutationObserver(function () {
+        var mounts = typeof MutationObserver === 'function' ? new MutationObserver(function (records) {
+          if (!mounted(records)) return
           if (queued) return
           queued = true
           window.requestAnimationFrame(function () { queued = false; scan() })
@@ -536,6 +570,11 @@
         var ROW_SELECTOR = 'div[data-row-key^="' + ROW_PREFIX + '"]'
         var BUTTON_ATTR = 'data-eva-ws-pin-button'
         var STATE_ATTR = 'data-eva-ws-pin-state'
+        /* The one subtree every workspace row lives in. Measured on the live app: the
+           sidebar holds a single role=tree, and the Workspace rows and the Session rows
+           are both inside it. Reaching for it by this slot name is what lets the pass
+           scan eleven rows instead of the whole document -- see rowsOf(). */
+        var SCOPE_SELECTOR = "[data-slot='sidebar.workspaces']"
 
         /* Official pin artwork, lifted verbatim from
            @deepseek-ai/dsh-client-ui-primitives' IconPinOutlineArtwork /
@@ -574,6 +613,15 @@
         var scheduled = false
         var applying = false
         var disposed = false
+        /* How many rounds in a row may send moves while the order the model reports stays
+           the same. One honest settle costs two rounds -- the one that moves, and the one
+           that finds nothing left to do -- and the budget leaves room for a snapshot that
+           lags its write by a round trip. A host that accepts a move and never reflects it
+           stops here instead of re-scheduling itself from a resolved promise forever; the
+           next change to the model refills the budget, so stopping loses nothing. */
+        var ATTEMPT_BUDGET = 4
+        var attempts = 0
+        var lastRound = ''
 
         function label(key) {
           if (translate !== null) {
@@ -685,9 +733,43 @@
           return button
         }
 
+        /* The sidebar, remembered while it stays attached. A remount detaches it and the
+           next call looks it up again, so nothing is held across a re-render. */
+        var scopeHost = null
+        /* Whether the last pass had to fall back to a document-wide query, i.e. whether the
+           rows are known to live in the sidebar at all. It starts true so that no batch is
+           filtered before a pass has actually found rows in there, and it goes back to true
+           the moment a pass does not. While it is true the filter below lets everything
+           through: not knowing where the rows are is not a licence to skip their batches. */
+        var scopeMissed = true
+        function scope() {
+          if (scopeHost !== null && scopeHost.isConnected) return scopeHost
+          scopeHost = document.querySelector(SCOPE_SELECTOR)
+          return scopeHost
+        }
+
+        /* The rows to paint, found inside the sidebar when it is there and falling back to
+           the document when it is not. The fallback is what keeps an alternate layout (or a
+           sidebar that renders somewhere else entirely) working: the scoped query is an
+           optimisation, never a precondition. It is also why an empty scoped result still
+           falls through -- the sidebar can be collapsed with every row out of the DOM, and
+           then the honest answer costs the same query the old code always paid. */
+        function rowsOf() {
+          var host = scope()
+          if (host !== null) {
+            var scoped = host.querySelectorAll(ROW_SELECTOR)
+            if (scoped.length > 0) {
+              scopeMissed = false
+              return scoped
+            }
+          }
+          scopeMissed = true
+          return document.querySelectorAll(ROW_SELECTOR)
+        }
+
         function paint() {
           if (disposed) return
-          var rows = document.querySelectorAll(ROW_SELECTOR)
+          var rows = rowsOf()
           var pinned = readPins()
           for (var i = 0; i < rows.length; i++) {
             var row = rows[i]
@@ -753,7 +835,20 @@
             moves.push([wanted[j], beforeId])
             virtual = moved(virtual, wanted[j], beforeId)
           }
-          if (moves.length === 0) return
+          var round = current.join('\u0000')
+          if (moves.length === 0) {
+            /* Nothing to do is the settled state: refill the budget. */
+            attempts = 0
+            lastRound = round
+            return
+          }
+          if (round === lastRound) {
+            attempts++
+            if (attempts > ATTEMPT_BUDGET) return
+          } else {
+            attempts = 0
+          }
+          lastRound = round
           applying = true
           var chain = Promise.resolve()
           for (var k = 0; k < moves.length; k++) chain = chain.then(step(moves[k][0], moves[k][1]))
@@ -796,13 +891,46 @@
           }
         }
 
+        /* A batch of mutations that provably misses the sidebar is not this pass's business:
+           the pass reads no row outside it, so there is nothing it could have to do. Everything
+           a streaming answer, a tool card or a toast produces lands in the conversation pane
+           and is dropped here instead of costing a query, a localStorage read and a walk.
+           Three things still have to schedule, and they are the whole of the rule: a target
+           inside the sidebar, a node that was added or removed CONTAINING the sidebar, and a
+           cached host that is no longer attached. The last two are the remount this watch
+           exists for -- React replacing the sidebar itself is exactly the case where the
+           subtree is not the target, and skipping it would leave the buttons off the rows. */
+        function touches(records) {
+          var host = scopeHost
+          if (host === null || !host.isConnected) return true
+          for (var i = 0; i < records.length; i++) {
+            var record = records[i]
+            var target = record.target
+            if (target !== null && target !== undefined && (target === host || host.contains(target))) return true
+            var bags = [record.addedNodes, record.removedNodes]
+            for (var b = 0; b < bags.length; b++) {
+              var bag = bags[b]
+              if (bag === undefined || bag === null) continue
+              for (var n = 0; n < bag.length; n++) {
+                var node = bag[n]
+                if (node === host || (typeof node.contains === 'function' && node.contains(host))) return true
+              }
+            }
+          }
+          return false
+        }
+
         /* Only the row key is watched for attributes: React rewrites class on every
            render, while data-row-key moves only when the row does -- and that filter is
            also what keeps this effect's own data-eva-ws-pin* writes from scheduling
            another pass. childList has to stay on for the button to survive React
            (round-39 note above), and a filter cannot narrow it, so the pass itself is
-           what must be silent when nothing changed -- see decorate(). */
-        var observer = new MutationObserver(schedule)
+           what must be silent when nothing changed -- see decorate(). What CAN be
+           narrowed is which batches reach the pass at all, which is touches() above. */
+        var observer = new MutationObserver(function (records) {
+          if (!touches(records)) return
+          schedule()
+        })
         if (document.body !== undefined && document.body !== null) {
           observer.observe(document.body, {
             childList: true,
@@ -972,10 +1100,21 @@
           event.preventDefault()
         }
 
+        /* The workspaces slot, remembered while it stays attached so the pass does not walk
+           the document for it once per batch. The TREE is still looked up fresh below: React
+           remounts the tree, and a node remembered from the last pass may already be gone --
+           but it remounts into the same slot. */
+        var slotHost = null
+        function slotNode() {
+          if (slotHost !== null && slotHost.isConnected) return slotHost
+          slotHost = document.querySelector(SLOT_SELECTOR)
+          return slotHost
+        }
+
         /* The session tree. The host renders exactly one role=tree, inside the workspaces
            slot, and every row -- group headers included -- lives in it. */
         function tree() {
-          var slot = document.querySelector(SLOT_SELECTOR)
+          var slot = slotNode()
           if (slot === null) return null
           var host = slot.querySelector("[role='tree']")
           if (host === null) return null
@@ -1124,10 +1263,22 @@
           return button
         }
 
+        /* The search slot's own row, looked for inside the sidebar first and anywhere
+           second: the slot NAME is a stable contract, its nesting is not -- so the scoped
+           query is a shortcut and the document query is what still makes it correct. */
+        function markerNode() {
+          var slot = slotNode()
+          if (slot !== null) {
+            var near = slot.querySelector(MARK_SELECTOR)
+            if (near !== null) return near
+          }
+          return document.querySelector(MARK_SELECTOR)
+        }
+
         /* The entry, in the row's own document order: immediately before the search slot.
            Created only when missing, so a re-render that drops it puts it back. */
         function entry() {
-          var marker = document.querySelector(MARK_SELECTOR)
+          var marker = markerNode()
           if (marker === null || marker.parentElement === null) return
           var host = marker.parentElement
           var slot = null
