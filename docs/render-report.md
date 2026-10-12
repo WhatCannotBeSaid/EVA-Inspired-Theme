@@ -3381,3 +3381,48 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - 前缀要整段 `label + 空格 + U+00B7 + 空格`，裸标签会误命中普通会话。
 - **量泵相关读数一律等 ≥2 s**，120 ms 量不到收敛值。
 - 回滚本轮 = `git revert` 本提交即可。
+
+---
+
+## 48. 第五十轮：微信入口只在微信通道真的绑了账号时存在（D64）（2026-10-12 追加）
+
+### 48.1 用户原话与裁定
+
+- 用户原话（m00003）：**「我不使用微信连接DSH了，只使用Telecom连接，所以能否将工作区右边的微信按钮图标设置为隐藏，只有我连接微信时才显示？」**（"Telecom" 指 Telegram，用户现在只用 Telegram。）
+- 裁定：**只 gate 微信那一枚**，Telegram 那一枚维持无条件存在（第 47 轮的教训是用户离不开它，一句「Telegram呢！！！」）。
+- 「已连接」的判据**不能取会话列表**：本机列表里至今留着退役插件留下的 4 条 `微信 · …` 会话（`session-7c90b6f8…`：「微信 · 在不在？」「微信 · 打招呼确认助手在线」「微信 · 用户闲聊调侃 AI 助手」；`session-f41cb6fe…`：「微信 · 猪」）。按「列表里有微信会话」判断，按钮今天就会留在原地，等于没做。
+- 判据取 **dsh-im 自己那扇门**：客户端调 `connection.rpc.call('/api', 'dsh-im/weixin', { method: 'connection.status', payload: {} })`，拿到 `{ ok, value }`；形状判据与 dsh-im 的 `normalizeSnapshot()` / `normalizeBot()` 同源 —— `Array.isArray(value.bots)` 且至少一条 `typeof bot.botId === 'string' && bot.botId !== ''`。本机 `~/.dsh/integrations/dsh-weixin/config.json` = `{"version":1,"accounts":[]}` → 0 条 → 按钮默认不存在。
+- 端点与方法的归属：`@xmanrui/dsh-im` 的 `plugin-src/management-rpc.mjs`（`rpcEndpoint = 'dsh-im' + channel`）与 `plugin-src/client/channels/weixin/api.js`（`WEIXIN_ENDPOINTS.status = 'connection.status'`）。这是**跨插件契约**，注释里写了 owner；dsh-im 哪天改名，这里要跟着改。
+- 失败方向：没答案（插件没装、路由不存在、抛错、形状读不懂）→ **保持隐藏**；一次失败**不改变**已知答案（只有布尔且与现值不同才重绘），所以已经亮着的入口不会因为一次询问失败而消失。若「有账号 → 无账号」翻转、而当前正停在微信视图，视图回落到官方列表（否则树还停在筛选态、却没有任何亮着可按的入口）。
+
+### 48.2 改动
+
+| 文件 | 改动 |
+|---|---|
+| `src/client.js` | `CHANNELS` 的 weixin 记录加 `gated: true`；新增 `WEIXIN_RPC = 'dsh-im/weixin'` / `WEIXIN_STATUS = 'connection.status'` / `STATUS_INTERVAL = 60000`；状态 `weixinLive` / `statusPending` / `statusTimer`；函数 `holdsAccount()` / `acceptStatus()` / `refreshStatus()` / `onVisible()`；`entry()` 跳过未就绪的 gated 渠道、并摘掉上一趟建过的按钮（摘掉后 `previous` 仍指最后一枚在场入口，所以微信按钮回来时紧贴 Telegram 右侧）；effect 末尾起定时器 + `visibilitychange` + `focus` 三个触发点，`dispose()` 里全部撤销 |
+| `tools/selfcheck.mjs` | `cli.26` 里 7 条新断言（端点与方法、默认隐藏、`botId` 判据、账号消失时收视图、探针真的发出去、定时器与清理，以及**Telegram 不许被 gate** 的负向断言），原渠道记录断言同步加 `gated: true` |
+| `README.zh.md` / `README.md` | 那一行补一句：微信入口只在微信通道绑了账号时出现 |
+
+### 48.3 触发时机
+
+挂载即问一次；之后每 **60 s** 一次（`document.hidden` 为真时跳过，页面在后台不打扰后端）；此外在 `visibilitychange` 回到前台与窗口 `focus` 时各问一次 —— 用户在「设置 → IM机器人」里扫码绑定后，切回页面即亮，不必等下一个整分钟。
+
+### 48.4 门禁
+
+`node tools/build-client.mjs` → `wrote client.js 788427 chars (807897 bytes), 55 tokens, 2 wallpapers … css 91880 chars (11569 after the comment strip)`；`node --check` 0；`tools/selfcheck.mjs` → **`117 assertions, 0 failed, 117 passed`**；`token-audit` → `AUDIT OK — 55 overrides (A 41 + B 14)`；`check-sound-layer` → `25 checks, 0 failed`；`build-client --check` → `OK (in sync with src/, 788427 chars)`；`npm run verify` 退出码 0。产物里可核：`client.js:3302` 的 `gated: true`、`:3319` 的 `WEIXIN_RPC = 'dsh-im/weixin'`、`:4027` 的 `statusTimer = setInterval(refreshStatus, STATUS_INTERVAL)`。
+
+新断言写在**已有**的 `cli.26` 契约体内，所以打印的 117 反映的是契约条数、不逐条计数（`:914-930` 那 7 条任一为假都会让 `cli.26` 失败并打印它自己的说明）。
+
+### 48.5 未做真机验证（如实记录）
+
+本机只有 desktop profile 同时装了 `@xmanrui/dsh-im` 4.38.1 与本主题；19387 那扇窗的登录票据拿不到（`dsh-ai-web`：HttpOnly cookie + 每进程 launch token），19388 的 AI 实例跑的是 **web** profile（两个插件都没装）。所以「未绑定 → 按钮不存在」这一条**没有真机读数**，由用户刷新页面后确认；代码层面已证的只有：端点/方法与 dsh-im 客户端同源、默认值 `false`（首帧必藏）、`dispose()` 撤销定时器与两个监听。
+
+### 48.6 生效方式
+
+客户端半（本仓库）：桌面 profile 里是指向本仓库的 Junction，**刷新页面即吃到**新产物；宿主半一个字没动。
+
+### 48.7 给下一次的提醒
+
+- 沙箱坑：workspace-write 下**命令**不能改/删/移动**既有**工作区文件（`node tools/build-client.mjs` 报 `Error: EPERM: operation not permitted, open 'C:\Yu\EVA-Inspired-Theme\client.js'`，`Move-Item` 报 `Access to the path is denied.` ＋ `[sandbox: file access denied under workspace-write mode]`），而**新建**文件可以；文件工具（edit/write）不受此限 —— 所以 `src/client.js` 能改，产物 `client.js` 只能靠构建脚本写。
+- 「某个渠道是否在线」永远别拿会话列表当判据 —— 死会话会留下。
+- 回滚本轮 = `git revert` 本提交即可。

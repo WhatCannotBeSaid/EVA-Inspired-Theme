@@ -812,8 +812,8 @@ checks.check('cli.26', 'the channel entries filter the Sessions dsh-im stamps, a
   if (!/var CHANNELS = \[\s*\{\s*id: 'telegram', marker: 'telegram', lead: 'Telegram · '\s*\},/.test(client)) {
     return 'the Telegram entry lost its channel record or its lead'
   }
-  if (!/\{\s*id: 'weixin', marker: 'weixin', lead: '微信 · '\s*\},/.test(client)) {
-    return 'the 微信 entry lost its channel record or its lead'
+  if (!/\{\s*id: 'weixin', marker: 'weixin', lead: '微信 · ', gated: true\s*\},/.test(client)) {
+    return 'the 微信 entry lost its channel record, its lead or its gate'
   }
   if (!/var SESSION_PREFIX = 'session:'/.test(client)) {
     return 'the filter does not read the official row key prefix of a conversation'
@@ -904,6 +904,33 @@ checks.check('cli.26', 'the channel entries filter the Sessions dsh-im stamps, a
   }
   if (!/attributeFilter: \['data-row-key'\]/.test(client)) {
     return 'the filter does not watch the row key, so its own writes would re-enter it'
+  }
+  /* Round 50 (m00003「只有我连接微信时才显示」): the 微信 entry exists only while that channel
+     holds an account. The question is asked of the IM plugin's own route -- endpoint
+     dsh-im/weixin, method connection.status -- through the client connection service, and the
+     gate fails in ONE direction: no answer, a throwing or rejecting call, a snapshot without a
+     bots array, or a bot without a string botId all leave the entry hidden, while only a
+     CHANGED answer costs a pass. The Telegram entry must never be gated by it. */
+  if (!/var WEIXIN_RPC = 'dsh-im\/weixin'/.test(client) || !/var WEIXIN_STATUS = 'connection\.status'/.test(client)) {
+    return 'the 微信 gate no longer asks the IM plugin for that channel status'
+  }
+  if (!/var weixinLive = false/.test(client)) {
+    return 'the 微信 entry is no longer hidden until the channel actually answers'
+  }
+  if (!/function holdsAccount\(result\)/.test(client) || !/typeof bot\.botId === 'string'/.test(client)) {
+    return 'the 微信 gate counts a snapshot the IM plugin itself would not call configured'
+  }
+  if (!/function refreshStatus\(\)/.test(client) || !/rpc\.call\('\/api', WEIXIN_RPC, \{ method: WEIXIN_STATUS, payload: \{\} \}\)/.test(client)) {
+    return 'the 微信 gate never asks, so the entry could never come back'
+  }
+  if (!/if \(!answer && channel !== null && channel\.gated\)/.test(client) || !/typeof answer !== 'boolean' \|\| answer === weixinLive/.test(client)) {
+    return 'a lost account leaves the tree filtered with nothing lit to press, or a failed probe moves the entry'
+  }
+  if (!/statusTimer = setInterval\(refreshStatus, STATUS_INTERVAL\)/.test(client) || !/clearInterval\(statusTimer\)/.test(client)) {
+    return 'the 微信 probe is not a timer that dispose stops'
+  }
+  if (/id: 'telegram'[^\n]*gated/.test(client)) {
+    return 'the Telegram entry got gated, so a probe that fails can hide the entry the user works in'
   }
   if (!/data-eva-im-button/.test(client)) return 'the entries carry no contract attribute'
   if (!/ICONS\[channel\.id\]/.test(client)) return 'the two entries do not draw their own artwork'

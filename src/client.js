@@ -1065,7 +1065,20 @@
          slot, so the row reads 工作区 · (plane) (bubbles) ... search / view options / add
          workspace and every official control keeps the pixels it had. The 微信 artwork is
          drawn from the outline the user supplied (see ICONS below), not copied from the IM
-         plugin's filled logo. */
+         plugin's filled logo.
+
+         Round 50 (2026-10-12) -- the 微信 entry only exists while the 微信 channel does. User's
+         words: 「我不使用微信连接DSH了，只使用Telecom连接，所以能否将工作区右边的微信按钮图标
+         设置为隐藏，只有我连接微信时才显示？」 A channel the user no longer uses should not
+         hold a button in the 工作区 row, and it has to come back by itself the moment an account
+         is bound. The question is asked of the channel rather than guessed from the list: a
+         微信-titled conversation is evidence that one existed, not that one can be reached --
+         four of them were still in the list when this round was written, left over from the
+         retired plugin and pointing at nothing. So the entry is gated on the same status the IM
+         plugin's own panel reads, from the same route: one POST to dsh-im's per-channel
+         endpoint, no account means no entry, and the answer is re-asked on a slow timer rather
+         than watched. The Telegram entry is deliberately NOT gated by the same rule: it is the
+         one the user works in, and a probe that cannot answer must never take it away. */
       ctx.effect(() => deferEffect(() => {
         if (typeof document === 'undefined') return undefined
 
@@ -1088,9 +1101,14 @@
            merely starts with those two characters (one such row was live when this was
            written: 微信会话移入工作区行Telegram右侧), and the filter showed it in the 微信
            view until the lead was made exact. */
+        /* gated marks the entry that is not always in the row: round 50 made the 微信 one wait
+           for that channel to hold an account, so the row spends a button on it only while
+           there is something behind it. Telegram carries no gate -- see the round-50 paragraph
+           above: a status this effect cannot read must not be able to hide the entry the user
+           actually works in. */
         var CHANNELS = [
           { id: 'telegram', marker: 'telegram', lead: 'Telegram · ' },
-          { id: 'weixin', marker: 'weixin', lead: '微信 · ' },
+          { id: 'weixin', marker: 'weixin', lead: '微信 · ', gated: true },
         ]
         /* The host's own names for the 工作区 area and for the empty marker that is a
            direct child of that row -- both are slots, not CSS-Modules classes. */
@@ -1099,6 +1117,21 @@
         /* 46 official clicks take a group of 231 rows to fully expanded. The limit stops
            a control that stops answering; it is not a budget. */
         var CLICK_LIMIT = 200
+
+        /* Round 50: the two names below belong to @xmanrui/dsh-im, not to this theme. Its host
+           half registers one fetch route per channel (plugin-src/management-rpc.mjs, the
+           endpoint is 'dsh-im' + channel) and its client half asks that route for the channel's
+           snapshot; this effect asks the same two questions, through the same client service:
+           endpoint 'dsh-im/weixin', method 'connection.status'. A version of that plugin which
+           renames either one costs the 微信 entry its gate -- the probe stops answering and the
+           entry stays hidden, which is the direction this gate is built to fail in. */
+        var WEIXIN_RPC = 'dsh-im/weixin'
+        var WEIXIN_STATUS = 'connection.status'
+        /* One question a minute while the page is on screen, plus one whenever the window comes
+           back. The answer changes only when the user binds or unbinds the account in the
+           plugin's own settings panel, so a minute of lag on a button is not worth a watcher --
+           and nothing is asked at all while the page is off screen. */
+        var STATUS_INTERVAL = 60000
 
         /* The row's own icons are 16x16 in a 16 viewBox, 1px stroke, currentColor. This is the
            same box, and the artwork is the user's own file (fNsqp0wiUPdzR9MAk8YXg12Iy4SlG7ZD.svg,
@@ -1196,6 +1229,15 @@
            first lit pass and stays true, so a pass with no view lit costs no property reads
            once those writes are gone. */
         var marked = false
+        /* Round 50: whether the 微信 channel holds an account. Hidden until an answer says
+           otherwise -- the entry has to be shown, not merely not hidden, and every way of not
+           answering (no IM plugin, an unregistered route, a call that throws or rejects, a
+           snapshot of a shape this build cannot read) leaves it hidden rather than handing the
+           row a button that leads nowhere. statusPending is the one-request-at-a-time latch;
+           statusTimer is the minute the whole thing costs. */
+        var weixinLive = false
+        var statusPending = false
+        var statusTimer = 0
 
         function schedule() {
           if (scheduled || disposed) return
@@ -1388,6 +1430,14 @@
           for (var j = 0; j < CHANNELS.length; j++) {
             var channel = CHANNELS[j]
             var button = host.querySelector('[' + BUTTON_ATTR + "='" + channel.id + "']")
+            /* Round 50: a gated channel with no account has no entry. The one an earlier pass
+               built comes off if the account was unbound while the page was open, and previous
+               still names the last entry that IS in the row, so whatever is left keeps its
+               order -- the 微信 entry lands immediately right of Telegram whenever it returns. */
+            if (channel.gated && !weixinLive) {
+              if (button !== null && button.parentElement !== null) button.parentElement.removeChild(button)
+              continue
+            }
             if (button === null) {
               button = create(channel)
               /* The node this entry has to sit before to keep the row's order: the entry
@@ -1418,6 +1468,77 @@
           if (host === null) return
           mark(host)
           imView(host)
+        }
+
+        /* Round 50. The answer the IM plugin's own reader accepts for this route: its
+           normalizeSnapshot demands an object with a bots array and its normalizeBot keeps a
+           record only when botId is a string, so the same test is what makes an account count
+           here -- what lights this entry is what shows an account in that panel. true = there is
+           one, false = the channel answered and there is none, null = no answer at all. */
+        function holdsAccount(result) {
+          if (result === null || typeof result !== 'object' || result.ok === false) return null
+          var value = result.value
+          if (value === null || typeof value !== 'object') return null
+          var bots = value.bots
+          if (!Array.isArray(bots)) return null
+          for (var i = 0; i < bots.length; i++) {
+            var bot = bots[i]
+            if (bot !== null && typeof bot === 'object' && typeof bot.botId === 'string' && bot.botId !== '') return true
+          }
+          return false
+        }
+
+        /* Only a real answer moves the entry, and only a CHANGED answer costs a pass: a probe
+           that fails keeps the last word, so a hiccup in the route cannot take a live entry away.
+           If the account goes while its view is lit, the view goes with it -- the tree would
+           otherwise stay filtered with nothing lit left to press, so the official list is put
+           back on the same path its own exit takes. */
+        function acceptStatus(answer) {
+          if (disposed || typeof answer !== 'boolean' || answer === weixinLive) return
+          weixinLive = answer
+          var channel = selected()
+          if (!answer && channel !== null && channel.gated) {
+            mode = 0
+            clicks = 0
+            paint()
+            action = 0
+            pump()
+            return
+          }
+          schedule()
+        }
+
+        /* The one question this effect asks of another plugin, asked through the client service
+           that plugin's own half uses -- ctx.get is guarded and its absence is simply no status,
+           so a profile without that service keeps this theme alive instead of taking the whole
+           thing down over a button. */
+        function refreshStatus() {
+          if (disposed || statusPending) return
+          if (typeof document !== 'undefined' && document.hidden === true) return
+          var connection = null
+          try { connection = ctx.get('connection') } catch (error) { connection = null }
+          var rpc = connection === null || connection === undefined ? null : connection.rpc
+          if (rpc === null || rpc === undefined || typeof rpc.call !== 'function') return
+          statusPending = true
+          var pending = null
+          try {
+            pending = rpc.call('/api', WEIXIN_RPC, { method: WEIXIN_STATUS, payload: {} })
+          } catch (error) { pending = null }
+          if (pending === null || pending === undefined || typeof pending.then !== 'function') {
+            statusPending = false
+            return
+          }
+          pending.then(function (result) {
+            statusPending = false
+            acceptStatus(holdsAccount(result))
+          }, function () {
+            statusPending = false
+          })
+        }
+
+        function onVisible() {
+          if (typeof document !== 'undefined' && document.hidden === true) return
+          refreshStatus()
         }
 
         /* The groups that hold a conversation of the selected channel, read from the two
@@ -1624,6 +1745,17 @@
           offSessions = null
           if (offLocale !== null && typeof offLocale === 'function') offLocale()
           offLocale = null
+          /* Round 50: stop asking about 微信, and stop listening for the two moments that
+             would have asked again. A probe already in flight is left to settle into
+             acceptStatus, which returns at once on the disposed flag. */
+          if (statusTimer !== 0) clearInterval(statusTimer)
+          statusTimer = 0
+          if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+            document.removeEventListener('visibilitychange', onVisible)
+          }
+          if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+            window.removeEventListener('focus', refreshStatus)
+          }
           var host = tree()
           if (host !== null) {
             if (host.getAttribute(TREE_ATTR) !== null) host.removeAttribute(TREE_ATTR)
@@ -1697,6 +1829,18 @@
         if (locale !== undefined && locale !== null && typeof locale.subscribe === 'function') {
           try { offLocale = locale.subscribe(schedule) } catch (error) { offLocale = null }
         }
+        /* Round 50: the 微信 question, asked once now and then on the interval above -- and
+           again whenever the page comes back on screen or the window is focused, which is the
+           moment the user has most likely just bound or unbound the account. All three are
+           dropped again in dispose. */
+        if (typeof setInterval === 'function') statusTimer = setInterval(refreshStatus, STATUS_INTERVAL)
+        if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+          document.addEventListener('visibilitychange', onVisible)
+        }
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+          window.addEventListener('focus', refreshStatus)
+        }
+        refreshStatus()
         paint()
 
         return dispose

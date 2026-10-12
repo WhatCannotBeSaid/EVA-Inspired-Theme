@@ -137,6 +137,13 @@ follow the interface language — a Chinese and an English user both read the Ge
   one official click per frame — so the rows exist before they are filtered, and folds
   back whatever it expanded on the way out. Until the plugin has drawn its channel logo,
   an entry recognises its rows by the 「Telegram · 」/「微信 · 」 prefix on their titles.
+  The **WeChat entry exists only while the WeChat channel does**: it asks the WeChat channel
+  of `@xmanrui/dsh-im` (`connection.status`) and appears only when
+  `~/.dsh/integrations/dsh-weixin/config.json` holds at least one account. A probe that
+  fails, or that answers in a shape it cannot read, leaves the entry hidden, and an entry
+  that is already lit never disappears over one failed ask. It asks once at mount, every
+  minute afterwards, and again whenever the page returns to the foreground or the window
+  regains focus. The Telegram entry is never gated.
 - The vendored **non-official plugin switch**, on the installed group's header in the
   official Plugins page: tick which non-official plugins to disable, or to enable
   again. It switches bundle enablement only — it installs and uninstalls nothing.
