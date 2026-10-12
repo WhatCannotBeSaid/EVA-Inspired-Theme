@@ -48,7 +48,7 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Modes | **Title Card** (light) and **Central Dogma** (dark) |
 | Token layer | 55 measured overrides (41 in the light arm, 14 in the dark arm) on a single removable layer |
 | Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures — the light default on haowallpaper.com, the dark one on wallhaven — and the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
-| Boot mask | Shown on load; unchanged timings and triggers |
+| Boot mask | Plays once per build — the mark is derived from the bundle, so a new build replays it; `?boot=0` skips one, `?boot=1` forces one. Timings and triggers unchanged |
 | Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
 | Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a switch for the WeChat workspace on the workspace row |
@@ -139,7 +139,9 @@ follow the interface language — a Chinese and an English user both read the Ge
   you (an approval, a question, a plan review), red while it is the one open in the
   main area, purple while it finished unread. A pinned row gets a rainbow title
   instead of a rail.
-- The **boot mask** once per page load, and the four **task sounds**.
+- The **boot mask** once per build (the mark follows the bundle, so a new build
+  replays it; `?boot=1` forces a replay, `?boot=0` skips one), and the four
+  **task sounds**.
 
 Settings themselves remain the official dialog. The single change there is that the
 dim tint behind it is removed; the panel and click-outside-to-close are untouched.

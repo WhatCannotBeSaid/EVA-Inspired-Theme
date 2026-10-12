@@ -71,6 +71,7 @@
  *   node tools/build-client.mjs --check    # fail if client.js is stale
  */
 
+import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -537,7 +538,28 @@ ${clientJs}
 })
 `
 
-const output = `${banner}\n${body}`
+/* ----------------------------------------------------------- boot build mark
+ * src/boot-screen.js keeps BOOT_MARK as the placeholder `'eva-boot/@BUILD@'`, and
+ * this replaces it with a hash of the bundle itself. Hashing the OUTPUT rather than
+ * a hand-kept list of inputs is deliberate: the output already contains every input
+ * (55 tokens, two sheets, the embedded font, the brand mark, three vendored blocks),
+ * so any source change moves the mark and there is no second list to fall behind.
+ *
+ * The placeholder is what gets hashed, not the hash, so the value is stable: the
+ * same sources always produce the same mark and `--check` cannot fight itself.
+ *
+ * Why it matters (2026-10-12): the mark used to be the frozen literal
+ * `eva-boot/2026-10-06-a`. It never changed, so "once per build" degraded into
+ * "once ever" and the mask stopped appearing after its very first play — which is
+ * how the user reported it. tools/selfcheck.mjs (boot.7) pins both ends. */
+const MARK_PLACEHOLDER = "'eva-boot/@BUILD@'"
+if (!body.includes(MARK_PLACEHOLDER)) {
+  throw new Error('src/boot-screen.js lost its build mark placeholder ' + MARK_PLACEHOLDER
+    + ' — without it the boot mask would play once per browser profile, not once per build')
+}
+const marked = `${banner}\n${body}`
+const buildMark = createHash('sha256').update(marked).digest('hex').slice(0, 8)
+const output = marked.split(MARK_PLACEHOLDER).join(`'eva-boot/${buildMark}'`)
 
 /* ------------------------------------------------------------------- check */
 
@@ -579,4 +601,5 @@ writeFileSync(target, output)
 console.log(`wrote client.js  ${output.length} chars (${Buffer.byteLength(output, 'utf8')} bytes)  ` +
   `${MANIFEST.tokens} tokens  ${MANIFEST.wallpapers.length} wallpapers from ${wallpaperFile}  ` +
   `css ${css.length} chars (${cssPaint.length} after the comment strip)  ` +
-  `wallpaper block ${declarations.length} chars`)
+  `wallpaper block ${declarations.length} chars  ` +
+  `boot mark eva-boot/${buildMark}`)

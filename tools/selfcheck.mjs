@@ -384,7 +384,36 @@ checks.check('css.12', 'the WeChat entry is styled by contract, and the switch o
   return !/data-eva-tg/.test(sheet) || 'the retired Telegram contract is still styled'
 })
 
-
+checks.check('css.13', 'the settings veil is cleared on the overlay that actually hosts it', () => {
+  /* Round 33 (2026-10-08) took the user's word on the full-screen veil behind the settings
+   * dialog and emptied it. The mask carries only hashed class names (css.6 forbids keying on
+   * them) and no data-* hook of its own, so its identity is positional: the first child of the
+   * container that holds `[data-shortcut-modal='settings']`.
+   *
+   * C3 (2026-10-12, commit 009df83) narrowed that subject to `[data-slot='root'] div` on the
+   * belief -- written into the commit message as "the veil container always lives there" and
+   * recorded as "hit set unchanged" -- that the container sits inside the root slot. It does
+   * not, and the rule matched nothing from that commit until C4. The live probe that settled it
+   * (both spellings evaluated on the same open dialog on 19388): the overlay is a portal hung
+   * directly on `body` (`DIV.wCInkW_overlay -> BODY`), the bare `div:has(>)` form matched 1
+   * element and the root-slot form matched 0. Hence both halves of this check: the veil must
+   * still be emptied, and the subject must not be narrowed back onto a subtree the overlay is
+   * not in. */
+  const sheet = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const rules = [...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }))
+  const veil = rules.filter((r) => /\[data-shortcut-modal='settings'\]/.test(r.selector))
+  if (veil.length === 0) return 'no rule reaches the settings overlay any more'
+  if (veil.some((r) => /^\[data-slot='root'\]\s+div:has\(> \[data-shortcut-modal='settings'\]\)/.test(r.selector))) {
+    return 'the veil rule is narrowed to the root slot again, where the overlay does not live'
+  }
+  const clears = veil.filter((r) => /:has\(> \[data-shortcut-modal='settings'\]\)\s*>\s*:first-child/.test(r.selector))
+  if (clears.length === 0) return 'the settings overlay no longer clears its first child'
+  for (const rule of clears) {
+    if (!/background-color:\s*transparent/.test(rule.body)) return 'the veil keeps its tint'
+    if (!/backdrop-filter:\s*none/.test(rule.body)) return 'the veil keeps its blur'
+  }
+  return true
+})
 
 checks.group('boot-screen')
 /* 「闸门开启」 landed on 2026-10-06: two source files, three build changes, no host
@@ -445,6 +474,29 @@ checks.check('boot.5', 'every documented way to skip the mask exists', () => {
 checks.check('boot.6', 'the mask asks the host for no chime', () => {
   if (/eva-theme\/api\/boot-sound/.test(bootJs)) return 'boot-screen.js still asks for the chime'
   return !/eva-theme\/api\/boot-sound/.test(client) || 'the old request is still in client.js'
+})
+/* 2026-10-12: the mark was a frozen literal (`eva-boot/2026-10-06-a`) from 10-06 to
+   10-12, so "once per build" was really "once ever" — the mask stopped appearing
+   after its first play, and the README meanwhile promised it on every load. Two
+   halves of one line were wrong, and both were silent. boot.7 pins the fix at all
+   three ends: the source carries a placeholder, the build turns it into a hash of
+   the bundle, and ?boot=1 forces a replay on demand. */
+checks.check('boot.7', 'the build mark is per-build, and ?boot=1 forces a replay', () => {
+  const build = read('tools/build-client.mjs')
+  if (!/var BOOT_MARK = 'eva-boot\/@BUILD@'/.test(bootJs)) {
+    return 'src/boot-screen.js no longer carries the build-mark placeholder'
+  }
+  if (!/createHash\('sha256'\)/.test(build) || !/MARK_PLACEHOLDER/.test(build)) {
+    return 'the build does not hash the bundle for the mark'
+  }
+  if (/var BOOT_MARK = 'eva-boot\/2026-10-06-a'/.test(client)) {
+    return 'the frozen 2026-10-06 literal is still assigned to BOOT_MARK in the bundle'
+  }
+  if (!/var BOOT_MARK = 'eva-boot\/[0-9a-f]{8}'/.test(client)) {
+    return 'the bundle does not carry a per-build mark'
+  }
+  return /indexOf\('boot=1'\)\s*>=\s*0\)\s*return true/.test(client) ||
+    '?boot=1 does not force a replay'
 })
 
 /* ---------------------------------------------------------------- client.js */

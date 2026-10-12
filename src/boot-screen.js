@@ -2,8 +2,13 @@
     /* --------------------------------------------------------- boot screen
      * 「闸门开启」启动遮罩：两层挡板盖住首屏，左侧进度按墙钟推进，结束后
      * 挡板左右分开、整块淡出并自删。默认开启，localStorage 写 '0' 关闭，
-     * URL 加 ?boot=0 只跳过一次；**同一份构建只播一次**（播过就记标记，
-     * 之后每次启动、每次加载都不再播）。
+     * URL 加 ?boot=0 只跳过一次，?boot=1 强制重播一次；**同一份构建只播一次**
+     * （播过就记标记，之后每次启动、每次加载都不再播）。
+     *
+     * 2026-10-12：标记不再写死。它由构建期注入（见下面的 BOOT_MARK），换一份构建
+     * 就换一个标记，于是「每份构建播一次」终于名实相符。在这之前它是常量
+     * 'eva-boot/2026-10-06-a'，6 天没变过，那句话实际退化成「有史以来只播一次」——
+     * 用户就是这么发现「启动画面没了」的。同一轮加了 ?boot=1。
      *
      * 这里刻意不读 Host 设置：唯一开关是浏览器本地值，任何时刻都读得到，
      * 因此没有「apply() 首帧读到的只是 schema 默认值」那个竞态。
@@ -37,8 +42,11 @@
     var BOOT_KEY = PLUGIN_ID + '/boot'
     /* 「这份构建已播过」的标记落点：同一构建只播一次靠它。 */
     var BOOT_SEEN_KEY = BOOT_KEY + '/seen'
-    /* 换一次构建想重播一次，就改这个标记（它同时挡住 HMR 换包时的二次播放）。 */
-    var BOOT_MARK = 'eva-boot/2026-10-06-a'
+    /* 构建标记：@BUILD@ 由 tools/build-client.mjs 在构建期换成产物的 8 位哈希，
+       所以换一份构建就换一个标记，「每份构建只播一次」才真的成立。
+       不要在这里写死字面量 —— 那正是 2026-10-06 到 10-12 之间发生的事：
+       标记是常量，遮罩首播之后就再没出现过。构建器在占位符丢失时会直接报错。 */
+    var BOOT_MARK = 'eva-boot/@BUILD@'
     var BOOT_MS = 1600
     var BOOT_SLIDE_MS = 620
     var BOOT_FADE_MS = 320
@@ -62,6 +70,11 @@
       if (typeof window === 'undefined') return false
       /* 同一份构建在一张页面里只播一次：HMR 换包、重复 apply 都拦在这里。 */
       if (window.__evaBootMark === BOOT_MARK) return false
+      /* ?boot=1 强制重播一次：压过下面每一条「跳过」的理由，但压不过上面那条同页去重
+         —— 否则 HMR 重挂会让挡板再盖一次，那不是重播，是重复。 */
+      try {
+        if (typeof location !== 'undefined' && String(location.search).indexOf('boot=1') >= 0) return true
+      } catch (e) { /* 读不到就当没写 */ }
       try {
         if (typeof location !== 'undefined' && String(location.search).indexOf('boot=0') >= 0) return false
       } catch (e) { /* 读不到就当没写 */ }

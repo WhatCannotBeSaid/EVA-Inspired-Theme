@@ -637,10 +637,19 @@ div[data-windows-menu] {
  * 暗色冻结不受影响：本条无模式分支、不新增也不修改任何令牌。
  * 回滚 = 删本段这一条规则。
  * ------------------------------------------------------------------------ */
-/* C3（2026-10-12 性能）：主语由裸 `div` 收窄为 `[data-slot='root'] div` —— 设置遮罩
-   永远挂在根槽子树里，收窄后每次样式失效只对根槽子树里的 div 求 `:has()`，不再对
-   整篇文档的每个 div 求值。命中不变（实测：遮罩容器就是根槽后代），只缩候选集。 */
-[data-slot='root'] div:has(> [data-shortcut-modal='settings']) > :first-child {
+/* 2026-10-12 回归与更正（C3 → C4）：C3 把主语收窄成 `[data-slot='root'] div:has(…)`，
+   依据是「遮罩容器永远挂在根槽子树里」。**这条依据是错的**，当天用户就报「打开设置时
+   整屏一层遮罩」。真机实测（DSH Web 19388，两版选择器同时求值）：
+     容器链：一个 class 是 CSS-Modules 哈希名的 DIV → BODY —— **不经 `#root`，也不经 `[data-slot='root']`**
+     容器子节点：遮罩 DIV[aria-hidden=true]（哈希 class）+ 面板 DIV[data-shortcut-modal=settings]（哈希 class）
+     命中数：裸 `div:has(…)` = **1**；`[data-slot='root'] div:has(…)` = **0**
+   即设置弹层是**直接挂在 `body` 下的 portal**，C3 之后本规则从未生效过。
+   现在把主语收到 `body > div`（候选集 = body 下那三四个直接子级），既是实测命中的那一层，
+   也不再对整篇文档的每个 div 求 `:has()`。
+   **若官方改了 portal 的挂载点，本规则会静默失配**（表现就是遮罩回来）——排查办法：
+   打开设置，量 `document.querySelector("div:has(> [data-shortcut-modal='settings'])")` 的父链，
+   把主语换到实测的那一层；tools/selfcheck.mjs 的 `css.13` 钉住这一条的存在。 */
+body > div:has(> [data-shortcut-modal='settings']) > :first-child {
   background-color: transparent !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
