@@ -57,6 +57,14 @@
  * A prompt typed at the desk carries a bare uuid and is unaffected, and anything the
  * layer cannot read answers "not a phone", so the sound it used to make stays.
  *
+ * The rule is written against the whole prefix family rather than one channel, because
+ * the channel itself was swapped the same day: dsh-im stamped `telegram-<uuid>` /
+ * `weixin-<uuid>`, and the plugin went back to dsh-wechat-plugin, whose controller
+ * requestIds are `wechat-<uuid>` (its `lib/host.js` mints `wechat-` + a random uuid as
+ * the prompt's `requestId`). Both names answer "phone", so the desk
+ * keeps its silence whichever of the two is installed — and the swap itself needs no
+ * second edit here.
+ *
  * 3. Why there is no resident player (2026-10-07)
  * -----------------------------------------------
  * A cold `-EncodedCommand` needs 1.4-1.9 s to reach its first sample on this machine,
@@ -155,19 +163,20 @@ const DEFAULT_EXEC_TOOLS = [
 ]
 
 /**
- * dsh-im stamps every message it sends into a session with a channel-prefixed rpcId:
- * `telegram-<uuid>` / `weixin-<uuid>`, and `<channel>-steer-<uuid>` for a mid-turn
- * nudge (dsh-im's own `session-title-prefix` module reads exactly that field). It is
- * the one durable marker of "this turn was typed into a phone", and it decides the
- * voice here: the phone already gets the reply, so the desktop stays quiet instead of
- * announcing a conversation the machine is not holding.
+ * An IM channel stamps every message it sends into a session with a channel-prefixed
+ * rpcId: `telegram-<uuid>` / `weixin-<uuid>` / `wechat-<uuid>`, and
+ * `<channel>-steer-<uuid>` for a mid-turn nudge (dsh-im's own `session-title-prefix`
+ * module read exactly that field, and dsh-wechat's controller mints `wechat-<uuid>` the
+ * same way). It is the one durable marker of "this turn was typed into a phone", and it
+ * decides the voice here: the phone already gets the reply, so the desktop stays quiet
+ * instead of announcing a conversation the machine is not holding.
  */
-const IM_RPC_ID = /^(?:weixin|feishu|dingtalk|wecom|wecomapp|qq|slack|telegram|discord|whatsapp|imessage|matrix|office|email)-(?:steer-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
+const IM_RPC_ID = /^(?:weixin|wechat|feishu|dingtalk|wecom|wecomapp|qq|slack|telegram|discord|whatsapp|imessage|matrix|office|email)-(?:steer-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
 
 /**
  * Was this turn typed into a phone? The newest `kind === 'user'` message decides, the
- * same rule dsh-im uses for its session title. Anything unreadable answers "no": a host
- * that cannot tell must keep the sound it used to make.
+ * same rule the channel plugins use for their session titles. Anything unreadable
+ * answers "no": a host that cannot tell must keep the sound it used to make.
  */
 function isImTurn(agent) {
   try {

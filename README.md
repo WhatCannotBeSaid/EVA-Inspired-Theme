@@ -49,9 +49,9 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Token layer | 55 measured overrides (41 in the light arm, 14 in the dark arm) on a single removable layer |
 | Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures — the light default on haowallpaper.com, the dark one on wallhaven — and the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
 | Boot mask | Plays once per build — the mark is derived from the bundle, so a new build replays it; `?boot=0` skips one, `?boot=1` forces one. Timings and triggers unchanged |
-| Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent, and a phone-originated turn (dsh-im: Telegram, WeChat, …) stays silent on the desktop while its reply still lands in the transcript. No startup chime. |
+| Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent, and a phone-originated turn (the channel-prefixed rpcId an IM channel stamps on what it sends — `wechat-<uuid>` today, `telegram-<uuid>` when the earlier channel was installed) stays silent on the desktop while its reply still lands in the transcript. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
-| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a filter for the WeChat channel on the workspace row |
+| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a switch for the WeChat workspace on the workspace row |
 | Language | All user-facing text goes through the official locale service (zh / en) |
 
 The theme installs one layer and can be removed as one. It ships **no settings panel
@@ -127,23 +127,11 @@ follow the interface language — a Chinese and an English user both read the Ge
   `eva-theme/workspace-pins`; the order it produces is written through the host's own
   insert-before API, so it survives a restart — and, unlike the pin set, it also
   survives removing the theme.
-- **Telegram and WeChat entries** on the 「工作区」 row, on the same line as Search and the
-  view options: one click leaves only the conversations the matching `@xmanrui/dsh-im`
-  channel stamps — its own rows, marked by that plugin — and another click puts the
-  official list back. The two are mutually exclusive, and each one's label says which
-  view it is in. They only tag rows and store nothing, and they have nothing to show
-  until that channel has a conversation. When a channel keeps its own conversations
-  folded behind the list's own show-more control, an entry works that control itself —
-  one official click per frame — so the rows exist before they are filtered, and folds
-  back whatever it expanded on the way out. Until the plugin has drawn its channel logo,
-  an entry recognises its rows by the 「Telegram · 」/「微信 · 」 prefix on their titles.
-  The **WeChat entry exists only while the WeChat channel does**: it asks the WeChat channel
-  of `@xmanrui/dsh-im` (`connection.status`) and appears only when
-  `~/.dsh/integrations/dsh-weixin/config.json` holds at least one account. A probe that
-  fails, or that answers in a shape it cannot read, leaves the entry hidden, and an entry
-  that is already lit never disappears over one failed ask. It asks once at mount, every
-  minute afterwards, and again whenever the page returns to the foreground or the window
-  regains focus. The Telegram entry is never gated.
+- A **WeChat workspace switch** on the 「工作区」 row, on the same line as Search and the
+  view options: one click leaves only the workspace `dsh-wechat-plugin` creates — its
+  conversations, without that workspace's own group header — and another click puts the
+  official list back. It only tags rows and stores nothing, and it has nothing to show
+  until such a workspace exists.
 - The vendored **non-official plugin switch**, on the installed group's header in the
   official Plugins page: tick which non-official plugins to disable, or to enable
   again. It switches bundle enablement only — it installs and uninstalls nothing.
@@ -153,8 +141,9 @@ follow the interface language — a Chinese and an English user both read the Ge
   instead of a rail.
 - The **boot mask** once per build (the mark follows the bundle, so a new build
   replays it; `?boot=1` forces a replay, `?boot=0` skips one), and the four
-  **task sounds** — which a turn typed into a phone (dsh-im: Telegram, WeChat, …)
-  does not trigger: that reply belongs to the phone, so the desk stays quiet.
+  **task sounds** — which a turn typed into a phone (an IM channel: the WeChat
+  channel via `dsh-wechat-plugin` today) does not trigger: that reply belongs to
+  the phone, so the desk stays quiet.
 
 Settings themselves remain the official dialog. The single change there is that the
 dim tint behind it is removed; the panel and click-outside-to-close are untouched.
@@ -245,7 +234,7 @@ npm run verify
 
 Runs every gate: syntax check of both bundle halves, the self-check (119
 assertions), the token audit (55 overrides, exactly the planned 55), the sound
-layer gate (30 checks: format, byte length and peak of each WAV, and the
+layer gate (33 checks: format, byte length and peak of each WAV, and the
 phone-originated silence), and a rebuild comparison that proves `client.js` is in
 sync with `src/`.
 

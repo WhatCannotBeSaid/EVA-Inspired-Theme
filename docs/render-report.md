@@ -3555,3 +3555,44 @@ new powershell/pwsh processes within 4 s of the POST: 0
 | `node_modules\dsh-pet\lib\index.js`（不在本仓） | 同一套 `IM_RPC_ID` + `isImSession(session)`，在 `session/event` 与 `agent/error` 两个通知源前 `return` | 备份 `lib/index.js.bak-20261012-1150-before-im-quiet`（113670 B）；dsh-pet 一升级即丢，重打脚本 `C:\Work\scratch\patch-dsh-pet-imquiet.cjs` |
 
 闸：`tools/check-sound-layer.mjs` 新增 scenario D（telegram 轮、`weixin-steer-` 轮、手机轮报错必须静音；同形态的裸 uuid 轮仍要 `done`）与 scenario E（读不到 owner 仍要 `done`），25 → 30 项检查，0 failed。
+
+## 52. 第五十四轮：换回 dsh-wechat-plugin（origin-gate 补丁移抱 0.39.3），桌面静音判据扩到 `wechat-` 前缀（D68）（2026-10-12 追加）
+
+用户原话：「换回https://github.com/xcisxc29/dsh-wechat 插件」；随后给出两条命令 ——「npm uninstall @xmanrui/dsh-im」「npm i dsh-wechat-plugin@latest」—— 并说「两个都做」。
+
+这一轮横跨 profile 与主题两处，中间夹着最容易漏掉的一件事：**origin-gate 不是插件自带功能，而是我们打在本机 `lib\host.js` 上的补丁**，插件一换装，补丁整个被换掉（0.37.0 那次已经吃过一遍）。
+
+### 52.1 profile 侧：换装 + 把补丁移到 0.39.3
+
+| 步骤 | 动作 | 产物 / 凭证 |
+|---|---|---|
+| 1 | 卸 `@xmanrui/dsh-im`、装 `dsh-wechat-plugin@0.39.3` | `~\.dsh\profiles\desktop\package.json`；`node_modules\@xmanrui` 残留空目录一并清掉 |
+| 2 | 备份新版的原始 host.js | `wechat-plugin-backup-20261012\host.js.orig-0.39.3`（166922 B） |
+| 3 | 用 0.37.0 的成品补丁在 `base37.js` 上复现 `patched37.js` | 170006 B；补丁头先归一为 `a/host.js b/host.js` |
+| 4 | `git merge-file --diff3 patched37.js base37.js base39.js` | `merged39.js`，**只有 1 处冲突**（第 28-57 行） |
+| 5 | 解冲突（两边都留）→ `resolved39.js` | 3610 行，`node --check` 通过；移植 diff +247/−4 / 13 hunk |
+| 6 | 装回插件并核对 | 安装态 180794 B / 纯 LF / 无末尾换行，SHA256 `8031E6DF34971BBC29C06351C4A67505888BC089E595F40202AF72277EF26D34` |
+| 7 | 从安装态反推补丁并做往返验证 | `wechat-origin-gate-0.39.3.patch`（19499 B / 349 行 / 12 hunk）；在 scratch 空仓里 apply 回 `base39.js`，SHA256 与安装态逐字节相同 |
+
+冲突为什么只有一处：0.39.3 的改动（配额常量、合并窗口）都在回复长度与 flush 那一带，没有碰 `rpcId` / `source` / 会话标题 / `agent/inbox/claimed` —— 也就是本补丁赖以判定「这一轮谁发起」的那条链路。我方新增的 `WECHAT_REQUEST_PREFIX = 'wechat-'` 常量恰好落在上游新增常量块的位置，两边都留即可。
+
+闸：`wechat-origin-test.mjs` **10/10 ok**（三类互斥，overlapping 0）、`wechat-gate-behaviour.mjs` **7/7**（手机问→发手机、桌面打字→不发、桌面连打→不发、手机接手→恢复、定时报告→发手机、桌面开轮时手机插话→抢回该轮、手机开轮时桌面加入→转回桌面，未绑定会话一条不发）。
+
+### 52.2 主题侧：revert `f794c0b`，并让静音判据覆盖 `wechat-`
+
+`f794c0b` 是第五十二轮（D86）为 dsh-im 在主题里加的「工作区」行双渠道入口（`data-eva-im-*`）；换上 dsh-wechat 后它认不出插件，入口不出现或点了没反应，所以整条 revert 回 `0a532ed` 的形态：单枚**微信会话开关**（`data-eva-wx-*`）。
+
+- 用 `git revert` 而不是「从 `0a532ed` 取文件」：目标提交之后还有 `18a90a2`（启动标记构建期注入 + 设置遮罩选择器修正）改过 `src/theme.css` 与 `tools/selfcheck.mjs`，取旧文件会把那批工作吃掉。
+- 自动合并：`src/client.js`、`src/theme.css`、`tools/selfcheck.mjs`、`README.md`、`README.zh.md`（两篇 README 里那枚开关的说明本来就在库内）。
+- 冲突只在两篇文档：`docs/design.md`（HEAD 的 D86/D87 两行）与 `docs/render-report.md`（第五十二轮那节）。按本文件既定约定（追加式轮次日志，删掉等于改写当时的历史记述）取 `--ours` 保留，本轮改为追加本节；`design.md` 追加 D88。
+- 静音判据改造：`index.js` 的 `IM_RPC_ID` 候选前缀加 `wechat`（dsh-wechat 的 controller 铸 `requestId: 'wechat-' + uuid`，`lib/host.js:2634` / `:2645` / `:3159`），注释改成「读整族前缀」的说法；`playSound` 的拦截点与 `isImTurn` 的 fail-open 行为一个字未动。
+- 闸：`tools/check-sound-layer.mjs` 的 scenario D 从「telegram 轮 / `weixin-steer-` 插话」扩到也钉 `wechat-` 轮、`wechat-` 轮报错、`wechat-steer-` 插话（**30 → 33 项检查**，0 failed）；`tools/selfcheck.mjs` 仍是 **119 条断言 0 失败**；`client.js` 重建为 767641 chars（通道入口那套机器撤掉之后，比前一版 789028 chars 小）。
+- 两篇 README 里「dsh-im：Telegram、微信等」的措辞与音效闸计数一并改成「IM 频道的前缀 rpcId，今天即 `dsh-wechat-plugin` 的 `wechat-<uuid>`」/ 33 项。
+
+### 52.3 坑与待办
+
+- **`git apply` 在这台机器上会静默注入 CRLF**（`core.autocrlf=true`）：补丁本身是 LF 的 diff，裸 apply 得到的 `host.js` 是 184403 B，SHA256 与出货态对不上，而 git 报告的是「Applied patch host.js cleanly.」——不核对哈希就发现不了。必须 `-c core.autocrlf=false -c core.eol=lf`（已写进 `wechat-origin-gate-README.md` 的坑清单）。
+- **补丁成品要「从安装态反推」再验证往返**：先 diff 出补丁，再在 scratch 的空仓里从 `base39.js` apply 回去，SHA256 与安装态逐字节相同才算过（脚本 `C:\Work\scratch\make-patch-39.cjs`）。
+- **dsh-pet 那一半（第五十三轮 D87 的 toast 侧）在这次安装里是缺失的**：当前 `node_modules\dsh-pet\lib\index.js`（113670 B）里没有 `IM_RPC_ID` / `isImSession`，说明上一轮打的补丁已随插件升级/重装丢失；按同一判据重打的脚本是 `C:\Work\scratch\patch-dsh-pet-imquiet.cjs`，本轮尚未执行。
+- 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D88**），`docs/render-report.md` 记轮次（本节第 **52** 节 / 第五十四轮 / 它自己的 **D68**）。
+- 真机生效仍需**重启 DSH**：插件换装与补丁只在新进程里装载；主题侧重建 `client.js` 后刷新页面即可。
