@@ -3536,3 +3536,22 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - 这枚「工作区」行右侧入口在第四十七 ↔ 五十一轮之间已经来回三次；再动它之前先确认 profile 里到底装的是哪一个插件 —— 主题侧两套实现（`data-eva-im-*` 双入口 vs `data-eva-wx-*` 单开关）互不兼容，认错插件就是入口不出现或者点了没反应。
 - `git merge-file` 在这个仓库里必须先把三份的行尾统一（见 §50.2 的坑）。
 - 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D86**），`docs/render-report.md` 记轮次（本轮第 **50** 节 / 第五十二轮 / 它自己的 **D66**）。
+
+## 51. 第五十三轮：手机发起的轮次在桌面静音（toast 与音效各一处）（D67）（2026-10-12 追加）
+
+用户原话：「有个问题，我用Telegram会话的时候，回复除了会发一份到Telegram，桌面端还有一份，那我就会收到两个提醒，能不能改为用Telegram聊天的时候桌面端只显示回复，不提示。」
+
+这轮先证伪、再动手，因为「提醒」在桌面上其实有两处：
+
+- **核心是干净的**。`resources\app.asar`（单文件 121348951 B）里唯一的 `Notification` / `flashFrame` 用法属于桌面更新模块（`silent: true`），没有任何消息级 toast；扫描脚本留在 `C:\Work\scratch\scan-asar-notify.cjs`。
+- **弹的是 dsh-pet 0.3.6**。`lib/client.js:1452 toast()`：页面不可见或失焦时才 `new Notification(...)`；帧到文案的映射在 `frameToToast()`（`对话完成` / `生成失败` / `输出被截断` / `正在申请权限` / `模型在等你回答`）。实机证据：把 `%LOCALAPPDATA%\Microsoft\Windows\Notifications\wpndatabase.db` 复制出来读，HandlerId 842 下最新 30 条全是这些标题。dsh-pet 自己的总开关是「全都关」，不是「只关手机轮次」。
+- **响的是主题的音效层**。改前 `index.js` 的四个触发点完全不看渠道，只按 `agent.id`。
+
+判据用 dsh-im 自己的耐久标记，不猜会话标题：它给每条消息打的 rpcId 形如 `telegram-<uuid>`（轮中插话 `telegram-steer-<uuid>`），桌面自己敲的是裸 uuid；取「最近一条 `kind === 'user'` 的消息」即可分流。
+
+| 位置 | 改法 | 依据 / 备份 |
+|---|---|---|
+| `index.js`（本仓） | 新增 `IM_RPC_ID` + `isImTurn(agent)`；`playSound(ctx, kind, agent)` 出声前拦一道；四个触发点把 owner 传进去 | 读不到 session 一律 fail-open，保留原有声音 |
+| `node_modules\dsh-pet\lib\index.js`（不在本仓） | 同一套 `IM_RPC_ID` + `isImSession(session)`，在 `session/event` 与 `agent/error` 两个通知源前 `return` | 备份 `lib/index.js.bak-20261012-1150-before-im-quiet`（113670 B）；dsh-pet 一升级即丢，重打脚本 `C:\Work\scratch\patch-dsh-pet-imquiet.cjs` |
+
+闸：`tools/check-sound-layer.mjs` 新增 scenario D（telegram 轮、`weixin-steer-` 轮、手机轮报错必须静音；同形态的裸 uuid 轮仍要 `done`）与 scenario E（读不到 owner 仍要 `done`），25 → 30 项检查，0 failed。

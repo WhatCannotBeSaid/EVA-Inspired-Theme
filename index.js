@@ -45,6 +45,18 @@
  * missing. `tools/check-sound-layer.mjs` asserts the absence behaviourally: it fails if
  * this half ever registers a route again, or ever spawns the chime's wav.
  *
+ * 2c. A phone-originated turn is silent on the desktop (2026-10-12)
+ * -------------------------------------------------------------------
+ * The user chats through Telegram as well as at the desk, and every reply showed up in
+ * both places with a desktop alert on top of the phone's own: 「用Telegram聊天的时候桌面端
+ * 只显示回复，不提示」. dsh-im stamps every message it sends with a channel-prefixed
+ * rpcId (`telegram-<uuid>` / `weixin-<uuid>`, and `<channel>-steer-<uuid>` for a
+ * mid-turn nudge), so `isImTurn()` reads that field out of the session log — a durable
+ * marker, not a guess from the session title. Those turns still render in the
+ * transcript and still reach the phone; only this desktop's four sounds are held back.
+ * A prompt typed at the desk carries a bare uuid and is unaffected, and anything the
+ * layer cannot read answers "not a phone", so the sound it used to make stays.
+ *
  * 3. Why there is no resident player (2026-10-07)
  * -----------------------------------------------
  * A cold `-EncodedCommand` needs 1.4-1.9 s to reach its first sample on this machine,
@@ -142,6 +154,40 @@ const DEFAULT_EXEC_TOOLS = [
   'cordis_undefine',
 ]
 
+/**
+ * dsh-im stamps every message it sends into a session with a channel-prefixed rpcId:
+ * `telegram-<uuid>` / `weixin-<uuid>`, and `<channel>-steer-<uuid>` for a mid-turn
+ * nudge (dsh-im's own `session-title-prefix` module reads exactly that field). It is
+ * the one durable marker of "this turn was typed into a phone", and it decides the
+ * voice here: the phone already gets the reply, so the desktop stays quiet instead of
+ * announcing a conversation the machine is not holding.
+ */
+const IM_RPC_ID = /^(?:weixin|feishu|dingtalk|wecom|wecomapp|qq|slack|telegram|discord|whatsapp|imessage|matrix|office|email)-(?:steer-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
+
+/**
+ * Was this turn typed into a phone? The newest `kind === 'user'` message decides, the
+ * same rule dsh-im uses for its session title. Anything unreadable answers "no": a host
+ * that cannot tell must keep the sound it used to make.
+ */
+function isImTurn(agent) {
+  try {
+    const session = agent && agent.session
+    if (!session) return false
+    const events = typeof session.snapshotEvents === 'function' ? session.snapshotEvents() : session.events
+    if (!Array.isArray(events)) return false
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i]
+      if (!event || event.type !== 'user/message') continue
+      const source = event.data && event.data.source
+      if (!source || source.kind !== 'user') continue
+      return typeof source.rpcId === 'string' && IM_RPC_ID.test(source.rpcId)
+    }
+    return false
+  } catch (error) {
+    return false
+  }
+}
+
 const lastPlayed = Object.create(null)
 
 /**
@@ -186,8 +232,10 @@ function attemptsFor(file) {
 }
 
 /** Play one kind, debounced. Silent on every failure path — never throws. */
-function playSound(ctx, kind) {
+function playSound(ctx, kind, agent) {
   try {
+    /* A phone-originated turn is answered on the phone: the desk keeps its silence. */
+    if (isImTurn(agent)) return
     const now = Date.now()
     if (now - (lastPlayed[kind] || 0) < DEBOUNCE_MS) return
     const file = resolveSound(kind)
@@ -301,20 +349,20 @@ function registerSounds(ctx) {
 
   ctx.on('tools/execute', (exec, next) => {
     if (exec && exec.name === 'ask_user_question') {
-      playSound(ctx, 'ask')
+      playSound(ctx, 'ask', exec && exec.agent)
     }
     return typeof next === 'function' ? next() : undefined
   })
 
   ctx.on('approval/request', (request, next) => {
-    playSound(ctx, 'ask')
+    playSound(ctx, 'ask', request && request.agent)
     return typeof next === 'function' ? next() : undefined
   })
 
   ctx.on('agent/error', (payload) => {
     const agent = payload && payload.agent
     if (agent && !isRootAgent(ctx, agent)) return
-    playSound(ctx, 'fail')
+    playSound(ctx, 'fail', agent)
   })
 
   ctx.on('agent/turn-stopping', (payload) => {
@@ -322,13 +370,13 @@ function registerSounds(ctx) {
     if (!agent || !isRootAgent(ctx, agent)) return
     try {
       if (planIsActive(ctx, agent)) {
-        playSound(ctx, 'plan')
+        playSound(ctx, 'plan', agent)
       } else {
         const start = turnStart.get(agent.id) || 0
         const tool = lastTool.get(agent.id) || 0
         /* Stricter than upstream's `tool >= start`: a plain Q&A turn has no tool
          * timestamp at all, and the point of this layer is that it stays quiet. */
-        if (tool > 0 && tool >= start) playSound(ctx, 'done')
+        if (tool > 0 && tool >= start) playSound(ctx, 'done', agent)
       }
     } finally {
       turnStart.delete(agent.id)

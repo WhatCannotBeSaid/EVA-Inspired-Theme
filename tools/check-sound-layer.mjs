@@ -278,18 +278,65 @@ c.fire('agent/turn-stopping', { agent: cAgent })
 check('the planMode service outranks the log', c.kinds().join(',') === 'done',
   c.kinds().join(',') || 'nothing')
 
+/* ------------------------------------------------------------------ scenario D ---
+ * A turn typed into a phone must not speak on the desktop. dsh-im stamps the newest user
+ * message with a channel-prefixed rpcId (`telegram-<uuid>`, and `<channel>-steer-<uuid>`
+ * for a mid-turn nudge), which is the field the layer reads: the phone already gets the
+ * reply, so the machine at the desk stays quiet. A desktop prompt carries a bare uuid,
+ * so the same session shape must still play `done`. */
+
+const d = mount()
+const imAgent = (rpcId) => ({
+  id: 'root',
+  session: { events: [{ type: 'user/message', data: { source: { kind: 'user', rpcId } } }] },
+})
+const TELEGRAM = 'telegram-3f2a1c8e-1111-4aaa-8bbb-ccccdddd0001'
+const WEIXIN_STEER = 'weixin-steer-3f2a1c8e-1111-4aaa-8bbb-ccccdddd0002'
+const DESKTOP = '3f2a1c8e-1111-4aaa-8bbb-ccccdddd0003'
+
+d.fire('agent/inbox/claimed', { agent: imAgent(TELEGRAM) })
+d.fire('tools/result', { agent: imAgent(TELEGRAM), name: 'edit' })
+d.fire('agent/turn-stopping', { agent: imAgent(TELEGRAM) })
+check('a phone-originated turn stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
+
+d.fire('agent/error', { agent: imAgent(TELEGRAM) })
+check('a phone-originated failure stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
+
+d.fire('agent/inbox/claimed', { agent: imAgent(WEIXIN_STEER) })
+d.fire('tools/result', { agent: imAgent(WEIXIN_STEER), name: 'pwsh' })
+d.fire('agent/turn-stopping', { agent: imAgent(WEIXIN_STEER) })
+check('a mid-turn phone nudge stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
+
+d.fire('agent/inbox/claimed', { agent: imAgent(DESKTOP) })
+d.fire('tools/result', { agent: imAgent(DESKTOP), name: 'edit' })
+d.fire('agent/turn-stopping', { agent: imAgent(DESKTOP) })
+check('a desktop turn in the same shape still plays done', d.kinds().includes('done'), d.kinds().join(',') || 'nothing')
+
+/* ------------------------------------------------------------------ scenario E ---
+ * Fail open. When the layer cannot read an owner at all (no session, no log) it must keep
+ * the sound it used to make rather than guess "phone" and go mute for every desktop turn. */
+
+const e = mount()
+e.fire('agent/inbox/claimed', { agent: { id: 'root' } })
+e.fire('tools/result', { agent: { id: 'root' }, name: 'edit' })
+e.fire('agent/turn-stopping', { agent: { id: 'root' } })
+check('an unreadable owner still plays done', e.kinds().includes('done'), e.kinds().join(',') || 'nothing')
+
+/* Every mount, for the aggregates below. */
+const mounts = [a, b, c, d, e]
+
 /* ------------------------------------------------------- what the port must NOT do --- */
 
 // There is no startup chime any more (2026-10-07). The mask stays; the sound is gone,
 // and with it the loopback route that carried it. Both halves of that absence are
 // checked here, because "it simply never fires" is what a regression looks like.
-const everySpawn = [a, b, c].reduce((all, row) => all.concat(row.kinds()), [])
+const everySpawn = mounts.reduce((all, row) => all.concat(row.kinds()), [])
 check('no startup chime was ever asked for', !everySpawn.includes('startup'),
   everySpawn.join(',') || 'nothing')
-const everyRoute = [a, b, c].reduce((all, row) => all.concat(row.routes), [])
+const everyRoute = mounts.reduce((all, row) => all.concat(row.routes), [])
 check('the host half registers no HTTP route', everyRoute.length === 0,
   everyRoute.length === 0 ? 'no webServer.register() call' : `${everyRoute.length} route(s)`)
-const everyLookup = [a, b, c].reduce((all, row) => all.concat(row.looked), [])
+const everyLookup = mounts.reduce((all, row) => all.concat(row.looked), [])
 check('the host half never even looks up webServer', !everyLookup.includes('webServer'),
   everyLookup.includes('webServer') ? 'webServer was resolved' : `looked up: ${[...new Set(everyLookup)].join(', ')}`)
 
@@ -335,8 +382,8 @@ for (const [kind, want] of Object.entries(SHIPPED)) {
       : `${got.bytes} B (want ${want.bytes}), peak ${got.peak} (want ${Math.round(want.upstreamPeak * VOLUME)}), fmt ${got.format}/${got.channels}ch/${got.bits}bit/${got.rate}Hz, sha256 ${got.sha256.slice(0, 12)}${exact ? '' : ' != ' + want.sha256.slice(0, 12)}`)
 }
 
-check('nothing warned', [a, b, c].every((row) => row.warnings.length === 0),
-  [a, b, c].map((row) => row.warnings.join(' | ')).filter(Boolean).join(' | '))
+check('nothing warned', mounts.every((row) => row.warnings.length === 0),
+  mounts.map((row) => row.warnings.join(' | ')).filter(Boolean).join(' | '))
 
 const failed = results.filter((row) => !row.ok)
 for (const row of results) {
@@ -345,5 +392,6 @@ for (const row of results) {
 console.log(`\n${results.length} checks, ${failed.length} failed, ${results.length - failed.length} passed`)
 console.log(`spawns: ${a.kinds().join(', ') || 'none'}`)
 console.log(`fallback: log-only ${b.kinds().join(', ') || 'none'} | service-wins ${c.kinds().join(', ') || 'none'}`)
+console.log(`im-quiet: phone turns ${d.kinds().filter((k) => k !== 'done').length === 0 && d.kinds().length === 1 ? 'silent (only the desktop turn spoke)' : `spoke ${d.kinds().join(', ')}`}`)
 console.log(`looked up: ${[...new Set(everyLookup)].join(', ')}`)
 process.exit(failed.length === 0 ? 0 : 1)

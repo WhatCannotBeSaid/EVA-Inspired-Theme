@@ -49,7 +49,7 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Token layer | 55 measured overrides (41 in the light arm, 14 in the dark arm) on a single removable layer |
 | Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures — the light default on haowallpaper.com, the dark one on wallhaven — and the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
 | Boot mask | Plays once per build — the mark is derived from the bundle, so a new build replays it; `?boot=0` skips one, `?boot=1` forces one. Timings and triggers unchanged |
-| Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
+| Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent, and a phone-originated turn (dsh-im: Telegram, WeChat, …) stays silent on the desktop while its reply still lands in the transcript. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
 | Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a filter for the WeChat channel on the workspace row |
 | Language | All user-facing text goes through the official locale service (zh / en) |
@@ -153,7 +153,8 @@ follow the interface language — a Chinese and an English user both read the Ge
   instead of a rail.
 - The **boot mask** once per build (the mark follows the bundle, so a new build
   replays it; `?boot=1` forces a replay, `?boot=0` skips one), and the four
-  **task sounds**.
+  **task sounds** — which a turn typed into a phone (dsh-im: Telegram, WeChat, …)
+  does not trigger: that reply belongs to the phone, so the desk stays quiet.
 
 Settings themselves remain the official dialog. The single change there is that the
 dim tint behind it is removed; the panel and click-outside-to-close are untouched.
@@ -242,10 +243,11 @@ asserted (`wall.2`, `wall.6`, `wall.7`, `wall.8`).
 npm run verify
 ```
 
-Runs every gate: syntax check of both bundle halves, the self-check (115
+Runs every gate: syntax check of both bundle halves, the self-check (119
 assertions), the token audit (55 overrides, exactly the planned 55), the sound
-layer gate (25 checks: format, byte length and peak of each WAV), and a rebuild
-comparison that proves `client.js` is in sync with `src/`.
+layer gate (30 checks: format, byte length and peak of each WAV, and the
+phone-originated silence), and a rebuild comparison that proves `client.js` is in
+sync with `src/`.
 
 ## Licence
 
