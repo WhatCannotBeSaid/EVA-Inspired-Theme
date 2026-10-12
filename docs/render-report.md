@@ -3483,3 +3483,56 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - `dsh-wechat-plugin` 0.37.0 没有工具卡机制，任何依赖 `closeOpenToolCards` / `toolResultListener` 的补丁或脚本都要同步改。
 - 探针量「泵/展开」类读数必须等 ≥2000 ms（120 ms 时量到过 81 行、真实 26 行，据此误判过主题缺陷）。
 - 回滚本轮 = `git revert` 本提交 + 把 profile 里的 `dsh-wechat-plugin` 换回 `@xmanrui/dsh-im`（回退资产见 49.2 表）。
+
+## 50. 第五十二轮：装回 dsh-im，把两枚渠道入口与微信绑定闸门放回「工作区」行（D66）（2026-10-12 追加）
+
+### 50.1 用户原话与裁定
+
+用户：**「算了，这个不好用，给我换回DSH-IM插件！工作区右侧也同步还原！」**
+
+- 「换回 DSH-IM 插件」= profile 里卸掉 `dsh-wechat-plugin` 0.37.0、装回 `@xmanrui/dsh-im` 4.38.1（npm `dist-tags.latest`，版本表止于 4.38.1）。
+- 「工作区右侧也同步还原」= 第五十一轮撤掉的那对渠道入口回到第四十九轮的形态：Telegram + 微信两枚并排、三态互斥（0 = 官方列表 / 1 = Telegram / 2 = 微信），外加第五十轮的微信绑定闸门。
+- 这是第五十一轮的**反向**操作；插件在同一批文件上第三次往返（dsh-im → dsh-wechat → dsh-im）。
+
+### 50.2 主题侧：两路工作分立，本轮用三方合并还原
+
+- 树上压着另一路未提交工作（D85 启动标记构建期注入 + 设置遮罩选择器修正），它改的文件与本轮要还原的文件是同一批，先单独提交为 `18a90a2`（119 断言 0 失败），再做本轮。
+- 本轮不是 `git revert 0a532ed`，而是逐文件还原到父提交 `38a8f55`：
+
+| 文件 | 做法 | 结果 |
+|---|---|---|
+| `src/client.js` | 无本地改动 → `git checkout 38a8f55 -- src/client.js` | base 80392 B → other 101872 B → 落盘 103732 B（CRLF） |
+| `src/theme.css` | 以 `0a532ed` 为 base、`38a8f55` 为 other 的三方合并 | 0 冲突，落盘 144631 B（CRLF） |
+| `tools/selfcheck.mjs` | 同上 | 0 冲突，落盘 88432 B（CRLF） |
+| `README.md` / `README.zh.md` | 同上 | 0 冲突，18558 B / 17733 B（LF） |
+| `docs/render-report.md` | **不还原**（追加式日志） | 本轮在文末追加本节 |
+
+- **行尾坑（值得记住）**：`git merge-file` 逐行比对；工作区里的 `src/theme.css`、`tools/selfcheck.mjs` 是 CRLF（`core.autocrlf=true` 检出的结果），而 `git show` 取出的 base / other 是 LF。把工作区文件直接当 current 喂进去，会把**整份文件**报成一个冲突（theme.css 3981 行全落进一个 `<<<<<<<` 块）。修法：先把三份都归一成 LF 再合并，然后按原文件的行尾习惯**逐字节**写回（同时保住「无 BOM」）。
+- **契约痕迹复核**：`data-eva-im-button` 回到 `src/client.js`（第四十九轮那把 effect，表头在 `src/client.js:991`，`var BUTTON_ATTR = 'data-eva-im-button'` 在 `src/client.js:1085`）与 `src/theme.css`（4 处）；`data-eva-wx-button`、`data-eva-tg` 在源码与样式表里各 0 处；`var WEIXIN_RPC = 'dsh-im/weixin'`、`var WEIXIN_STATUS = 'connection.status'` 在 `src/client.js:1128-1129` 在位。
+
+### 50.3 门禁与产物
+
+- `node tools/build-client.mjs` → `client.js` **789028 chars / 809012 bytes**，`boot mark eva-boot/7aaf48a0`（D85 的构建期标记照常生效）。
+- `node tools/selfcheck.mjs` → **119 assertions, 0 failed, 119 passed**（还原回来的 dsh-im 三处闸门 `css.12` / `cli.11d` / `cli.26` 与 D85、C4 的 `boot.7` / `css.13` 同场通过）。
+- 全套 `npm run verify` → **exit code 0**：`node --check index.js`、`node --check client.js` 通过；selfcheck 119/0；`AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)`；`check-sound-layer` 25 checks 0 failed；`client.js check: OK (in sync with src/, 789028 chars, 55 tokens, 2 wallpapers from out/wallpapers.local.json)`。
+
+### 50.4 profile 侧：装回 `@xmanrui/dsh-im` 4.38.1
+
+| 文件 | 改动 |
+|---|---|
+| `package.json` | 从 `package.json.bak-20261012-0930-before-swap-back-to-dsh-wechat` 原样还原（2172 B）：deps 删 `"dsh-wechat-plugin": "^0.37.0"`、加回 `"@xmanrui/dsh-im": "4.38.1"`；bundles 删行尾的 `dsh-wechat-plugin`、在 `dsh-pet` 之后加回 `@xmanrui/dsh-im` |
+| `pnpm-workspace.yaml` | 同款备份还原（4147 B）：`minimumReleaseAgeExclude` 里 `- 'dsh-wechat-plugin@0.37.0'` 换回 `- '@xmanrui/dsh-im@4.36.1 \|\| 4.37.0 \|\| 4.38.0 \|\| 4.38.1'` |
+| `pnpm-lock.yaml` | 同款备份还原（130028 B），让 install 精确回到第五十一轮之前的求解结果 |
+| 本轮新备份 | `*.bak-20261012-1103-before-swap-back-to-dsh-im`（三个文件，即换出前的 dsh-wechat 形态） |
+
+- 安装：`pnpm install --registry https://registry.npmjs.org/ --config.minimumReleaseAge=0`（cwd = profile）→ **`Packages: +29 -27`**、`Lockfile passes supply-chain policies (437 entries in 3.2s)`、**Done in 3.6s using pnpm v11.7.0**。
+- 复核：`node_modules\@xmanrui\dsh-im` 就位（`main` = `./lib/index.js`，`exports['./client']` = `./lib/client.js`），`node_modules\dsh-wechat-plugin` 已不存在。
+- **微信入口仍然先隐藏**：`~/.dsh/integrations/dsh-weixin/config.json` 是 `{"version":1,"accounts":[]}`、账号目录为空 ⇒ 第五十轮的绑定闸门判「未绑定」，**微信那枚入口要在「设置 → IM机器人」里重新扫码后才出现**；Telegram 那枚不受闸门限制，重启后直接出现。
+- **重启才生效**：profile 的插件束由宿主在启动时加载，需要重启 DSH；本轮未代用户重启（重启会结束当前会话）。另：`cordis.patch.yml` 09:49 的那批改动（transcriptView、opencode-go 组、agent-default-model、opencode session header、session-log）也一并等这次重启生效。
+
+### 50.5 给下一次的提醒
+
+- 回滚本轮 = 回滚本提交 + profile 里把 `@xmanrui/dsh-im` 换回 `dsh-wechat-plugin`（回退资产见 §50.4 的 1103 备份）。
+- 这枚「工作区」行右侧入口在第四十七 ↔ 五十一轮之间已经来回三次；再动它之前先确认 profile 里到底装的是哪一个插件 —— 主题侧两套实现（`data-eva-im-*` 双入口 vs `data-eva-wx-*` 单开关）互不兼容，认错插件就是入口不出现或者点了没反应。
+- `git merge-file` 在这个仓库里必须先把三份的行尾统一（见 §50.2 的坑）。
+- 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D86**），`docs/render-report.md` 记轮次（本轮第 **50** 节 / 第五十二轮 / 它自己的 **D66**）。
