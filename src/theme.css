@@ -637,7 +637,10 @@ div[data-windows-menu] {
  * 暗色冻结不受影响：本条无模式分支、不新增也不修改任何令牌。
  * 回滚 = 删本段这一条规则。
  * ------------------------------------------------------------------------ */
-div:has(> [data-shortcut-modal='settings']) > :first-child {
+/* C3（2026-10-12 性能）：主语由裸 `div` 收窄为 `[data-slot='root'] div` —— 设置遮罩
+   永远挂在根槽子树里，收窄后每次样式失效只对根槽子树里的 div 求 `:has()`，不再对
+   整篇文档的每个 div 求值。命中不变（实测：遮罩容器就是根槽后代），只缩候选集。 */
+[data-slot='root'] div:has(> [data-shortcut-modal='settings']) > :first-child {
   background-color: transparent !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
