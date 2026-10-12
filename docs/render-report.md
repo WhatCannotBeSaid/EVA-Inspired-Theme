@@ -3426,3 +3426,60 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - 沙箱坑：workspace-write 下**命令**不能改/删/移动**既有**工作区文件（`node tools/build-client.mjs` 报 `Error: EPERM: operation not permitted, open 'C:\Yu\EVA-Inspired-Theme\client.js'`，`Move-Item` 报 `Access to the path is denied.` ＋ `[sandbox: file access denied under workspace-write mode]`），而**新建**文件可以；文件工具（edit/write）不受此限 —— 所以 `src/client.js` 能改，产物 `client.js` 只能靠构建脚本写。
 - 「某个渠道是否在线」永远别拿会话列表当判据 —— 死会话会留下。
 - 回滚本轮 = `git revert` 本提交即可。
+
+## 49. 第五十一轮：撤掉 Telegram 与渠道筛选，回到 dsh-wechat 的单枚「微信会话」工作区开关（D65）（2026-10-12 追加）
+
+### 49.1 用户原话与裁定
+
+用户（m01147）：**「DSH-IM不好用！把DSH-Wechat给我换回来，并且把工作区旁边的图标也改回来。」**
+
+- 「工作区旁边的图标」= 第 49 轮那两枚渠道筛选按钮；「也改回来」= 回到 dsh-wechat 时代的那一枚（第 43–45 轮的行为）：点一下只留下 `dsh-wechat-plugin` 建出来的那个工作区 —— 它的会话留着、它自己的分组标题消失，再点一下恢复官方列表。
+- 插件版本在那次提问里由用户选定 **0.37.0**（发布于 2026-10-12 01:10）；**Telegram 渠道一并下线**（用户选择不再保留）。
+- 这是第 48→50 轮（换回 dsh-im 并长出两枚渠道筛选）的**反向**，主题侧回到第 43–45 轮的实现，profile 侧回到 dsh-wechat-plugin。
+
+### 49.2 profile 侧：卸载 dsh-im、装回 dsh-wechat-plugin 0.37.0
+
+| 文件 | 改动 |
+|---|---|
+| `package.json` | deps 删 `"@xmanrui/dsh-im": "4.38.1"`，在 `dsh-smooth-stream` 与 `dsh-zotero` 之间加 `"dsh-wechat-plugin": "^0.37.0"`；bundles 删 `"@xmanrui/dsh-im"`、末尾（`dsh-auto-archive` 之后）追加 `"dsh-wechat-plugin"` |
+| `pnpm-workspace.yaml` | `- '@xmanrui/dsh-im@4.36.1 \|\| 4.37.0 \|\| 4.38.0 \|\| 4.38.1'` 一行换成注释 + `- 'dsh-wechat-plugin@0.37.0'`；sharp 注释追加 2026-10-12 的一行 |
+| 备份 | `*.bak-20261012-0930-before-swap-back-to-dsh-wechat`（package.json / pnpm-lock.yaml / pnpm-workspace.yaml） |
+
+- **发布闸门**：pnpm 11.7.0 默认 `minimumReleaseAge=1440` 分钟（profile 里没有这个键），而 **lockfile 预检不认 `minimumReleaseAgeExclude`** —— `dshmarket@1.66.17` 明明在豁免表里仍被 `[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION]` 点名。本次只在命令行放行，不写任何配置：`& $node $pnpm install --registry https://registry.npmjs.org/ --config.minimumReleaseAge=0` → `Packages: +2 -57`，5.8 s。
+- **复核**：`dsh-wechat-plugin` 0.37.0 就位（main `lib/host.js`、exports `./client` → `./client.js`）；`@xmanrui` 目录空；lockfile 与备份逐行比对 291 行变化全部属于 dsh-wechat 增 / dsh-im 删，无无关漂移。
+- dsh-im 侧微信通道 `~/.dsh/integrations/dsh-weixin/config.json` 一直是 `{"version":1,"accounts":[]}` ⇒ 用户从未在 dsh-im 里绑过微信，没有需要清理的竞争绑定；`~/.dsh/wechat/state.json` 与 `boot.log` 都还在盘上。
+- **origin-gate 补丁在 0.37.0 上重打**：`git apply -p1 -C1 --reject` 落位 11/12 hunk，第 12 个（teardown 卸 `detachClaims`）因 0.37.0 重排 teardown 失败，手工插到 `detachStream()` 之后。0.37.0 **删掉了整套工具卡机制**（`closeOpenToolCards`、`toolResultListener` 已不存在），故 `#abandonPhoneReply()` 里那行调用删除 —— 否则运行时 `TypeError: this.closeOpenToolCards is not a function`（host.js:2749）。六套测试全绿（origin-test / prompts / behaviour / rules / straggler / alternating）；`wechat-gate-absolute.mjs` **已失效**（测的是被删掉的 `runtime.toolResultListener`，不是回归）。重打后的补丁 `wechat-origin-gate-0.37.0.patch`（348 行 / 12 hunk）与 0.37.0 原文件备份在 `C:\Work\scratch\wechat-plugin-backup-20261012\`，打后 `lib/host.js` sha256 `8FE050216D1B29448FE49EABBEBBDECDEF80E43500ABF39C2491C4E90C80748F`。
+
+### 49.3 主题侧：源码还原
+
+- **还原源**：`git show 7252007^:src/client.js` 里第 43–45 轮那把 effect（快照 `pre-swap-client.js`，effect 在 1068–1516 行，标签 `'evangelion: wechat workspace switch'`）与 `pre-swap-theme.css`（1881–1987 行）。第 42 轮的 `CHANNELS` / `ICONS` / 泵机制也一并从 git 取回备查。
+- **做法**：`C:\Work\scratch\make-restore-blocks.mjs` 按内容断言边界后一次性写盘 —— `src/client.js` 的 991–1847 行（第 49 轮那对渠道筛选）换成「第 51 轮表头 + 第 43–47 轮原文 doc + `ctx.effect(() => deferEffect(() => {` + 原文 body + `}), 'evangelion: wechat workspace switch')`」；`src/theme.css` 的 1884–1968 行换成原文那段（`[data-eva-wx-button]` 尺寸规则 + 三条 tree 隐藏规则 + `head + *` 与 group 的 `margin-top: 0`）。`deferEffect` 是第 46 轮之后才引入的，所以包一层即可，不影响语义。
+- **保真度证明**：`cmp-restored-effect.mjs` 把还原后的 effect 主体 **402 行**与快照 1114–1515 行逐行比对 → `identical: true, differingLines 0`（只多表头注释与 `deferEffect` 包装）。
+- **门禁按新契约改写**（`retarget-selfcheck-r51.mjs`）：`css.12` 从快照逐字取回两个方向，并新增三条 —— 标题行必须被隐藏、`head + *` 的 2px 必须归零、group 的 4px 必须归零；`cli.26` 从快照逐字取回并加一条「不得残留 `data-eva-im`」；`cli.11d` 的 effect 数仍写 **10**（宿主动效预算那条 effect 在本快照之后的 d588ed8 里被移除，不能照抄快照里的 11），标签断言换成 `'evangelion: wechat workspace switch'`。
+- **契约**回到 `data-eva-wx-button` / `-state` / `-row` / `-tree`；第 49 轮的 `data-eva-im-*` 只出现在历史注释里。
+
+### 49.4 门禁
+
+`node tools/build-client.mjs` → `wrote client.js 767653 chars (787494 bytes) 55 tokens 2 wallpapers`；`tools/selfcheck.mjs` → **`119 assertions, 0 failed, 119 passed`**（工作树里两路改动同在时的读数，见 49.5；只含本轮的 staged 版本是 117/0）；`token-audit` → `AUDIT OK — 55 overrides (A 41 + B 14)`；`check-sound-layer` → `25 checks, 0 failed`；`build-client --check` → `OK (in sync with src/)`；`npm run verify` 退出码 0。产物里 `data-eva-im` 与 `data-eva-tg` 均为 0 处。
+
+### 49.5 与另一路改动的共存（如实记录）
+
+动手期间同一工作区里**另有一个 DSH 会话**在做设置遮罩的修复：`src/theme.css` 的 `C3 → C4` 注释与 `body > div:has(> [data-shortcut-modal='settings']) > :first-child`、`tools/selfcheck.mjs` 新增的 `css.13`、`src/boot-screen.js` + `tools/build-client.mjs` + 两份 README 的「每份构建播放一次」标记（`boot.7`）、`docs/design.md`。发现方式是 selfcheck 的 `css.6`/`cli.17` 报出 `.wCInkW_*` 哈希名，而 HEAD 的 theme.css 里 0 处；文件 mtime（theme.css 09:32:01、构建产物 09:32:09）与我的写入时间（09:30:37）把顺序钉死了。
+
+本轮提交**只含本轮**：`src/client.js`（对方从未碰）、`src/theme.css`、`tools/selfcheck.mjs`、`README.md`、`README.zh.md`、`docs/render-report.md` 的本轮版本；对方的 hunk 原样留在工作树里未提交。
+
+- 分离办法：`stage51.mjs` 用 **HEAD 的 blob** 重跑本轮自己的两个改写脚本（`make-restore-blocks.mjs`、`retarget-selfcheck-r51.mjs`）得到本轮的 theme.css 与 selfcheck.mjs（顺带证明 `stage51/client.js` 与工作树**逐字节相同**，即对方没碰过它）；`stage51-readme.mjs` 同样从 HEAD blob 做措辞回退。
+- 逐项核对：staged theme.css 与工作树之差**恰好**是对方的遮罩 hunk；staged selfcheck 与工作树之差**恰好**是 `css.13`(+30) 与 `boot.7`(+23)；staged README 与工作树之差**恰好**是对方的启动遮罩两处措辞（`?boot=1`）。
+- 教训：动手前先 `git status` 并看 mtime，**工作树可能不是自己的**；提交前把「我的 hunk」与「别人的 hunk」分开，别把同伴未提交的工作一起提上去。
+
+### 49.6 生效方式与用户待办
+
+- profile 侧换包要**重启 DSH** 才生效；主题是客户端插件（desktop profile 里 `EVA-Inspired-Theme` 是指向本仓库的 Junction），**刷新页面**即吃到还原后的入口。
+- 微信通道要用户自己在「设置 → IM机器人」里重新扫码（旧 token 在盘上，重启后插件会先试连）。
+
+### 49.7 给下一次的提醒
+
+- 发布闸门：`--config.minimumReleaseAge=0` 只对本次命令行放行；`minimumReleaseAgeExclude` 不参与 lockfile 预检。
+- `dsh-wechat-plugin` 0.37.0 没有工具卡机制，任何依赖 `closeOpenToolCards` / `toolResultListener` 的补丁或脚本都要同步改。
+- 探针量「泵/展开」类读数必须等 ≥2000 ms（120 ms 时量到过 81 行、真实 26 行，据此误判过主题缺陷）。
+- 回滚本轮 = `git revert` 本提交 + 把 profile 里的 `dsh-wechat-plugin` 换回 `@xmanrui/dsh-im`（回退资产见 49.2 表）。

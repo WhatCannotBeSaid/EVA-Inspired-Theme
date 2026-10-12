@@ -51,7 +51,7 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Boot mask | Shown on load; unchanged timings and triggers |
 | Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
-| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a filter for the WeChat channel on the workspace row |
+| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a switch for the WeChat workspace on the workspace row |
 | Language | All user-facing text goes through the official locale service (zh / en) |
 
 The theme installs one layer and can be removed as one. It ships **no settings panel
@@ -127,23 +127,11 @@ follow the interface language — a Chinese and an English user both read the Ge
   `eva-theme/workspace-pins`; the order it produces is written through the host's own
   insert-before API, so it survives a restart — and, unlike the pin set, it also
   survives removing the theme.
-- **Telegram and WeChat entries** on the 「工作区」 row, on the same line as Search and the
-  view options: one click leaves only the conversations the matching `@xmanrui/dsh-im`
-  channel stamps — its own rows, marked by that plugin — and another click puts the
-  official list back. The two are mutually exclusive, and each one's label says which
-  view it is in. They only tag rows and store nothing, and they have nothing to show
-  until that channel has a conversation. When a channel keeps its own conversations
-  folded behind the list's own show-more control, an entry works that control itself —
-  one official click per frame — so the rows exist before they are filtered, and folds
-  back whatever it expanded on the way out. Until the plugin has drawn its channel logo,
-  an entry recognises its rows by the 「Telegram · 」/「微信 · 」 prefix on their titles.
-  The **WeChat entry exists only while the WeChat channel does**: it asks the WeChat channel
-  of `@xmanrui/dsh-im` (`connection.status`) and appears only when
-  `~/.dsh/integrations/dsh-weixin/config.json` holds at least one account. A probe that
-  fails, or that answers in a shape it cannot read, leaves the entry hidden, and an entry
-  that is already lit never disappears over one failed ask. It asks once at mount, every
-  minute afterwards, and again whenever the page returns to the foreground or the window
-  regains focus. The Telegram entry is never gated.
+- A **WeChat workspace switch** on the 「工作区」 row, on the same line as Search and the
+  view options: one click leaves only the workspace `dsh-wechat-plugin` creates — its
+  conversations, without that workspace's own group header — and another click puts the
+  official list back. It only tags rows and stores nothing, and it has nothing to show
+  until such a workspace exists.
 - The vendored **non-official plugin switch**, on the installed group's header in the
   official Plugins page: tick which non-official plugins to disable, or to enable
   again. It switches bundle enablement only — it installs and uninstalls nothing.
