@@ -3698,3 +3698,50 @@ npm run verify   → exit code 0
 - **历史文本不改写**：`docs/audit-2026-10-07.md`、`docs/perf-report-2-2026-10-11.md` 与本节之前各节关于音效的记述都是当时事实，按追加式惯例保留。
 - **真机生效要重启 DSH**：改的是宿主半；客户端半没有改动（`client.js` 未变），刷新页面不涉及。
 - 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D90**），`docs/render-report.md` 记轮次（本节第 **54** 节 / 第五十六轮 / 它自己的 **D70**）。
+- **后续（2026-10-13 收尾）**：用户「删除旧的，推送到GitHub」后，上面那份根目录旧副本已在提交 `b3911ab` 删除（音效层的删除与文档同步是另一个提交 `1594280`），两次提交之间与之后都重跑过 `npm run verify`（119/0）。
+
+---
+
+## 55. 第五十七轮：把微信入口的显隐规则同步到 Telegram 入口（D71）（2026-10-13 追加）
+
+用户原话：「之前只调整了工作区旁的微信按钮的显示和隐藏，现在同步到telegram按钮图标上，并同步推送到GitHub。」
+
+### 55.1 改了什么
+
+| 位置 | 改动 |
+| --- | --- |
+| `src/client.js` — `CHANNELS` | telegram 条目补 `gated: true, rpc: 'dsh-im/telegram', holdWhenSilent: true`；weixin 条目补 `rpc: 'dsh-im/weixin'` |
+| `src/client.js` — 状态 | `WEIXIN_RPC`/`WEIXIN_STATUS` 并为一条 `CHANNEL_STATUS = 'connection.status'`；`weixinLive = false` → `live = {}`；布尔 `statusPending` → 按 id 的 `statusPending = {}` |
+| `src/client.js` — 判断 | 新增 `visible(channel)`；`acceptStatus(answer)` → `acceptStatus(channel, answer)`；`entry()` 的门闸变成 `channel.gated === true && visible(channel) === false`，重置条件收窄为 `answer === false && channel.gated === true && selected() === channel` |
+| `src/client.js` — 探测 | `refreshStatus()` 遍历带门闸的渠道、每条一条独立闩，问法搬进新的 `ask(rpc, channel)`（`rpc.call('/api', channel.rpc, { method: CHANNEL_STATUS, payload: {} })`） |
+| `src/client.js` — 注释 | round 50 那段末尾补上 round 57 一段，写清两个渠道的失败方向为什么相反 |
+| `tools/selfcheck.mjs` | `cli.26` 两条钉住 `CHANNELS` 条目形状的正则随新形状更新；round 50 的断言块整块重写成 round 57 形状，新增「微信条目不许带 `holdWhenSilent`」的反向守卫，删掉旧的「Telegram 条目不许带 `gated`」守卫 |
+| `docs/` | `docs/design.md` D91、本文件第 55 节 |
+
+### 55.2 两个渠道，两个失败方向
+
+| 渠道 | 路由 | 没有答复（插件不在／取不到服务／路由没注册／调用抛错或拒绝／快照读不了） | 明确答出「没有账号」 |
+| --- | --- | --- | --- |
+| 微信 `微信 · ` | `dsh-im/weixin` | **不显示**（round 50 用户明确要的隐藏） | 不显示 |
+| Telegram `Telegram · ` | `dsh-im/telegram` | **显示**（保持现状 —— 探测器坏掉不能拿走用户正在用的入口） | 收起 |
+
+问的是插件自己的那条路：`POST /api/dsh-im/<channel>`，`{ method: 'connection.status', payload: {} }`，答复里 `value.bots[]` 有一个带 `botId` 才算「有账号」。两个渠道的答复形状相同（`{ ok: true, value: sanitizePublic(...) }`），所以 `holdsAccount()` 未改。
+
+### 55.3 门禁读数
+
+```text
+npm run build    → wrote client.js 791479 chars (811555 bytes) 55 tokens 2 wallpapers
+npm run verify   → exit code 0
+  119 assertions, 0 failed, 119 passed
+  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)
+  client.js check: OK (in sync with src/, 791479 chars, 55 tokens, 2 wallpapers)
+```
+
+**过程里踩到的坑**：先改了 `src/client.js`（`CHANNELS` 每条多两个字段）就直接跑 verify，`cli.26` 立刻红 —— 「the Telegram entry lost its channel record or its lead」：那条旧正则把条目形状写死了，字段一多就不认。教训：`CHANNELS` 这张记录同时被**行为**和**自检**读，动它要两边一起改。（`client.js` 789028 → 791479 chars。）
+
+### 55.4 坑与待办
+
+- 微信入口在真机上仍然是**隐藏**的：本机 `~/.dsh/integrations/dsh-weixin/config.json` 的 `accounts` 是空数组 —— 这是 round 50 的行为，不是本轮回归。Telegram 有 bot（`~/.dsh/integrations/dsh-telegram/bots/telegram_87be6668adc0940f047d7e56/state.json`），所以它会显示。
+- 真机生效：改的是**客户端半**（`client.js`），刷新页面即可，不需要重启 DSH（与第 54 节相反）。
+- 插件侧的接口形状是读已安装的 `@xmanrui/dsh-im` 4.38.1 源码确认的（`plugin-src/management-rpc.mjs` 的 `rpcEndpoint()`、`plugin-src/host/channels/shared/rpc.mjs` 的 `status: 'connection.status'` 与 `exactKeys(payload, [])`、`plugin-src/host/channels/telegram/rpc.mjs` 的 `TELEGRAM_RPC_CHANNEL`），不是猜的。
+- 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D91**），`docs/render-report.md` 记轮次（本节第 **55** 节 / 第五十七轮 / 它自己的 **D71**）。

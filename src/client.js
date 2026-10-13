@@ -1077,8 +1077,20 @@
          retired plugin and pointing at nothing. So the entry is gated on the same status the IM
          plugin's own panel reads, from the same route: one POST to dsh-im's per-channel
          endpoint, no account means no entry, and the answer is re-asked on a slow timer rather
-         than watched. The Telegram entry is deliberately NOT gated by the same rule: it is the
-         one the user works in, and a probe that cannot answer must never take it away. */
+         than watched. Round 50 left the Telegram entry ungated on purpose: it is the
+         one the user works in, and a probe that cannot answer must never take it away.
+
+          Round 57 (2026-10-13) -- that same show/hide rule, now on the Telegram entry as well.
+          User's words: 「之前只调整了工作区旁的微信按钮的显示和隐藏，现在同步到telegram按钮图标上，
+          并同步推送到GitHub。」 One route per channel answers the one question this effect asks
+          (CHANNELS[].rpc: dsh-im/telegram, dsh-im/weixin), so each entry sits in the row only
+          while its own channel holds an account. What round 50's reason still buys is the
+          DIRECTION the two channels fail in when nothing answers: 微信 fails inward -- no answer
+          at all means no entry, because a button that leads nowhere is what round 50 removed --
+          while Telegram fails outward: only a definite 'this channel holds no account' takes its
+          button away, and every way of not answering (no IM plugin, no connection service, an
+          unregistered route, a call that throws or rejects, a snapshot this build cannot read)
+          leaves it in the row, which is where round 50 put it. */
       ctx.effect(() => deferEffect(() => {
         if (typeof document === 'undefined') return undefined
 
@@ -1101,14 +1113,15 @@
            merely starts with those two characters (one such row was live when this was
            written: 微信会话移入工作区行Telegram右侧), and the filter showed it in the 微信
            view until the lead was made exact. */
-        /* gated marks the entry that is not always in the row: round 50 made the 微信 one wait
-           for that channel to hold an account, so the row spends a button on it only while
-           there is something behind it. Telegram carries no gate -- see the round-50 paragraph
-           above: a status this effect cannot read must not be able to hide the entry the user
-           actually works in. */
+        /* Round 57: gated marks an entry that is not always in the row, and rpc is the route its
+           own channel answers on, so the row spends a button on a channel only while that channel
+           holds an account. holdWhenSilent is the direction a channel fails in when the question
+           goes unanswered: 微信 holds nothing and stays hidden (the safe direction for the channel
+           the user retired), Telegram keeps its entry (the safe direction for the one they work
+           in). See the round-50 and round-57 paragraphs above. */
         var CHANNELS = [
-          { id: 'telegram', marker: 'telegram', lead: 'Telegram · ' },
-          { id: 'weixin', marker: 'weixin', lead: '微信 · ', gated: true },
+          { id: 'telegram', marker: 'telegram', lead: 'Telegram · ', gated: true, rpc: 'dsh-im/telegram', holdWhenSilent: true },
+          { id: 'weixin', marker: 'weixin', lead: '微信 · ', gated: true, rpc: 'dsh-im/weixin' },
         ]
         /* The host's own names for the 工作区 area and for the empty marker that is a
            direct child of that row -- both are slots, not CSS-Modules classes. */
@@ -1118,15 +1131,16 @@
            a control that stops answering; it is not a budget. */
         var CLICK_LIMIT = 200
 
-        /* Round 50: the two names below belong to @xmanrui/dsh-im, not to this theme. Its host
-           half registers one fetch route per channel (plugin-src/management-rpc.mjs, the
-           endpoint is 'dsh-im' + channel) and its client half asks that route for the channel's
-           snapshot; this effect asks the same two questions, through the same client service:
-           endpoint 'dsh-im/weixin', method 'connection.status'. A version of that plugin which
-           renames either one costs the 微信 entry its gate -- the probe stops answering and the
-           entry stays hidden, which is the direction this gate is built to fail in. */
-        var WEIXIN_RPC = 'dsh-im/weixin'
-        var WEIXIN_STATUS = 'connection.status'
+        /* Round 50, widened in round 57: the names below belong to @xmanrui/dsh-im, not to this
+           theme. Its host half registers one fetch route per channel -- plugin-src/management-rpc.mjs
+           builds the endpoint as 'dsh-im' + the channel, and plugin-src/host/channels/shared/rpc.mjs
+           gives every token-bot channel the same status method -- so the per-channel part is the
+           route, and it lives on the CHANNELS entry above; what stays here is the method all of
+           them answer to. This effect asks each gated channel that one question, through the same
+           client service that plugin's own half uses. A version of that plugin which renames
+           either costs that entry its gate: the probe stops answering, and the entry then does what
+           its own holdWhenSilent says -- hidden for 微信, still in the row for Telegram. */
+        var CHANNEL_STATUS = 'connection.status'
         /* One question a minute while the page is on screen, plus one whenever the window comes
            back. The answer changes only when the user binds or unbinds the account in the
            plugin's own settings panel, so a minute of lag on a button is not worth a watcher --
@@ -1229,14 +1243,14 @@
            first lit pass and stays true, so a pass with no view lit costs no property reads
            once those writes are gone. */
         var marked = false
-        /* Round 50: whether the 微信 channel holds an account. Hidden until an answer says
-           otherwise -- the entry has to be shown, not merely not hidden, and every way of not
-           answering (no IM plugin, an unregistered route, a call that throws or rejects, a
-           snapshot of a shape this build cannot read) leaves it hidden rather than handing the
-           row a button that leads nowhere. statusPending is the one-request-at-a-time latch;
+        /* Round 50, per channel since round 57: whether a gated channel holds an account. A key
+           that is not there yet means nothing has answered, and what that costs is the channel's
+           own holdWhenSilent -- the 微信 entry has to be shown, not merely not hidden, or the row
+           carries a button that leads nowhere, while the Telegram entry stays because it is the
+           one the user works in. statusPending is the one-request-at-a-time latch, per channel;
            statusTimer is the minute the whole thing costs. */
-        var weixinLive = false
-        var statusPending = false
+        var live = {}
+        var statusPending = {}
         var statusTimer = 0
 
         function schedule() {
@@ -1430,11 +1444,12 @@
           for (var j = 0; j < CHANNELS.length; j++) {
             var channel = CHANNELS[j]
             var button = host.querySelector('[' + BUTTON_ATTR + "='" + channel.id + "']")
-            /* Round 50: a gated channel with no account has no entry. The one an earlier pass
-               built comes off if the account was unbound while the page was open, and previous
-               still names the last entry that IS in the row, so whatever is left keeps its
-               order -- the 微信 entry lands immediately right of Telegram whenever it returns. */
-            if (channel.gated && !weixinLive) {
+            /* Round 50, per channel since round 57: a gated channel with no account has no
+               entry. The one an earlier pass built comes off if the account was unbound while
+               the page was open, and previous still names the last entry that IS in the row, so
+               whatever is left keeps its order -- the 微信 entry lands immediately right of
+               Telegram whenever it returns. */
+            if (channel.gated === true && visible(channel) === false) {
               if (button !== null && button.parentElement !== null) button.parentElement.removeChild(button)
               continue
             }
@@ -1488,16 +1503,25 @@
           return false
         }
 
-        /* Only a real answer moves the entry, and only a CHANGED answer costs a pass: a probe
+        /* Round 57: what one channel's answer means for its own entry. true = it is in the row.
+           A definite 'no account' always takes the entry away; the unanswered null costs whatever
+           that channel's holdWhenSilent says -- hidden for 微信, still in the row for Telegram. */
+        function visible(channel) {
+          var answer = live[channel.id]
+          if (answer === true) return true
+          if (answer === false) return false
+          return channel.holdWhenSilent === true
+        }
+
+        /* Only a real answer moves one entry, and only a CHANGED answer costs a pass: a probe
            that fails keeps the last word, so a hiccup in the route cannot take a live entry away.
-           If the account goes while its view is lit, the view goes with it -- the tree would
-           otherwise stay filtered with nothing lit left to press, so the official list is put
-           back on the same path its own exit takes. */
-        function acceptStatus(answer) {
-          if (disposed || typeof answer !== 'boolean' || answer === weixinLive) return
-          weixinLive = answer
-          var channel = selected()
-          if (!answer && channel !== null && channel.gated) {
+           If a channel's account goes while its own view is lit, the view goes with it -- the tree
+           would otherwise stay filtered with nothing lit left to press, so the official list is
+           put back on the same path its own exit takes. */
+        function acceptStatus(channel, answer) {
+          if (disposed || typeof answer !== 'boolean' || answer === live[channel.id]) return
+          live[channel.id] = answer
+          if (answer === false && channel.gated === true && selected() === channel) {
             mode = 0
             clicks = 0
             paint()
@@ -1508,32 +1532,41 @@
           schedule()
         }
 
-        /* The one question this effect asks of another plugin, asked through the client service
-           that plugin's own half uses -- ctx.get is guarded and its absence is simply no status,
-           so a profile without that service keeps this theme alive instead of taking the whole
-           thing down over a button. */
+        /* One question per gated channel, asked through the client service that plugin's own half
+           uses -- ctx.get is guarded and its absence is simply no status, so a profile without
+           that service keeps this theme alive instead of taking the whole thing down over a
+           button. The latch is per channel (statusPending[channel.id]), so a slow route never
+           holds the other entry's answer back. */
+        function ask(rpc, channel) {
+          var pending = null
+          try {
+            pending = rpc.call('/api', channel.rpc, { method: CHANNEL_STATUS, payload: {} })
+          } catch (error) { pending = null }
+          if (pending === null || pending === undefined || typeof pending.then !== 'function') {
+            statusPending[channel.id] = false
+            return
+          }
+          pending.then(function (result) {
+            statusPending[channel.id] = false
+            acceptStatus(channel, holdsAccount(result))
+          }, function () {
+            statusPending[channel.id] = false
+          })
+        }
+
         function refreshStatus() {
-          if (disposed || statusPending) return
+          if (disposed) return
           if (typeof document !== 'undefined' && document.hidden === true) return
           var connection = null
           try { connection = ctx.get('connection') } catch (error) { connection = null }
           var rpc = connection === null || connection === undefined ? null : connection.rpc
           if (rpc === null || rpc === undefined || typeof rpc.call !== 'function') return
-          statusPending = true
-          var pending = null
-          try {
-            pending = rpc.call('/api', WEIXIN_RPC, { method: WEIXIN_STATUS, payload: {} })
-          } catch (error) { pending = null }
-          if (pending === null || pending === undefined || typeof pending.then !== 'function') {
-            statusPending = false
-            return
+          for (var i = 0; i < CHANNELS.length; i++) {
+            var channel = CHANNELS[i]
+            if (channel.gated !== true || statusPending[channel.id] === true) continue
+            statusPending[channel.id] = true
+            ask(rpc, channel)
           }
-          pending.then(function (result) {
-            statusPending = false
-            acceptStatus(holdsAccount(result))
-          }, function () {
-            statusPending = false
-          })
         }
 
         function onVisible() {
