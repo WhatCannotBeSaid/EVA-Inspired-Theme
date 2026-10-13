@@ -3596,3 +3596,61 @@ new powershell/pwsh processes within 4 s of the POST: 0
 - **dsh-pet 那一半（第五十三轮 D87 的 toast 侧）在这次安装里是缺失的**：当前 `node_modules\dsh-pet\lib\index.js`（113670 B）里没有 `IM_RPC_ID` / `isImSession`，说明上一轮打的补丁已随插件升级/重装丢失；按同一判据重打的脚本是 `C:\Work\scratch\patch-dsh-pet-imquiet.cjs`，本轮尚未执行。
 - 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D88**），`docs/render-report.md` 记轮次（本节第 **52** 节 / 第五十四轮 / 它自己的 **D68**）。
 - 真机生效仍需**重启 DSH**：插件换装与补丁只在新进程里装载；主题侧重建 `client.js` 后刷新页面即可。
+
+---
+
+## 53. 第五十五轮：换回 `@xmanrui/dsh-im`，主题整体 revert `815c59e`（「工作区」行右侧双渠道入口回来）（D69）（2026-10-13 追加）
+
+用户原话：「从DHS-wechat换回DSH—IM，工作区旁的按钮图标一样换回，并且记住，以后绝不换户DSH-wechat了！」
+
+### 53.1 主题侧：`git revert --no-commit 815c59e`
+
+第五十四轮（D88）把主题整体改向 dsh-wechat（`815c59e`）；本轮把它整体 revert 回去。`815c59e` 就是 HEAD，其后没有别的提交碰过这批文件，所以八个文件全部自动合并且**零冲突**（10-12 那次反方向 revert 卡在 `docs/design.md` 与 `docs/render-report.md` 两处）。
+
+| 文件 | revert 后回到的形态 |
+| --- | --- |
+| `src/client.js` | 「工作区」行右侧的双渠道入口回来：`data-eva-im-*`（Telegram + 微信绑定闸门），`data-eva-wx-*` 那枚单开关下线；读数 789028 chars（`815c59e` 那版是 767641 chars） |
+| `src/theme.css` | 双入口的样式与三态互斥回来 |
+| `tools/selfcheck.mjs` | 断言回到钉 `data-eva-im-*` 与微信绑定闸门（**119 条 / 0 失败**，条数未变） |
+| `index.js` | `IM_RPC_ID` 去掉 `wechat`，回到 dsh-im 的家族（`telegram-` / `weixin-` / …）；`isImTurn(agent)` 的 fail-open 行为一字未动 |
+| `tools/check-sound-layer.mjs` | 现场 D 的 `wechat-` 三条撤销，**33 → 30 项检查** |
+| `README.md` / `README.zh.md` | 措辞回到「dsh-im：Telegram、微信等」、音效闸计数回到 30 |
+
+**revert 的副作用当场抵消**：它会连 `docs/design.md` 的 D88 行、`docs/render-report.md` 第 52 节一起删掉（那是 HEAD 自己的新增），故立刻 `git checkout HEAD -- docs/design.md docs/render-report.md` 取回，本轮改为追加 D89 与本节 —— 本文件是追加式轮次日志，删掉等于改写当时的历史记述。
+
+重建与门禁：
+
+```text
+node tools/build-client.mjs
+  wrote client.js 789028 chars (809012 bytes) 55 tokens 2 wallpapers
+  from out/wallpapers.local.json css 92464 chars (11557 after the comment strip)
+  wallpaper block 576543 boot mark eva-boot/7aaf48a0
+npm run verify
+  119 assertions, 0 failed, 119 passed
+  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)
+  30 checks, 0 failed, 30 passed   (im-quiet: phone turns silent (only the desktop turn spoke))
+  client.js check: OK (in sync with src/, 789028 chars, 55 tokens, 2 wallpapers)
+```
+
+### 53.2 profile 侧：换装，以及被占住的 `dsh-pet`
+
+| 步骤 | 动作 | 产物 / 凭证 |
+| --- | --- | --- |
+| 1 | 备份三件 | `package.json` / `pnpm-workspace.yaml` / `pnpm-lock.yaml` → `*.bak-20261013-1006-before-swap-back-to-dsh-im-4.38.1`（2418 / 4917 / 123816 B） |
+| 2 | 外科式改 `package.json` | 依赖 `dsh-wechat-plugin@0.39.3` → `@xmanrui/dsh-im@4.38.1`（第 11 行）；`bundles` 里删 `dsh-wechat-plugin`、在 `dsh-pet` 之后插 `@xmanrui/dsh-im`（第 43 行） |
+| 3 | 改 `pnpm-workspace.yaml` | 恢复 `'@xmanrui/dsh-im@4.36.1 \|\| 4.37.0 \|\| 4.38.0 \|\| 4.38.1'` 豁免行；`dsh-wechat-plugin@0.39.3` 先留一行让 pnpm 重解析（收尾已撤） |
+| 4 | `pnpm install` 两次 | 都停在 `failed to remove existing directory "...\node_modules\dsh-pet" prior to swap: 另一个程序正在使用此文件，进程无法访问。 (os error 32)`（日志 `C:\Work\scratch\install-dsh-im-20261013-1006.log`、`…-1022-r2.log`；pnpm exit 1） |
+| 5 | 结果核对 | `node_modules\@xmanrui\dsh-im`（4.38.1，16 项）在、`dsh-wechat-plugin` 已移除、`node_modules\sharp` 在、**没有** `@deepseek-ai/dsh-tools` 副本（那条坑会让所有工具调用报 `Cannot read properties of undefined (reading 'prepare')`） |
+| 6 | lockfile 单独收干净 | `pnpm install --lockfile-only --reporter=append-only`（149ms，exit 0）→ `@xmanrui/dsh-im@4.38.1` 进表（第 35 行 importers / 667 / 2745），`dsh-wechat-plugin` 三条全消；123816 → **132409 B**。这条不碰 `node_modules`，所以能在 DSH 运行时安全执行 |
+| 7 | 逐字节还原 `dsh-pet` 0.3.6 | 从 `C:\Work\scratch\dsh-pet-0.3.6-pristine\package` 复制进 `node_modules\dsh-pet`（9 项）：`lib/index.js` 113670 B、`lib/client.js` 175840 B、`lib/standalone.js` 129312 B，与装前读数一致 |
+| 8 | 重打静音补丁（D87 的 toast 侧） | `node C:\Work\scratch\patch-dsh-pet-imquiet.cjs <profile>\node_modules\dsh-pet\lib\index.js` → **113670 → 115343 B**，`node --check` 通过，6 处 `IM_RPC_ID\|isImSession` 命中，SHA256 `C6D7EB9279EF39AE48A94D02E8B3B7874B342CCB554944A96C72B368C91D7CC0` |
+
+### 53.3 坑与待办
+
+- **DSH 运行时 `pnpm install` 必然动 `dsh-pet`，而这个目录被运行中的进程占住**：失败落在「内容已删、文件未放回」之间，留下一个**空目录**（本轮实测从 9 项变成 0 项）。装前 `lib/index.js` 还在（113670 B），装后整个目录空了 —— `dsh-pet` 是 `bundles` 里的一条，缺文件等于**下一次启动少一个 bundle**。所以插件换装在这台机器上不能只看 pnpm 的 exit code：必须核对 `dsh-pet` 的文件是否还在，并按 §53.2 第 7-8 步补回。
+- **`pnpm install --lockfile-only` 是这条路上的干净工具**：只改 `pnpm-lock.yaml`，不碰 `node_modules`，DSH 运行时也不会撞锁。收尾「lockfile 与 `package.json` 分叉」用它比再跑一次全量 install 便宜（149ms）。
+- **`dsh-wechat` 时代那枚 origin-gate 补丁随插件目录一起没了**：它打在 `node_modules\dsh-wechat-plugin\lib\host.js` 上，插件被移除即作废；本机不再使用该插件，补丁成品留档但不需要重打。
+- **微信入口在重新扫码绑定前不会出现**：`~\.dsh\integrations\dsh-weixin\config.json` 的 `accounts` 仍是空表，第五十轮（D64）的绑定闸门判「未绑定」；Telegram 那枚不受闸门限制。这是既定行为，不是本轮改坏。
+- **`node_modules\dsh-wechat-plugin` 的删除没有报错**（不像 `dsh-pet`）：JS 文件不被运行中的进程持有锁，所以插件本身换得掉，只有带原生/资源文件的包会撞 `os error 32`。
+- 真机生效仍需**重启 DSH**：插件换装与 `dsh-pet` 补丁只在新进程里装载；主题侧重建 `client.js` 后刷新页面即可。
+- 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D89**），`docs/render-report.md` 记轮次（本节第 **53** 节 / 第五十五轮 / 它自己的 **D69**）。

@@ -279,13 +279,11 @@ check('the planMode service outranks the log', c.kinds().join(',') === 'done',
   c.kinds().join(',') || 'nothing')
 
 /* ------------------------------------------------------------------ scenario D ---
- * A turn typed into a phone must not speak on the desktop. The channel stamps the newest
- * user message with a channel-prefixed rpcId (`telegram-<uuid>`, `wechat-<uuid>`, and
- * `<channel>-steer-<uuid>` for a mid-turn nudge), which is the field the layer reads: the
- * phone already gets the reply, so the machine at the desk stays quiet. The plugin went
- * back to dsh-wechat on 2026-10-12, so `wechat-` is the name that matters today and
- * `telegram-` is kept as the shape the earlier channel used. A desktop prompt carries a
- * bare uuid, so the same session shape must still play `done`. */
+ * A turn typed into a phone must not speak on the desktop. dsh-im stamps the newest user
+ * message with a channel-prefixed rpcId (`telegram-<uuid>`, and `<channel>-steer-<uuid>`
+ * for a mid-turn nudge), which is the field the layer reads: the phone already gets the
+ * reply, so the machine at the desk stays quiet. A desktop prompt carries a bare uuid,
+ * so the same session shape must still play `done`. */
 
 const d = mount()
 const imAgent = (rpcId) => ({
@@ -294,8 +292,6 @@ const imAgent = (rpcId) => ({
 })
 const TELEGRAM = 'telegram-3f2a1c8e-1111-4aaa-8bbb-ccccdddd0001'
 const WEIXIN_STEER = 'weixin-steer-3f2a1c8e-1111-4aaa-8bbb-ccccdddd0002'
-const WECHAT = 'wechat-3f2a1c8e-1111-4aaa-8bbb-ccccdddd0004'
-const WECHAT_STEER = 'wechat-steer-3f2a1c8e-1111-4aaa-8bbb-ccccdddd0005'
 const DESKTOP = '3f2a1c8e-1111-4aaa-8bbb-ccccdddd0003'
 
 d.fire('agent/inbox/claimed', { agent: imAgent(TELEGRAM) })
@@ -310,20 +306,6 @@ d.fire('agent/inbox/claimed', { agent: imAgent(WEIXIN_STEER) })
 d.fire('tools/result', { agent: imAgent(WEIXIN_STEER), name: 'pwsh' })
 d.fire('agent/turn-stopping', { agent: imAgent(WEIXIN_STEER) })
 check('a mid-turn phone nudge stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
-
-/* The channel installed today: dsh-wechat mints `wechat-<uuid>`. */
-d.fire('agent/inbox/claimed', { agent: imAgent(WECHAT) })
-d.fire('tools/result', { agent: imAgent(WECHAT), name: 'edit' })
-d.fire('agent/turn-stopping', { agent: imAgent(WECHAT) })
-check('a WeChat-channel turn stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
-
-d.fire('agent/error', { agent: imAgent(WECHAT) })
-check('a WeChat-channel failure stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
-
-d.fire('agent/inbox/claimed', { agent: imAgent(WECHAT_STEER) })
-d.fire('tools/result', { agent: imAgent(WECHAT_STEER), name: 'edit' })
-d.fire('agent/turn-stopping', { agent: imAgent(WECHAT_STEER) })
-check('a WeChat mid-turn nudge stays silent', d.kinds().length === 0, d.kinds().join(',') || 'nothing')
 
 d.fire('agent/inbox/claimed', { agent: imAgent(DESKTOP) })
 d.fire('tools/result', { agent: imAgent(DESKTOP), name: 'edit' })
