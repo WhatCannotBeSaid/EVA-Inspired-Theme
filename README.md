@@ -7,8 +7,8 @@ English | [中文](README.zh.md)
 
 A Neon Genesis Evangelion–inspired skin for **DeepSeek Harness**. Two fully
 designed modes over one removable override layer, a wallpaper paint layer whose
-alphas are solved against a contrast budget rather than picked by eye, a boot
-mask, and four tiered task sounds.
+alphas are solved against a contrast budget rather than picked by eye, and a boot
+mask.
 
 This repository ships **no background picture of its own**: the paint layer is
 here, the artwork is not. Instead the tracked wallpaper manifest names two
@@ -49,9 +49,8 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Token layer | 55 measured overrides (41 in the light arm, 14 in the dark arm) on a single removable layer |
 | Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures — the light default on haowallpaper.com, the dark one on wallhaven — and the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
 | Boot mask | Plays once per build — the mark is derived from the bundle, so a new build replays it; `?boot=0` skips one, `?boot=1` forces one. Timings and triggers unchanged |
-| Task sounds | `ask`, `done`, `fail`, `plan` — four WAVs, ported from `dsh-perlica-ding` v0.2.0. A plain Q&A turn stays silent, and a phone-originated turn (dsh-im: Telegram, WeChat, …) stays silent on the desktop while its reply still lands in the transcript. No startup chime. |
 | Brand mark | One client-side illustration, two tones |
-| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a filter for the WeChat channel on the workspace row |
+| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; Telegram and WeChat entries on the 「工作区」 row, both reading `@xmanrui/dsh-im` |
 | Language | All user-facing text goes through the official locale service (zh / en) |
 
 The theme installs one layer and can be removed as one. It ships **no settings panel
@@ -152,9 +151,7 @@ follow the interface language — a Chinese and an English user both read the Ge
   main area, purple while it finished unread. A pinned row gets a rainbow title
   instead of a rail.
 - The **boot mask** once per build (the mark follows the bundle, so a new build
-  replays it; `?boot=1` forces a replay, `?boot=0` skips one), and the four
-  **task sounds** — which a turn typed into a phone (dsh-im: Telegram, WeChat, …)
-  does not trigger: that reply belongs to the phone, so the desk stays quiet.
+  replays it; `?boot=1` forces a replay, `?boot=0` skips one).
 
 Settings themselves remain the official dialog. The single change there is that the
 dim tint behind it is removed; the panel and click-outside-to-close are untouched.
@@ -201,15 +198,14 @@ Drop the entry from `dsh.profile.bundles` too if you added it there.
 ## Layout
 
 ```
-index.js              host half — mounts, plays the task sounds, registers no route
+index.js              host half — mounts, registers no route, plays nothing
 client.js             GENERATED browser bundle. Not tracked; build it. Do not edit.
 src/client.js         the real client half
 src/theme.css         the token layer
 cordis.patch.yml      the bundle-patch mount declaration
 build/                shipped assets + the two vendored client halves
 build/wallpapers.json the TRACKED wallpaper manifest — art URLs, not image bytes
-sounds/               the four task WAVs
-tools/                build, self-check, token audit, sound layer gate
+tools/                build, self-check, token audit
 docs/                 design log, recon, audits, render reports, preview shots
 NOTICE                upstream licences and third-party credits
 LICENSE               this package's layered licence
@@ -244,10 +240,8 @@ npm run verify
 ```
 
 Runs every gate: syntax check of both bundle halves, the self-check (119
-assertions), the token audit (55 overrides, exactly the planned 55), the sound
-layer gate (30 checks: format, byte length and peak of each WAV, and the
-phone-originated silence), and a rebuild comparison that proves `client.js` is in
-sync with `src/`.
+assertions), the token audit (55 overrides, exactly the planned 55), and a rebuild
+comparison that proves `client.js` is in sync with `src/`.
 
 ## Licence
 
@@ -262,7 +256,6 @@ without licensing them. No trademark rights are granted here.
 | Our code — `index.js`, `src/`, `tools/`, `client.js` | MIT | Keep the copyright and licence notice. Commercial use of the code is fine. |
 | Project text — this README, `docs/`, `NOTICE`, `LICENSE` | CC BY-NC-SA 4.0 | Credit, link the licence, note changes, keep it non-commercial, share alike. |
 | Brand marks — `build/brand-mark*.png`, `build/brand-mark.jpg` | CC BY-NC-SA 4.0 | Same terms, and this is third-party artwork: see below. |
-| Task sounds — `sounds/*.wav` | MIT (upstream `dsh-perlica-ding`) | Keep upstream's notice. |
 | Font — `build/great-vibes-latin.woff2` | SIL OFL 1.1 | Keep the notice; do not sell the font on its own. |
 | Vendored halves — `build/plugin-toggle.js`, `build/session-eva-status.js` | MIT (two other plugins, same author) | Keep both notices; they are inlined into `client.js` too. |
 | The two background wallpapers | **Hotlinked, not distributed, not licensed here.** | This project grants you no rights in them; the credits below are attribution only. |
@@ -292,10 +285,6 @@ Licensed CC BY-NC-SA 4.0 — credit, non-commercial, share alike. This repositor
 cropped and resized the illustration to 256×256 and derived the dark variant with
 `tools/make-brand-mark-dark.py`; both derived images stay under the same terms.
 Commercial use of this artwork needs permission from the rights holders above.
-
-**Task sounds.** From `dsh-perlica-ding` v0.2.0 by 117BS (MIT), rescaled to 60%
-volume. The voice lines are upstream's, for the character Perlica (佩丽卡) from
-Arknights: Endfield (© Hypergryph / GRYPHLINE).
 
 **Font.** "Great Vibes" by TypeSETit, SIL OFL 1.1.
 

@@ -9,16 +9,15 @@ The short version, in the order that decides what you may do:
 
   * Our own code ......... MIT — use it, change it, ship it.
   * Brand marks .......... CC BY-NC-SA 4.0 — credit, NO commercial use, share alike.
-  * Task sounds .......... MIT (upstream) — but see NOTICE for the voice credit.
   * Great Vibes font ..... SIL OFL 1.1.
   * The wallpaper pair ... NOT distributed and NOT licensed here. Since 2026-10-09
                            the two background images are third-party artwork that
                            this repository does not carry; the tracked manifest
                            links to them instead (D81), so a build paints them
-                           from wallhaven; see 2.4.
+                           from wallhaven; see 2.3.
 
 Because the brand marks forbid commercial use, THE PACKAGE AS A WHOLE IS NOT
-COMMERCIAL-USE. That restriction comes from section 2.3, not from the MIT grant
+COMMERCIAL-USE. That restriction comes from section 2.2, not from the MIT grant
 in section 1. If you need a commercial-use build, remove the brand marks.
 
 
@@ -57,15 +56,7 @@ is listed in section 2, that file's own terms govern it.
 2. Bundled third-party material
 -------------------------------
 
-2.1 Task sounds — sounds/ask.wav, done.wav, fail.wav, plan.wav
-    From `dsh-perlica-ding` v0.2.0 by 117BS, MIT. The full upstream licence and
-    copyright notice are reproduced in NOTICE section 1. What we changed: the
-    four files are rescaled to 60% volume. The voices themselves are upstream's
-    voice lines for the character Perlica (佩丽卡) from Arknights: Endfield
-    (© Hypergryph / GRYPHLINE); that character credit belongs to upstream and is
-    recorded in NOTICE.
-
-2.2 Font — build/great-vibes-latin.woff2
+2.1 Font — build/great-vibes-latin.woff2
     "Great Vibes" by TypeSETit. SIL Open Font License 1.1. Copyright 2015 The
     Great Vibes Pro Project Authors. The licence text ships with the package at
     build/great-vibes-OFL.txt, as OFL condition 2 requires. The file is an
@@ -76,10 +67,10 @@ is listed in section 2, that file's own terms govern it.
     never shipped. OFL condition 5 applies to this package: the font's reserved
     name is unchanged, and no file here ships under the name "Great Vibes".
 
-2.3 Brand marks — build/brand-mark.png, build/brand-mark-dark.png,
+2.2 Brand marks — build/brand-mark.png, build/brand-mark-dark.png,
     build/brand-mark.jpg
     CC BY-NC-SA 4.0. Credits and the list of changes we made are in NOTICE
-    section 3. Three consequences you must respect:
+    section 2. Three consequences you must respect:
 
       BY — keep the credits. Attribution goes to the character's author 上善无形
            (original character 溟月), the DeepSeek-element second pass by
@@ -89,7 +80,7 @@ is listed in section 2, that file's own terms govern it.
       SA — share alike. brand-mark-dark.png is a derivative (see NOTICE), and any
            adaptation or derivative you distribute must carry the same licence.
 
-2.4 Wallpapers — NOT distributed, hotlinked
+2.3 Wallpapers — NOT distributed, hotlinked
     Since 2026-10-09 (D79) this repository distributes no wallpaper
     image, and since D81 the tracked manifest names the pictures by URL rather than
     leaving the layer empty. Both background images are third-party artwork, not
@@ -140,11 +131,10 @@ is listed in section 2, that file's own terms govern it.
 
   index.js, src/, tools/, docs/, cordis.patch.yml ... MIT (section 1)
   client.js ......................................... MIT (generated from src/, not tracked)
-  sounds/*.wav ...................................... MIT, upstream (2.1)
-  build/great-vibes-latin.woff2 ..................... OFL 1.1 (2.2)
+  build/great-vibes-latin.woff2 ..................... OFL 1.1 (2.1)
   build/great-vibes-OFL.txt ......................... OFL 1.1 text
-  build/brand-mark*.png, build/brand-mark.jpg ....... CC BY-NC-SA 4.0 (2.3)
-  the wallpaper pair ................................ NOT distributed, hotlinked (2.4)
+  build/brand-mark*.png, build/brand-mark.jpg ....... CC BY-NC-SA 4.0 (2.2)
+  the wallpaper pair ................................ NOT distributed, hotlinked (2.3)
 
 Vendored code. Two files are byte-for-byte copies of code from other plugins, not
 written for this theme:
@@ -155,19 +145,19 @@ written for this theme:
                                  https://github.com/WhatCannotBeSaid/dsh-session-eva-status
 
 Both upstreams are MIT, whose notice has to travel with copies and substantial
-portions. NOTICE section 4 carries both entries, and the MIT text with its
+portions. NOTICE section 3 carries both entries, and the MIT text with its
 copyright line is section 1 of this file. The two files are also inlined into the
 generated client.js, so that notice belongs with the bundle and not only with the
 two source files. Keep it if you redistribute either file or the bundle.
 
-The CC BY-NC-SA 4.0 legal text for section 2.3 ships with this repository as
+The CC BY-NC-SA 4.0 legal text for section 2.2 ships with this repository as
 LICENSE-CC-BY-NC-SA-4.0.txt; the canonical copy is
 https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 
 No `EVA`, `NERV`, `Evangelion` or Arknights artwork owned by khara, inc. or
 Hypergryph is distributed in this package. The only images this repository
-carries are the brand marks in 2.3 — both wallpapers are absent as bytes by
-construction (2.4), which keeps only their addresses and their credits. The theme
+carries are the brand marks in 2.2 — both wallpapers are absent as bytes by
+construction (2.3), which keeps only their addresses and their credits. The theme
 is an unofficial, non-commercial fan work, published under
 khara's fan-work guideline (https://www.khara.co.jp/guideline/), which permits
 non-commercial fan works and licenses neither the characters nor the brand. See

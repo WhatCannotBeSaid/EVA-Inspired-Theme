@@ -3654,3 +3654,47 @@ npm run verify
 - **`node_modules\dsh-wechat-plugin` 的删除没有报错**（不像 `dsh-pet`）：JS 文件不被运行中的进程持有锁，所以插件本身换得掉，只有带原生/资源文件的包会撞 `os error 32`。
 - 真机生效仍需**重启 DSH**：插件换装与 `dsh-pet` 补丁只在新进程里装载；主题侧重建 `client.js` 后刷新页面即可。
 - 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D89**），`docs/render-report.md` 记轮次（本节第 **53** 节 / 第五十五轮 / 它自己的 **D69**）。
+
+---
+
+## 54. 第五十六轮：整条删掉音效层（`dsh-perlica-ding` 的移植内核退场）（D70）（2026-10-13 追加）
+
+用户原话：「去掉dsh-perlica-ding v0.2.0 并同步更正README。」
+
+### 54.1 删了什么
+
+| 位置 | 删掉的东西 |
+| --- | --- |
+| `index.js` | 全部播放机器：`SOUND_KINDS`、`SOUNDS_DIR`、`DEBOUNCE_MS`、`DEFAULT_EXEC_TOOLS`、`IM_RPC_ID`/`isImTurn`、`lastPlayed`、`service`/`resolveSound`/`attemptsFor`/`playSound`、`isRootAgent`、`foldPlanModeFromEvents`/`planIsActive`、`registerSounds` 的六个 `ctx.on` 监听、`apply()` 里的 `registerSounds(ctx)` try/catch。头注释新增 §2「The tiered task sounds are gone (2026-10-13)」；文件从 423 行降到约 110 行，`apply()` 只剩一次 `logger.info`（仍包 try/catch） |
+| `sounds/` | 目录整体删除，四支 PCM wav：ask 281166 / done 189006 / fail 225870 / plan 235086 B |
+| `tools/check-sound-layer.mjs` | 整文件删除（30 项行为检查） |
+| `package.json` | `files[]` 去掉 `sounds`；`scripts` 去掉 `sounds` 那条；`verify` 去掉 `check-sound-layer.mjs` |
+| `tools/selfcheck.mjs` | 旧 `host.6`–`host.12`（七条钉住音效层在）整块换成七条钉住它不在；总数仍 **119** |
+| `README.md` / `README.zh.md` | 表格行、列表项、布局块、Checks 段、licence 表、归因段；`README.md:54` 那句陈旧的「a filter for the WeChat channel」顺势改成 dsh-im 的 Telegram + 微信双入口 |
+| `LICENSE` | 短表删「Task sounds」一行；删 2.1 Task sounds 整块；其后 2.2 Font / 2.3 Brand marks / 2.4 Wallpapers 顺移为 2.1 / 2.2 / 2.3；§3 清单删 `sounds/*.wav` 行，`(2.2)(2.3)(2.4)`、「NOTICE section 4 → 3」「see 2.4 → 2.3」等交叉引用同步 |
+| `NOTICE` | 删第 1 节（上游 Perlica 的 MIT 全文 + 版权行）；原 2 Display font / 3 Brand marks / 4 Vendored halves / 5 Wallpapers 顺移为 1 / 2 / 3 / 4；正文「brand marks in section 3 → 2」同步 |
+
+### 54.2 为什么断言条数没变（七换七）
+
+旧的七条问的是「音效层还在吗」（触发器与防抖、四支 PCM wav、`files[]` 含 sounds、无本机路径、不经 cwd 取音源、没有 startup 音、没有偏好面）。新的七条问的是「它真的走了吗」：host.6 播放机器、host.7 不 spawn 播放器、host.8 不注册 HTTP 路由、host.9 `sounds/` 与 `files[]` 都不含、host.10 门禁脚本与 npm 脚本同去（且 `verify` 仍跑自检）、host.11 不泄漏本机绝对路径、host.12 偏好/自定义音源/运行时写盘面没回来。
+
+**坑（与 D56 那次一模一样）**：`index.js` 的头注释**故意点名**删掉的东西（`SOUND_KINDS`、`playSound`、`Media.SoundPlayer`、`scaleWavVolume`），所以七条一律扫**剥注释后的** `indexCode` —— 直接扫全文会被自己写的删除记录绊倒。
+
+### 54.3 门禁读数
+
+```text
+npm run verify   → exit code 0
+  119 assertions, 0 failed, 119 passed
+  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)
+  client.js check: OK (in sync with src/, 789028 chars, 55 tokens, 2 wallpapers)
+```
+
+`client.js` **一个字符没变**（789028 chars，与第五十五轮后一致）：音效层全在宿主半，`src/` 一个字没碰，重建也不会产出差异。
+
+### 54.4 坑与待办
+
+- **仓库根目录另有一份被跟踪的 `selfcheck.mjs`**（47553 B / 2026-10-09 11:32 / 提交 `c24277b`）：它是 `tools/selfcheck.mjs` 的旧副本，里面仍有那套音效断言（旧 `host.6`/`host.7`/`host.11`/`host.12`）。它不在 `files[]` 里（不随包发布）、也不被任何脚本引用，本轮**未动** —— 删一个被跟踪的文件是另一次决定。
+- **profile 侧无需任何动作**：`~/.dsh/profiles/desktop/package.json` 的依赖与 `dsh.profile.bundles` 里从来就没有 `dsh-perlica-ding`，音源只在主题包内。
+- **历史文本不改写**：`docs/audit-2026-10-07.md`、`docs/perf-report-2-2026-10-11.md` 与本节之前各节关于音效的记述都是当时事实，按追加式惯例保留。
+- **真机生效要重启 DSH**：改的是宿主半；客户端半没有改动（`client.js` 未变），刷新页面不涉及。
+- 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D90**），`docs/render-report.md` 记轮次（本节第 **54** 节 / 第五十六轮 / 它自己的 **D70**）。

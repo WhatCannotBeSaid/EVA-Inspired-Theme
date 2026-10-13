@@ -46,8 +46,7 @@
     "NOTICE",
     "README.md",
     "src",
-    "build",
-    "sounds"
+    "build"
   ],
   "engines": {
     "node": ">=18"
@@ -58,8 +57,7 @@
     "check": "node tools/build-client.mjs --check",
     "selfcheck": "node tools/selfcheck.mjs",
     "audit": "node tools/token-audit.mjs",
-    "sounds": "node tools/check-sound-layer.mjs",
-    "verify": "node --check index.js && node --check client.js && node tools/selfcheck.mjs && node tools/token-audit.mjs && node tools/check-sound-layer.mjs && node tools/build-client.mjs --check"
+    "verify": "node --check index.js && node --check client.js && node tools/selfcheck.mjs && node tools/token-audit.mjs && node tools/build-client.mjs --check"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1"

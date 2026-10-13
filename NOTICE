@@ -5,47 +5,12 @@ This package redistributes the third-party components listed below. Each one
 keeps its own license. Nothing here is relicensed as MIT.
 
 The license in package.json covers this project's own code and styling only.
-The components below are carved out of it, and the brand marks in section 3
+The components below are carved out of it, and the brand marks in section 2
 carry a non-commercial term that applies to anyone redistributing or reusing
 them together with this package.
 
 
-1. Tiered task sounds — sounds/plan.wav, sounds/done.wav, sounds/ask.wav, sounds/fail.wav
---------------------------------------------------------------------------------------
-
-Upstream:  dsh-perlica-ding v0.2.0
-Source:    https://github.com/117BS/dsh-perlica-ding
-License:   MIT
-
-These four files are upstream's own sound files, re-encoded at 60% volume for
-this theme. That re-encoding is a change to the files as received. The upstream
-license requires its notice to travel with every copy, so it is reproduced in
-full here:
-
-    MIT License
-
-    Copyright (c) 2026 dsh-perlica-ding contributors
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
-2. Display font — build/great-vibes-latin.woff2
+1. Display font — build/great-vibes-latin.woff2
 -----------------------------------------------
 
 Great Vibes, Copyright 2015 The Great Vibes Pro Project Authors.
@@ -56,7 +21,7 @@ redistributed unmodified: a Latin subset of the original woff2, with no change
 to the glyphs and no change to the font name.
 
 
-3. Brand marks — build/brand-mark.png, build/brand-mark-dark.png, build/brand-mark.jpg
+2. Brand marks — build/brand-mark.png, build/brand-mark-dark.png, build/brand-mark.jpg
 --------------------------------------------------------------------------------------
 
 Character "溟月" (Mingyue):        上善无形 — original character
@@ -96,7 +61,7 @@ This license grants no trademark rights, and nothing here implies endorsement by
 khara, inc., Hypergryph or DeepSeek.
 
 
-4. Vendored client halves — build/plugin-toggle.js, build/session-eva-status.js
+3. Vendored client halves — build/plugin-toggle.js, build/session-eva-status.js
 ------------------------------------------------------------------------------
 
 Both files started as byte-for-byte copies of code from other plugins, not written
@@ -139,7 +104,7 @@ tools/selfcheck.mjs; everything else in each file is still upstream's code.
 Refreshing either file from upstream must re-apply them.
 
 
-5. Background wallpapers — NOT redistributed, linked by URL
+4. Background wallpapers — NOT redistributed, linked by URL
 -----------------------------------------------------------
 
 This repository carries no image bytes for a background. `build/wallpapers.json`

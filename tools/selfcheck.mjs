@@ -1083,61 +1083,78 @@ checks.check('host.5', 'the host half cannot throw out of apply()', () => {
   const body = index.match(/function apply\(ctx\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
   return /try\s*\{/.test(body) || 'apply() has no try/catch around its logging'
 })
-/* The sound layer is the one part of the host half that fails SILENTLY: a missing
-   wav, a non-PCM file or a dropped trigger costs a sound and nothing else. These
-   checks pin what silence would hide. */
-checks.check('host.6', 'the sound layer keeps the upstream triggers and its debounce', () => {
-  const want = [
-    ['plan/done split at turn end', /agent\/turn-stopping/],
-    ['agent question', /ask_user_question/],
-    ['approval request', /approval\/request/],
-    ['turn error', /agent\/error/],
+/* The sound layer is GONE (D90, 2026-10-13): 「去掉dsh-perlica-ding v0.2.0 并同步更正
+   README。」 The seven checks below are the removal's guard rail, not the feature's: they
+   pin the absence of the machinery, of the four wavs, of the gate that audited them and of
+   the npm script that ran it. Seven is kept on purpose — the published assertion total
+   (119) counts the host group, so this block trades seven feature checks for seven
+   removal checks rather than shrinking the group.
+   They all read comment-stripped source. That is deliberate, and it is the trap host.12
+   hit on 2026-10-07: the header of index.js NAMES what was removed (`SOUND_KINDS`,
+   `playSound`, `Media.SoundPlayer`, `scaleWavVolume`), so a text-level assertion over
+   prose fails on the very comment documenting the removal. */
+const indexCode = index
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '')
+
+checks.check('host.6', 'the sound layer is gone from the host half', () => {
+  const gone = [
+    ['sound kinds', /SOUND_KINDS/],
+    ['sounds directory', /SOUNDS_DIR|['"]sounds['"]/],
     ['per-kind debounce', /DEBOUNCE_MS/],
     ['execution-tool whitelist', /DEFAULT_EXEC_TOOLS/],
-    ['plan-mode fallback off the session log', /foldPlanModeFromEvents/],
-    ['windows player', /Media\.SoundPlayer/],
-    ['macOS player', /afplay/],
-    ['linux player', /paplay/],
+    ['phone-originated-turn check', /IM_RPC_ID|isImTurn/],
+    ['players and playback', /resolveSound|attemptsFor|playSound|lastPlayed/],
+    ['event triggers', /registerSounds|turnStart|lastTool/],
+    ['root/sub-agent gate', /isRootAgent/],
+    ['plan-mode fold', /foldPlanModeFromEvents|planIsActive/],
   ]
-  const missing = want.filter(([, re]) => !re.test(index)).map(([name]) => name)
-  return missing.length === 0 || `missing in index.js: ${missing.join(', ')}`
+  const back = gone.filter(([, re]) => re.test(indexCode)).map(([name]) => name)
+  return back.length === 0 || `came back: ${back.join(', ')}`
 })
-checks.check('host.7', 'all four sounds ship as PCM wav, and only those four', () => {
-  const kinds = ['plan', 'done', 'ask', 'fail']
+checks.check('host.7', 'no sound player is spawned for this package', () => {
+  const spawns = [
+    ['windows player', /Media\.SoundPlayer/],
+    ['encoded command', /-EncodedCommand/],
+    ['macOS player', /afplay/],
+    ['linux player', /paplay|aplay/],
+    ['subprocess service', /subprocess/],
+  ]
+  const hits = spawns.filter(([, re]) => re.test(indexCode)).map(([name]) => name)
+  return hits.length === 0 || `still spawns: ${hits.join(', ')}`
+})
+checks.check('host.8', 'the host half registers no HTTP route', () =>
+  (!/webServer|registerRoute/.test(indexCode) && !/['"]\/eva-theme\/api\//.test(indexCode)) ||
+  'index.js registers a route again')
+checks.check('host.9', 'the sounds directory is gone and unpublished', () => {
+  /* Gone means gone: not orphaned, not left behind in `files[]`, and the startup chime's
+     own wav (removed 2026-10-07) cannot come back either. */
   const bad = []
-  for (const kind of kinds) {
-    const file = join(ROOT, 'sounds', kind + '.wav')
-    if (!existsSync(file)) { bad.push(kind + ': missing'); continue }
-    const head = readFileSync(file).subarray(0, 36)
-    const riff = head.subarray(0, 4).toString('ascii')
-    const wave = head.subarray(8, 12).toString('ascii')
-    const format = head.readUInt16LE(20)
-    if (riff !== 'RIFF' || wave !== 'WAVE' || format !== 1) {
-      bad.push(`${kind}: ${riff}/${wave}/fmt${format}`)
-    }
-  }
-  /* The startup chime used to be the fifth file. It is gone rather than orphaned, so
-     the directory has to hold exactly these four — an extra wav is a stale artifact.
-     Since the 2026-10-07 port these four are UPSTREAM perlica-ding's own voice files,
-     baked to 60% volume; that provenance (format, length, sample peak, sha256 against
-     the recorded upstream peaks) is what `tools/check-sound-layer.mjs` recomputes, so
-     this check stays on container shape alone. */
-  const shipped = readdirSync(join(ROOT, 'sounds')).filter((name) => name.endsWith('.wav')).sort()
-  const expected = [...kinds].map((kind) => kind + '.wav').sort()
-  if (shipped.join(' ') !== expected.join(' ')) bad.push(`sounds/: ${shipped.join(' ')}`)
+  if (existsSync(join(ROOT, 'sounds'))) bad.push('sounds/ still exists')
+  if (existsSync(join(ROOT, 'sounds', 'startup.wav'))) bad.push('sounds/startup.wav is still shipped')
+  if ((pkg.files ?? []).includes('sounds')) bad.push('files[] still lists sounds')
   return bad.length === 0 || bad.join(', ')
 })
-checks.check('host.8', 'the sounds directory is part of the published files', () =>
-  (pkg.files ?? []).includes('sounds') || 'files[] does not list sounds')
-checks.check('host.9', 'no absolute local path leaked into index.js', () => {
-  /* cli.18's counterpart for the host half, and the same markers — minus `Windows`
-   * and `Program`: the one-shot player resolves its system path from `%SystemRoot%`
-   * rather than a hard-coded drive letter, so those two markers can only fire on a
-   * genuine leak and never on the player's own argv.
-   * This is the assertion that keeps a diagnostic log from writing to a checkout
-   * again: from 2026-10-07 a `trace()` helper appended to an absolute path under
-   * `_work/`, on every sound decision, so running this very file wrote outside the
-   * package. It went out with the resident player it diagnosed. */
+checks.check('host.10', 'the sound gate and its npm script are gone with it', () => {
+  const scripts = pkg.scripts ?? {}
+  const bad = []
+  if (existsSync(join(ROOT, 'tools', 'check-sound-layer.mjs'))) {
+    bad.push('tools/check-sound-layer.mjs still exists')
+  }
+  if (scripts.sounds !== undefined) bad.push('the `sounds` script is still declared')
+  if (/check-sound-layer/.test(scripts.verify ?? '')) bad.push('verify still runs the sound gate')
+  if (!/node tools\/selfcheck\.mjs/.test(scripts.verify ?? '')) {
+    bad.push('verify no longer runs the self-check')
+  }
+  return bad.length === 0 || bad.join(', ')
+})
+checks.check('host.11', 'no absolute local path leaked into index.js', () => {
+  /* cli.18's counterpart for the host half, and the same markers. Kept from the sound era
+   * because it is about the file, not the feature: from 2026-10-07 a `trace()` helper
+   * appended to an absolute path under `_work/` on every sound decision, so running the
+   * behavioural gate wrote outside the package. That helper went with the resident player
+   * it diagnosed, and the layer itself is gone since D90 — but the assertion costs nothing
+   * and catches the next machine path that leaks in. */
   const markers = [
     /[A-Za-z]:\\\\?(?:Users|DSH|AppData|home)\b/i,
     /\/Users\/[A-Za-z0-9._-]+/,
@@ -1148,43 +1165,22 @@ checks.check('host.9', 'no absolute local path leaked into index.js', () => {
   const hits = markers.flatMap((re) => index.match(new RegExp(re, 'g')) ?? [])
   return hits.length === 0 || `local paths: ${[...new Set(hits)].join(', ')}`
 })
-checks.check('host.10', 'a sound is read from the package, never from the cwd', () =>
-  !/process\.cwd\(\)/.test(index) ||
-  'index.js resolves a wav against process.cwd(): a predictable path is not an audio source')
-/* The startup chime is gone (2026-10-07) and gone means gone: no kind, no route, no
-   file. The behaviour gate proves nothing spawns and nothing registers; this pins the
-   package's shape, so an orphan wav or a half-removed bridge cannot survive. */
-checks.check('host.11', 'the startup chime, its route and its wav are all gone', () => {
-  /* The header deliberately still NAMES the removed route in prose, so this matches the
-     quoted path as code (single quotes) instead of the bare word. */
-  if (/'\/eva-theme\/api\/boot-sound'/.test(index)) return 'index.js still routes to boot-sound'
-  if (/registerSoundBridge|webServer/.test(index)) return 'index.js still carries the chime bridge'
-  if (!/const SOUND_KINDS = \['plan', 'done', 'ask', 'fail'\]/.test(index)) {
-    return 'SOUND_KINDS is not the four task sounds'
-  }
-  return !existsSync(join(ROOT, 'sounds', 'startup.wav')) || 'sounds/startup.wav is still shipped'
-})
-/* The 2026-10-07 port took upstream's kernel and left its preferences surface behind:
-   no Config schema, no settings namespace, no loopback bridge, no settings page, no
+/* The 2026-10-07 port took upstream's kernel and left its preferences surface behind: no
+   Config schema, no settings namespace, no loopback bridge, no settings page, no
    custom-sound lookup (cwd / OS sound directory), and no runtime file of any kind. The
-   user asked for exactly that (「去掉该插件中的自定义音效功能和配置功能」), and it is the
-   kind of thing that creeps back in as a "harmless" option, so it is pinned. */
-checks.check('host.12', 'the port left the preference and custom-sound surface behind', () => {
-  /* Comments are stripped first: the header deliberately NAMES what it left behind
-     (`scaleWavVolume`, `@deepseek-ai/schemastery`), and a text-level assertion that
-     scans prose fails on the very comment documenting the removal. */
-  const code = index
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '')
+   user asked for exactly that (「去掉该插件中的自定义音效功能和配置功能」), and the whole
+   layer is gone since D90 — but the shape of the temptation outlives the feature, so the
+   ban stays. */
+checks.check('host.12', 'no preference, custom-sound or disk-writing surface came back', () => {
   const bad = []
-  if (/schemastery/.test(code)) bad.push('imports @deepseek-ai/schemastery')
-  if (/export const Config|module\.exports\.Config/.test(code)) bad.push('exports a Config schema')
-  if (/settings\s*\.\s*register/.test(code)) bad.push('registers a settings namespace')
-  if (/currentVolume/.test(code)) bad.push('reads a live volume preference')
-  if (/perlica-ding\/api|scaleWavVolume/.test(code)) bad.push('keeps the upstream bridge or wav scaler')
-  if (/soundDir|SYSTEM_SOUNDS/.test(code)) bad.push('resolves a custom sound directory')
-  if (/node:os|require\(['"]os['"]\)|tmpdir\(\)/.test(code)) bad.push('reaches for a temp directory')
-  if (/writeFileSync|appendFileSync|createWriteStream|mkdirSync/.test(code)) {
+  if (/schemastery/.test(indexCode)) bad.push('imports @deepseek-ai/schemastery')
+  if (/export const Config|module\.exports\.Config/.test(indexCode)) bad.push('exports a Config schema')
+  if (/settings\s*\.\s*register/.test(indexCode)) bad.push('registers a settings namespace')
+  if (/currentVolume/.test(indexCode)) bad.push('reads a live volume preference')
+  if (/perlica-ding\/api|scaleWavVolume/.test(indexCode)) bad.push('keeps the upstream bridge or wav scaler')
+  if (/soundDir|SYSTEM_SOUNDS/.test(indexCode)) bad.push('resolves a custom sound directory')
+  if (/node:os|require\(['"]os['"]\)|tmpdir\(\)/.test(indexCode)) bad.push('reaches for a temp directory')
+  if (/writeFileSync|appendFileSync|createWriteStream|mkdirSync/.test(indexCode)) {
     bad.push('writes to disk at runtime')
   }
   if (existsSync(join(ROOT, 'lib'))) bad.push('ships a lib/ (the upstream settings page lived there)')
