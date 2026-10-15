@@ -147,7 +147,15 @@ dim tint behind it is removed; the panel and click-outside-to-close are untouche
 
 ## Install
 
-From this checkout or a clone of it:
+Straight from the public repository:
+
+```
+dsh plugin --profile <profile> add github:WhatCannotBeSaid/eva-inspired-theme
+```
+
+The package carries a `prepare` script that runs exactly that build, so an
+install straight from the Git URL produces the bundle for you before the package
+is linked. From a local checkout or a clone of it:
 
 ```
 npm run build                                              # writes the browser bundle
@@ -155,25 +163,21 @@ dsh plugin --profile <profile> add link:<path-to-this-checkout>
 ```
 
 Run the build once after cloning: `client.js` is generated and deliberately not
-tracked (see [Layout](#layout)). A clone builds the tracked form: the paint layer
-points at the two pictures named in `build/wallpapers.json` and the browser
-fetches them, so the background needs a network and the host learns the viewer's
-IP. That is the intended public form.
-
-The package carries a `prepare` script that runs exactly that build, so an
-install straight from the Git URL produces the bundle for you before the package
-is linked. A plain `git clone` still needs one build: `npm run build`, or any
-`npm install` inside the checkout, which triggers `prepare`.
+tracked (see [Layout](#layout)). A plain `git clone` needs one build — `npm run
+build`, or any `npm install` inside the checkout, which triggers `prepare`. A
+clone builds the tracked form: the paint layer points at the two pictures named
+in `build/wallpapers.json` and the browser fetches them, so the background needs
+a network and the host learns the viewer's IP. That is the intended public form.
 
 The package declares `dsh.bundle.patch`, so the profile reconciles its bundle
 stack against the installed package and mounts the theme. If it does not appear
-after a restart, append `EVA-Inspired-Theme` to `dsh.profile.bundles` in the
+after a restart, append `eva-inspired-theme` to `dsh.profile.bundles` in the
 profile's `package.json` — a package that is merely a dependency is not mounted.
 
 ## Remove
 
 ```
-dsh plugin --profile <profile> remove EVA-Inspired-Theme
+dsh plugin --profile <profile> remove eva-inspired-theme
 ```
 
 Drop the entry from `dsh.profile.bundles` too if you added it there.

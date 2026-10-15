@@ -97,23 +97,29 @@
 
 ## 安装
 
-在这个 checkout 里，或它的 clone 里：
+直接从公开仓库装：
+
+```
+dsh plugin --profile <profile> add github:WhatCannotBeSaid/eva-inspired-theme
+```
+
+包里带一个 `prepare` 脚本，跑的正是这条构建，所以从 Git URL 安装时，包被 link 之前束就已经生成好。
+
+在本地 checkout 或它的 clone 里：
 
 ```
 npm run build                                              # 写出浏览器束
 dsh plugin --profile <profile> add link:<path-to-this-checkout>
 ```
 
-clone 之后先跑一次构建：`client.js` 是生成的，故意不跟踪（见[目录结构](#目录结构)）。clone 构建出的是被跟踪的形态：着色层指向 `build/wallpapers.json` 里点名的那两张图，由浏览器去取，所以背景需要联网，托管方会看到访问者的 IP。这是对外的预期形态。
+clone 之后先跑一次构建：`client.js` 是生成的，故意不跟踪（见[目录结构](#目录结构)）。单纯 `git clone` 仍要构建一次：`npm run build`，或在 checkout 里跑任意一次 `npm install`（会触发 `prepare`）。clone 构建出的是被跟踪的形态：着色层指向 `build/wallpapers.json` 里点名的那两张图，由浏览器去取，所以背景需要联网，托管方会看到访问者的 IP。这是对外的预期形态。
 
-包里带一个 `prepare` 脚本，跑的正是这条构建，所以直接从 Git URL 安装时，包被 link 之前束就已经生成好。单纯 `git clone` 仍要构建一次：`npm run build`，或在 checkout 里跑任意一次 `npm install`（会触发 `prepare`）。
-
-包声明了 `dsh.bundle.patch`，因此 profile 会拿已安装的包去对齐束栈并挂载主题。若重启后主题没出现，把 `EVA-Inspired-Theme` 追加到该 profile `package.json` 的 `dsh.profile.bundles` 里——仅仅作为依赖存在的包不会被挂载。
+包声明了 `dsh.bundle.patch`，因此 profile 会拿已安装的包去对齐束栈并挂载主题。若重启后主题没出现，把 `eva-inspired-theme` 追加到该 profile `package.json` 的 `dsh.profile.bundles` 里——仅仅作为依赖存在的包不会被挂载。
 
 ## 卸载
 
 ```
-dsh plugin --profile <profile> remove EVA-Inspired-Theme
+dsh plugin --profile <profile> remove eva-inspired-theme
 ```
 
 如果你曾把它写进 `dsh.profile.bundles`，把那一条也删掉。

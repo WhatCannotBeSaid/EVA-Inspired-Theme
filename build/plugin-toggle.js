@@ -27,7 +27,7 @@
  *   setBundleEnabled(name, enabled): Promise<RemoteResult<ChangeResult>>
  * 远程返回值统一为 { ok: true, value } | { ok: false, error: { code, message } }。
  *
- * ── 主题侧补丁（EVA-Inspired-Theme，D79 / 2026-10-09；f 为 D82 / 2026-10-10）──────
+ * ── 主题侧补丁（eva-inspired-theme，D79 / 2026-10-09；f 为 D82 / 2026-10-10）──────
  * 本文件按 D29 是上游 v1.3.0 客户端半的逐字节副本。主题侧此后打了六处补丁，刷新上游
  * （用新版 lib/client.js 覆盖本文件再重建）时必须重贴：
  *   a. `reload()` 加序号守卫 —— 只有最后一次调用允许写 snapshot，先发的旧响应不再覆盖新快照；
@@ -38,7 +38,7 @@
  *   e. `reasons` 的去重换成 Set —— 原来是 `filter((r,i,a) => a.indexOf(r) === i)`（O(n²)）。
  *   f. **宿主组合包与 SELF 一起排除**（唯一一处改行为的补丁，见下）—— a–e 只关乎性能，
  *      这一处不是：上游只排除插件自己，而本文件是 vendor 进主题客户端束的，宿主
- *      `EVA-Inspired-Theme` 也是「非官方插件」，于是它出现在自己的停用清单里，勾中它就会
+ *      `eva-inspired-theme` 也是「非官方插件」，于是它出现在自己的停用清单里，勾中它就会
  *      把这个按钮本身一起停掉。`classify()` 的排除条件改走 `isSelfBundle()`，排除集 =
  *      `SELF` + `PLUGIN_ID`（构建脚本在束顶层声明，见 `tools/build-client.mjs`），
  *      `classify` 的注释、确认框的 hint、字典的 `dialog.host.*` 三处同步登记这件事。
@@ -60,7 +60,7 @@ window.__ModuleLoader__.load({
 		 * 承载本开关的宿主组合包（主题侧补丁 f，D82 / 2026-10-10）。
 		 *
 		 * 本文件被 vendor 进主题的客户端束，于是宿主自己也是「非官方插件」：它的包名
-		 * `EVA-Inspired-Theme` 不以 `@deepseek-ai/` 开头、也不在 BUILTIN_PROFILE_BUNDLES 里，
+		 * `eva-inspired-theme` 不以 `@deepseek-ai/` 开头、也不在 BUILTIN_PROFILE_BUNDLES 里，
 		 * 所以只看上游那条 `SELF` 判据，宿主会出现在自己的停用清单里 —— 而按钮就长在宿主
 		 * 提供的束里，勾中它等于让这个功能把自己连同清单一起关掉。
 		 *
@@ -68,7 +68,7 @@ window.__ModuleLoader__.load({
 		 * 对本 IIFE 可见；本文件被单独加载（不在主题束里）时它并不存在，而 `typeof` 正是
 		 * 唯一对未声明标识符也不抛错的探测方式，所以两种情况都不会炸。
 		 *
-		 * 大小写不敏感：主题的包名是 `EVA-Inspired-Theme`，而 `cordis.patch.yml` 里那行的
+		 * 大小写不敏感：主题的包名是 `eva-inspired-theme`，而 `cordis.patch.yml` 里那行的
 		 * `id` 是全小写的 `eva-inspired-theme`；两种拼法都要排掉。
 		 */
 		function hostBundle() {

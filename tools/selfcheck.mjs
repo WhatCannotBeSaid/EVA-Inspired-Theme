@@ -87,7 +87,7 @@ const HASH_CLASS = /\.(?:[A-Za-z0-9_-]*[A-Z0-9][A-Za-z0-9_-]{4,}_[A-Za-z][A-Za-z
 
 checks.group('package')
 checks.check('pkg.1', 'package.json parses and declares the agreed name', () => {
-  if (pkg.name !== 'EVA-Inspired-Theme') return `name is ${pkg.name}`
+  if (pkg.name !== 'eva-inspired-theme') return `name is ${pkg.name}`
   return true
 })
 checks.check('pkg.2', 'main points at index.js', () => pkg.main === 'index.js')

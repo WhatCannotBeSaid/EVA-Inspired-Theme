@@ -62,7 +62,7 @@
 
 'use strict'
 
-const PLUGIN_ID = 'EVA-Inspired-Theme'
+const PLUGIN_ID = 'eva-inspired-theme'
 
 /**
  * Mount the plugin.

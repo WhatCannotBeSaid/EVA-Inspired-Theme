@@ -77,7 +77,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const PLUGIN_ID = 'EVA-Inspired-Theme'
+const PLUGIN_ID = 'eva-inspired-theme'
 
 const read = (relative) => readFileSync(join(ROOT, relative), 'utf8')
 

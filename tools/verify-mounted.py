@@ -34,7 +34,7 @@ from PIL import Image  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTDIR = Path(r"<plugins>\tmp\EVA-Inspired-Theme-render")
-PLUGIN_ID = "EVA-Inspired-Theme"
+PLUGIN_ID = "eva-inspired-theme"
 
 spec = importlib.util.spec_from_file_location("verify_render", ROOT / "tools" / "verify-render.py")
 vr = importlib.util.module_from_spec(spec)

@@ -34,7 +34,7 @@ OUT = ROOT / "out"
 BUILD = ROOT / "build"
 SRC = ROOT / "src"
 
-PLUGIN_ID = "EVA-Inspired-Theme"
+PLUGIN_ID = "eva-inspired-theme"
 
 # ---------------------------------------------------------------------------
 # SURFACE ALPHA (2026-10-07, D46): the user asked for ONE see-through value on every
