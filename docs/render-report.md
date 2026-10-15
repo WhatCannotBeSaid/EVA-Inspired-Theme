@@ -3745,3 +3745,51 @@ npm run verify   → exit code 0
 - 真机生效：改的是**客户端半**（`client.js`），刷新页面即可，不需要重启 DSH（与第 54 节相反）。
 - 插件侧的接口形状是读已安装的 `@xmanrui/dsh-im` 4.38.1 源码确认的（`plugin-src/management-rpc.mjs` 的 `rpcEndpoint()`、`plugin-src/host/channels/shared/rpc.mjs` 的 `status: 'connection.status'` 与 `exactKeys(payload, [])`、`plugin-src/host/channels/telegram/rpc.mjs` 的 `TELEGRAM_RPC_CHANNEL`），不是猜的。
 - 两套 D 编号各走各的：`docs/design.md` 记决策（本轮 **D91**），`docs/render-report.md` 记轮次（本节第 **55** 节 / 第五十七轮 / 它自己的 **D71**）。
+
+---
+
+## 56. 第五十八轮：随 `@xmanrui/dsh-im` 的卸载整条删掉「工作区」行的双渠道入口（D72）（2026-10-15 追加）
+
+用户 2026-10-15 逐字：「我卸载了DSH-IM，清除EVA主题中的残留样式。」
+
+### 56.1 删了什么
+
+第 49 轮（2026-10-11）把「工作区」行右侧的入口写成一对渠道筛选按钮，第 50 轮给微信那枚加了账号闸门（m00003「只有我连接微信时才显示」），第 57 轮把同一条闸门同步给 Telegram（D91）。这一整条功能线随插件卸载一起退场：
+
+- **`src/client.js`**：删掉 `ctx.effect(..., 'evangelion: im filter')` 的整块（HEAD 的 988–1884 行，897 行 / 41,863 B）。带走的是 `BUTTON_ATTR`/`STATE_ATTR`/`ROW_ATTR`/`TREE_ATTR`/`CHANNEL_ATTR` 五个契约属性、`CHANNELS` 两条渠道记录（各自的 `rpc` 与 `holdWhenSilent`）、`SLOT_SELECTOR`/`MARK_SELECTOR`、`CLICK_LIMIT`、`ICONS.telegram`/`ICONS.weixin` 的官方 SVG、`NS`/`DICT`、`STATUS_INTERVAL`，以及 `holdsAccount`/`refreshStatus`/`onVisible`/`isChannel`/`selected`/`imView`/`mark`/`touches`/`slotNode`/`markerNode`/`pump`/`candidates`/`rendered`/`openStep`/`closeStep`/`keyOf`/`schedule`/`stop`/`paint`/`dispose` 全套。文件头那句「非关键功能延迟到浏览器空闲时执行」的注释同步从「品牌行点击拦截、工作区置顶、Telegram/微信过滤这三个功能」改成两个（`defer()` 本身留着，仍有两个 effect 用它）。
+- **`src/theme.css`**：删掉文件末段的 IM 样式块（HEAD 的 1892–1978 行，87 行 / 4,208 B）——`[data-eva-im-button]`、`:hover`、`[data-eva-im-state='on']`、`[data-eva-im-tree] [data-row-key]:not([data-eva-im-row='on'])`。紧邻其上的置顶按钮族（1885–1891）**未动**。
+- **`tools/selfcheck.mjs`**：`css.12`（「the channel entries are styled by contract, and the filter owns the rows」）与 `cli.26`（「the channel entries filter the Sessions dsh-im stamps, and restore the list」，51 条断言）连同各自两大段说明注释整块删除；`cli.11d` 的 effect 计数 **10 → 9**，`'evangelion: im filter'` 标签断言随之消失，说明注释重写成「九而不是十：第十个是「工作区」行的渠道入口……删掉的是**一个 effect**，不是把两个合成一个 —— 以后新加一个仍然会在这一条上失败」。
+- **`tools/build-client.mjs`**：产物头注释（banner）里 `Nine blocks, ten effects — seven of our own` 改成 `Eight blocks, nine effects — six of our own`；编号清单第 7 项「the WeChat workspace switch (rounds 42-44)」整条删除，其后两项顺移（8→7、9→8）；末句 `Ten is pinned by tools/selfcheck.mjs (cli.11d)` 改成 `Nine is pinned`。
+- **两篇 README**：`README.md:53` / `README.zh.md:37` 的表格行去掉「Telegram and WeChat entries on the 「工作区」 row, both reading `@xmanrui/dsh-im`」；`README.md` 的「What the theme adds」与 `README.zh.md` 的「主题额外加的东西」里那两条渠道入口说明（各一整段）删掉；两篇的 Checks 段里「119 assertions / 119 条断言」改成 **117**。
+- **没动的**：`README.md` / `README.zh.md` / `LICENSE` / `NOTICE` / `package.json` / `cordis.patch.yml` 里没有第二处提到这条功能（`grep -rn "xmanrui\|dsh-im"` 在改完后对这六份文件**零命中**）；`NOTICE` 第 4 节谈的是 vendored 插件启停开关，与渠道入口无关。
+
+### 56.2 样式与行为为什么必须一起删
+
+`css.12` 钉的是样式契约、`cli.26` 钉的是行为契约，两者都以「入口存在」为前提。只删样式会让 `cli.26` 退化成一堆永远为真的反向断言（`!/data-eva-tg/`、`!/WX_GROUP_LABEL/` 之类），只删行为则让 `css.12` 找不到自己钉的选择器 —— 于是这一整条功能线的两条检查一起退场，断言总数 **119 → 117**（与第 54 节「七换七、总数不变」不同：这次是**真删掉两条**，不是改写）。
+
+### 56.3 门禁读数
+
+```
+npm run build
+  wrote client.js  809712 chars (829128 bytes)  55 tokens  2 wallpapers from out/wallpapers.local.json
+  css 88948 chars (10966 after the comment strip)  wallpaper block 576543 chars  boot mark eva-boot/2d9dfc12
+
+npm run verify          → exit code 0
+  node --check index.js / client.js            OK
+  selfcheck.mjs                                117 assertions, 0 failed, 117 passed / all green
+  token-audit                                  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14);
+                                               no component-level override; no unchanged token
+  build-client.mjs --check                     client.js check: OK (in sync with src/, 809712 chars,
+                                               55 tokens, 2 wallpapers from out/wallpapers.local.json)
+```
+
+改动范围（`git diff --stat`）：`7 files changed, 209 insertions(+), 1285 deletions(-)` —— `src/client.js` 1042、`tools/selfcheck.mjs` 301、`src/theme.css` 87、`tools/build-client.mjs` 40、`README.md` 19、`README.zh.md` 3、`docs/design.md` 2。源码字节数：`src/client.js` 104,382 → **62,519**、`src/theme.css` 142,653 → **138,445**、`tools/selfcheck.mjs` 87,170 → **71,042**。
+
+### 56.4 坑与待办
+
+- **`client.js` 这个产物不在 git 里**（`git show HEAD:client.js` → `fatal: path 'client.js' exists on disk, but not in 'HEAD'`），所以第 55 节记的 `791479 chars` **没有旧快照可比**；本轮产物反而**涨到 `809712 chars`**，涨的不是本轮 —— 同一棵树上压着另一路未提交的「输入框模型档位选择器」（未跟踪的 `src/model-effort-picker.css` 17,862 B + `src/model-effort-picker.js` 43,935 B，`tools/build-client.mjs` 会把两者内联进 `client.js`）。**判断本轮删了多少要看源码字节数（上表），不要看产物体积**，否则会把别人的增量读成删除失败。
+- **行尾**：`src/client.js`、`src/theme.css`、`tools/selfcheck.mjs` 在工作区是 **CRLF**（`core.autocrlf=true` 检出），按行处理的删除脚本必须按**文件自己的行尾**切（先探测 `\r\n`），用 `split('\n')` 会留下 `\r` 并把边界断言撞红；`docs/design.md`、两篇 README 是 **LF**。
+- **删除后的收尾检查不能拿宽泛词做「零命中」**：第一版检查用 `data-row-key` 扫全表，结果被两处**合法保留**的规则绊倒（`src/theme.css:860-866` 的 `body [data-row-key^='session:']…` 与 `:1851` 的 `div[data-row-key^='workspace:']`）；只有 `data-eva-im` / `evangelion: im filter` / `data-dsh-im-session-channel` / `dsh-im/` 这四个词才是本轮应当归零的（改完后 `grep -c` 在产物 `client.js` 上为 **0**）。
+- **真机生效**：改的是客户端半（`client.js`），刷新页面即可，「工作区」行右侧那对按钮会立刻消失（与第 55 节同）。**无需重启 DSH**。
+- **插件侧的空目录不归主题管**：`~/.dsh/profiles/desktop/node_modules/@xmanrui/` 卸载后只剩一个空目录，主题侧一个字都不碰；`~/.dsh/integrations/dsh-telegram`、`~/.dsh/integrations/dsh-weixin` 的数据目录同理（用户未要求清理）。
+- **要找回这套功能**：`ec7a651`（2026-10-13）及之前任一提交都在，`git show ec7a651:src/client.js` 就是删掉前的样子。

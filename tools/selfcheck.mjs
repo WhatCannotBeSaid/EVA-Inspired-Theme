@@ -329,74 +329,6 @@ checks.check('css.11', 'the workspace pin button is styled by contract, not by h
     'the pin button does not start on the official tertiary label colour'
 })
 
-checks.check('css.12', 'the channel entries are styled by contract, and the filter owns the rows', () => {
-  /* Rounds 41-42 (2026-10-09/10) styled two entries on one contract, `data-eva-tg-*`: a Telegram
-   * filter and a 微信 one beside it, two positions of one three-valued state. Round 45 removed the
-   * Telegram half and renamed what was left to `data-eva-wx-*`, so nothing in the sheet was
-   * named after the feature the user retired; round 48 (2026-10-11) swapped the plugins back and
-   * returned that single 微信 entry to filtering the channel dsh-im stamps. Round 49 restored the
-   * pair -- the user's word (m00694「Telegram呢！！！」) and their choice of 「恢复成第 42 轮那对
-   * 入口：Telegram + 微信，两枚并排、三态互斥」 -- and renamed the contract to the
-   * channel-neutral `data-eva-im-*`: with both channels live, a `wx` name would be round 45's
-   * mistake the other way round. The buttons are injected by src/client.js either way, so this
-   * sheet may key only on the theme's own data attributes. The official header icon-button box is
-   * copied verbatim (28x28, radius-sm, no border, no background, secondary label) so the controls
-   * land on the pixels the three official buttons beside them already occupy, and no rule may
-   * hide a row unless the theme's own tag on the tree is part of the selector. */
-  const sheet = css.replace(/\/\*[\s\S]*?\*\//g, '')
-  if (!/\[data-eva-im-button\]\s*\{/.test(sheet)) return 'the channel entry has no rule'
-  if (!/\[data-eva-im-state='on'\]\s*\{/.test(sheet)) return 'the lit state has no rule'
-  const box = sheet.match(/\[data-eva-im-button\]\s*\{([\s\S]*?)\}/)?.[1] ?? ''
-  if (!/width:\s*28px/.test(box) || !/height:\s*28px/.test(box)) {
-    return 'the entry does not copy the official 28x28 header icon box'
-  }
-  if (!/border-radius:\s*var\(--dsw-radius-sm\)/.test(box)) {
-    return 'the entry does not copy the official header icon radius'
-  }
-  if (!/color:\s*var\(--dsw-alias-label-secondary\)/.test(box)) {
-    return 'the entry does not start on the official secondary label colour'
-  }
-  /* One direction is all this filter needs, and it is the one that must not be wrong: while a
-   * view is lit, a row the pass did not tag on is out. The other direction is the pass's own
-   * business -- with no view lit this effect writes no tag at all, so there is nothing to hide --
-   * and hiding an untagged row there would be the very failure this rule has to avoid, taking
-   * rows out of the official list.
-   *
-   * The selector needs the host's own [data-row-key] in the middle. Round 48's first cut wrote
-   * `[data-eva-wx-row]:not(...)` instead, which matches only a row that carries the tag with some
-   * other value -- and the pass removes the tag rather than writing one, so the lit state hid
-   * nothing at all. The live probe caught it: 18 of 18 rows visible. The tree attribute is a bare
-   * presence test now, because its VALUE is the lit channel (round 49), so one rule serves both
-   * entries and a second hide rule would be the round-45 shape coming back. */
-  const on = sheet.match(/\[data-eva-im-tree\]\s*\[data-row-key\]:not\(\[data-eva-im-row='on'\]\)\s*\{([\s\S]*?)\}/)?.[1] ?? ''
-  if (!/display:\s*none/.test(on)) return 'the lit state does not take the untagged rows out of the list'
-  /* Every rule that hides a row must name the tag on the tree as well, so the sheet can never
-   * empty the list on its own. A row is reached through the host's key or through this effect's
-   * own tag, so both spellings count; only rules that hide are read, because the selection and
-   * aria rules elsewhere in the sheet legitimately reach session rows without this gate. */
-  const rowHiders = [...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .map((m) => ({ selector: m[1].trim(), body: m[2] }))
-    .filter((rule) => /display\s*:\s*none/.test(rule.body) && /data-(?:row-key|eva-im-row)/.test(rule.selector))
-  const loose = rowHiders.filter((rule) => !/\[data-eva-im-tree\]/.test(rule.selector))
-  if (loose.length > 0) {
-    return `a row is hidden outside the tree the theme tagged: ${loose.map((r) => r.selector).join(' | ')}`
-  }
-  /* The rule must never be the round-48 regression again: a hide rule keyed on the row tag's
-   * absence-of-value form leaves the untagged rows visible once the pass removes the tag. */
-  if (/\[data-eva-im-row\]:not\(\[data-eva-im-row='on'\]\)\s*\{\s*display:\s*none/.test(sheet)) {
-    return 'the lit state hides only tagged rows, so an untagged row survives the filter'
-  }
-  /* Round 45's retirement has to still hold, and rounds 48/49 must not have left the round-45
-   * workspace contract behind: the machine it replaced matched a workspace by a literal title. */
-  if (/\[data-eva-im-(?:group|head)[^\]]*\]/.test(sheet)) {
-    return 'the retired workspace-switch contract is still styled'
-  }
-  if ((sheet.match(/\[data-eva-im-tree\]/g) ?? []).length !== 1) {
-    return 'the filter is no longer one rule over the tree'
-  }
-  return !/data-eva-tg/.test(sheet) || 'the retired Telegram contract is still styled'
-})
-
 checks.check('css.13', 'the settings veil is cleared on the overlay that actually hosts it', () => {
   /* Round 33 (2026-10-08) took the user's word on the full-screen veil behind the settings
    * dialog and emptied it. The mask carries only hashed class names (css.6 forbids keying on
@@ -613,33 +545,29 @@ checks.check('cli.11c', 'the client half writes browser storage only for the two
   }
   return true
 })
-checks.check('cli.11d', 'the client half owns exactly ten effects', () => {
-  /* Five are the theme's own (token layer, liquid-glass maps, paint layer, boot mask,
-     and since round 25 the brand row's three-zone bridge).
+checks.check('cli.11d', 'the client half owns exactly nine effects', () => {
+  /* Six are the theme's own: the token layer, the liquid-glass maps, the paint layer, the
+     boot mask, the brand row's three-zone bridge (round 25) and the workspace-pin effect
+     (round 39, 2026-10-09).
      Two come from the vendored plugin-toggle switch: it registers its own disposer plus
      one for its locale dictionaries from inside its apply(), so they count here but
      carry its own labels, not ours.
-     The eighth (2026-10-09) is the vendored session-status rail's own disposer, also
+     The ninth (2026-10-09) is the vendored session-status rail's own disposer, also
      registered from inside its apply().
-     The ninth (round 39, 2026-10-09) is the theme's own workspace-pin effect.
-     The tenth is the 工作区 row's entry, which rounds 41-44 grew into two controls and round
-     45 (2026-10-10) cut back to one: the Telegram filter it was born as was removed at the
-     user's word (「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」) and the 微信
-     switch beside it -- rounds 42 to 44 -- is all that was left. Round 48 (2026-10-11) put that
-     one control back on the channel filter it was born as, when the user swapped the plugins
-     back (「我不想用dsh-wechat，给我把dsh-im换回来。包括工作区旁边的图标按钮及其功能。」), and
-     round 49 (m00694「Telegram呢！！！」) restored the pair: two channel filters, two buttons,
-     one three-valued state. The effect was renamed and rewritten, never added or split, so the
-     count is unchanged. */
+     Nine, not ten: the tenth was the 工作区 row's channel entries, which rounds 41-49 grew
+     into two controls over one three-valued view and round 57 (2026-10-13) put on the
+     account gate. The user retired the whole feature together with the plugin -- @xmanrui/
+     dsh-im uninstalled -- so the entries, the view, the two-channel gate and their sheet
+     rules went at once (m00001「我卸载了DSH-IM，清除EVA主题中的残留样式。」). The count drops
+     because an effect left, not because two were merged: a later addition still fails here. */
   const effects = client.match(/ctx\.effect\(/g) ?? []
-  if (effects.length !== 10) return `${effects.length} ctx.effect() calls, expected exactly 10`
+  if (effects.length !== 9) return `${effects.length} ctx.effect() calls, expected exactly 9`
   if (!/tag\.dataset\.pluginCss = PLUGIN_ID \+ '\/theme\.css'/.test(client)) {
     return 'the paint layer is not namespaced'
   }
   if (!/'evangelion: boot screen'/.test(client)) return 'the boot mask effect has no label'
   if (!/'evangelion: brand row zones'/.test(client)) return 'the brand row bridge has no label'
   if (!/'evangelion: workspace pins'/.test(client)) return 'the workspace pin effect has no label'
-  if (!/'evangelion: im filter'/.test(client)) return 'the channel filter has no label'
   if (!/applyPluginToggle\(ctx\)/.test(client)) return 'the vendored toggle is never applied'
   return /applySessionEvaStatus\(ctx\)/.test(client) || 'the vendored session rail is never applied'
 })
@@ -826,185 +754,7 @@ checks.check('cli.25', 'the workspace pin control is injected and moves rows off
   }
   return /data-eva-ws-pin-button/.test(client) || 'the pin control carries no contract attribute'
 })
-/* Rounds 41-44 (2026-10-09/10): the 工作区 row's entry button. Round 41 made it a Telegram
-   conversation filter, round 42 added a 微信 one beside it, rounds 43-44 turned the 微信 one
-   into a switch on the dsh-wechat-plugin workspace, and round 45 removed the Telegram one at
-   the user's word (「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」). What is left
-   is one control, and it is held to the theme's own standard: the workspace is recognised by
-   the title its own plugin enforces rather than a workspace uuid (which would break on another
-   machine, a reinstall or a second profile), a folded group is unfolded through its own header
-   -- the click a user makes -- rather than by any private expansion, and the labels go through
-   the locale service. Nothing is persisted and nothing is inserted, moved or deleted: the
-   switch is attributes on the rows plus rules in the sheet. */
-/* Rounds 41-44 (2026-10-09/10): the 工作区 row's entry buttons. Round 41 made the first a
-   Telegram conversation filter, round 42 added a 微信 one beside it, rounds 43-44 turned the
-   微信 one into a switch on the dsh-wechat-plugin workspace, and round 45 removed the Telegram
-   one at the user's word (「再去telegram按钮，毕竟现在不用了，可以删去这个功能了。」). Round 48
-   (2026-10-11) swapped the plugins back and returned the single 微信 entry to filtering the
-   channel dsh-im stamps; round 49 restored the pair (m00694「Telegram呢！！！」, 「恢复成第 42 轮
-   那对入口：Telegram + 微信，两枚并排、三态互斥」). What is held here is the theme's own
-   standard: a channel is recognised by the marker the plugin itself writes -- or by the title
-   prefix its own session-channel-labels.mjs parser accepts -- rather than by a CSS-Modules class
-   or a workspace uuid (which would break on another machine, a reinstall or a second profile); a
-   group that arrives folded is unfolded, and a group whose Sessions are behind the official
-   show-more is driven through that same official control, one click per frame, because the
-   conversations dsh-im opens live in 未分组, which renders five rows and keeps the rest behind it;
-   and the labels go through the locale service. Nothing is persisted and nothing is inserted,
-   moved or deleted: a view is attributes on the rows plus rules in the sheet. */
-checks.check('cli.26', 'the channel entries filter the Sessions dsh-im stamps, and restore the list', () => {
-  if (!/var SLOT_SELECTOR = "\[data-slot='sidebar\.workspaces'\]"/.test(client)) {
-    return 'the filter does not key on the official workspaces slot'
-  }
-  if (!/var MARK_SELECTOR = "\[data-slot='sidebar\.workspaces\.directoryFlow'\]"/.test(client)) {
-    return 'the filter does not key the header row on the official marker slot'
-  }
-  if (!/var CHANNEL_ATTR = 'data-dsh-im-session-channel'/.test(client)) {
-    return 'the filter does not read the marker dsh-im writes'
-  }
-  if (!/\{\s*id: 'telegram', marker: 'telegram', lead: 'Telegram · ',\s*gated: true,\s*rpc: 'dsh-im\/telegram',\s*holdWhenSilent: true\s*\},/.test(client)) {
-    return 'the Telegram entry lost its channel record or its lead'
-  }
-  if (!/\{\s*id: 'weixin', marker: 'weixin', lead: '微信 · ',\s*gated: true,\s*rpc: 'dsh-im\/weixin'\s*\},/.test(client)) {
-    return 'the 微信 entry lost its channel record, its lead or its gate'
-  }
-  if (!/var SESSION_PREFIX = 'session:'/.test(client)) {
-    return 'the filter does not read the official row key prefix of a conversation'
-  }
-  /* One number, three views: the two entries are its positions, so switching channels re-tags
-     the rows in one pass and never stacks two of them. */
-  if (!/var mode = 0/.test(client) || !/function selected\(\)/.test(client)) {
-    return 'the two entries no longer share one three-valued view'
-  }
-  if (!/function isChannel\(row, channel\)/.test(client) || !/cell\.getAttribute\(CHANNEL_ATTR\) === channel\.marker/.test(client)) {
-    return 'the filter never reads the marker where the plugin writes it -- the row title span'
-  }
-  if (!/row\.getAttribute\(CHANNEL_ATTR\) === channel\.marker/.test(client)) {
-    return 'the filter has no fallback on the row itself'
-  }
-  if (!/text\.replace\(\/\^\[ \\t\\r\\n\]\+\/, ''\)\.indexOf\(channel\.lead\) === 0/.test(client)) {
-    return 'the filter has no title-prefix fallback for a Session whose marker is not stamped yet'
-  }
-  if (!/whole\.indexOf\(channel\.lead\) === 0/.test(client)) {
-    return 'the filter does not test the whole row text as its last fallback'
-  }
-  if (!/host\.querySelectorAll\('\[data-row-key\]'\)/.test(client)) {
-    return 'the filter does not walk the rows by their official key attribute'
-  }
-  if (!/key\.indexOf\(SESSION_PREFIX\) === 0 && isChannel\(row, channel\)/.test(client)) {
-    return 'the lit state does not hold the Sessions of that one channel'
-  }
-  /* The row tag is written only while a view is lit, and the dark state is the cleanup that takes
-     it off again: the theme leaves no "off" value behind on a host row, because the sheet's rule
-     hides exactly the rows that carry no tag. */
-  if (!/row\.setAttribute\(ROW_ATTR, 'on'\)/.test(client) || !/row\.removeAttribute\(ROW_ATTR\)/.test(client)) {
-    return 'the filter does not write and clear its row tag'
-  }
-  if (!/if \(channel === null\) \{[\s\S]{0,220}?if \(!marked\) return[\s\S]{0,320}?removeAttribute\(ROW_ATTR\)[\s\S]{0,140}?marked = false/.test(client)) {
-    return 'the dark state does not clear the row tags it wrote, so rows stay tagged on the host list'
-  }
-  if (!/host\.setAttribute\(TREE_ATTR, channel\.id\)/.test(client) || !/host\.removeAttribute\(TREE_ATTR\)/.test(client)) {
-    return 'the filter cannot put the list back the way it found it'
-  }
-  if (!/function imView\(host\)/.test(client)) {
-    return 'the view putter lost its name'
-  }
-  /* A list scrolled deep comes back where it was: the position is remembered as a view goes on
-     and restored once the pump has folded its own expansions back (round 42's own handling, kept
-     in round 49, and the reason the two channels can be tried in turn without losing the place). */
-  if (!/scroll = host === null \? null : host\.scrollTop/.test(client) || !/host\.scrollTop = scroll/.test(client)) {
-    return 'the filter no longer remembers and restores where the list was scrolled'
-  }
-  /* Switching channel must not forget what this effect unfolded. The group it opens for Telegram
-     is the group the 微信 conversations sit in, so a record cleared on the way into the second
-     channel leaves that group expanded when the user finally goes back to the official list.
-     The live probe caught exactly that in round 42's code: 20 rows before the walk, 101 after. */
-  if (!/var was = mode/.test(client) || !/if \(was === 0\) \{\s*\n\s*opened = \{\}/.test(client)) {
-    return 'a channel switch forgets the expansions this effect has to fold back on the way out'
-  }
-  /* The pump: the official controls are what bring the rows back, one click per animation frame,
-     and only the groups this effect expanded are folded back. */
-  if (!/var CLICK_LIMIT = 200/.test(client) || !/function pump\(\)/.test(client)) {
-    return 'the expansion pump is gone, so a folded or truncated group never shows its Sessions'
-  }
-  if (!/function candidates\(\)/.test(client) || !/function rendered\(host\)/.test(client)) {
-    return 'the pump lost its two ways of naming the groups that hold a channel Session'
-  }
-  if (!/function openStep\(host\)/.test(client) || !/function closeStep\(\)/.test(client)) {
-    return 'the pump lost one of its two stages'
-  }
-  if (!/header\.click\(\)/.test(client) || !/control\.click\(\)/.test(client)) {
-    return 'the pump stopped driving the official controls'
-  }
-  if (!/frame = requestAnimationFrame\(pump\)/.test(client)) {
-    return 'the pump no longer yields between official clicks'
-  }
-  if (!/var workspaces = ctx\.get\('workspaces'\)/.test(client)) {
-    return 'the pump cannot reach a group whose Sessions are folded away'
-  }
-  /* Round 47's narrowing is part of this effect and has to survive the round-49 rewrite. */
-  if (!/function touches\(records\)/.test(client) || !/if \(!touches\(records\)\) return/.test(client)) {
-    return 'the re-render watch lost its narrowing, so every pane batch pays for a sidebar walk'
-  }
-  if (!/function slotNode\(\)/.test(client) || !/function markerNode\(\)/.test(client)) {
-    return 'the remembered slot lookup is gone'
-  }
-  if (!/locale\.register\(NS, DICT\)/.test(client)) {
-    return 'the entry labels are not registered with the locale service'
-  }
-  if (!/var sessions = ctx\.get\('sessions'\)/.test(client) || !/list\.subscribe\(schedule\)/.test(client)) {
-    return 'the filter never follows the session list'
-  }
-  if (!/attributeFilter: \['data-row-key'\]/.test(client)) {
-    return 'the filter does not watch the row key, so its own writes would re-enter it'
-  }
-  /* Round 50 (m00003「只有我连接微信时才显示」), widened in round 57 (「现在同步到telegram按钮
-     图标上」): a gated entry exists only while its own channel holds an account. The question is
-     asked of the IM plugin's own route -- endpoint dsh-im/telegram and dsh-im/weixin, method
-     connection.status -- through the client connection service, and each channel has its OWN fail
-     direction: 微信 stays hidden until a real answer says it holds one (a throwing or rejecting
-     call, a snapshot without a bots array, or a bot without a string botId all leave it hidden),
-     while Telegram keeps its entry unless the answer is a definite 'no account'. Only a CHANGED
-     answer costs a pass on either one. */
-  if (!/rpc: 'dsh-im\/telegram', holdWhenSilent: true/.test(client) || !/rpc: 'dsh-im\/weixin'/.test(client)) {
-    return 'the entries no longer ask their own channel status, or the two fail directions were swapped'
-  }
-  if (!/var CHANNEL_STATUS = 'connection\.status'/.test(client)) {
-    return 'the gate no longer names the method the IM plugin answers status on'
-  }
-  if (!/var live = \{\}/.test(client) || !/function visible\(channel\)/.test(client) || !/channel\.holdWhenSilent === true/.test(client)) {
-    return 'the entries are no longer hidden until their own channel answers'
-  }
-  if (!/function holdsAccount\(result\)/.test(client) || !/typeof bot\.botId === 'string'/.test(client)) {
-    return 'the gate counts a snapshot the IM plugin itself would not call configured'
-  }
-  if (!/function ask\(rpc, channel\)/.test(client) || !/rpc\.call\('\/api', channel\.rpc, \{ method: CHANNEL_STATUS, payload: \{\} \}\)/.test(client)) {
-    return 'the gate never asks, so an entry could never come back'
-  }
-  if (!/if \(answer === false && channel\.gated === true && selected\(\) === channel\)/.test(client) || !/typeof answer !== 'boolean' \|\| answer === live\[channel\.id\]/.test(client)) {
-    return 'a lost account leaves the tree filtered with nothing lit to press, or a failed probe moves an entry'
-  }
-  if (!/statusTimer = setInterval\(refreshStatus, STATUS_INTERVAL\)/.test(client) || !/clearInterval\(statusTimer\)/.test(client)) {
-    return 'the channel probe is not a timer that dispose stops'
-  }
-  if (!/if \(channel\.gated !== true \|\| statusPending\[channel\.id\] === true\) continue/.test(client)) {
-    return 'the probe no longer walks the gated channels one latch at a time'
-  }
-  if (/id: 'weixin'[^\n]*holdWhenSilent/.test(client)) {
-    return 'the 微信 entry would wait for an answer instead of staying hidden without one'
-  }
-  if (!/data-eva-im-button/.test(client)) return 'the entries carry no contract attribute'
-  if (!/ICONS\[channel\.id\]/.test(client)) return 'the two entries do not draw their own artwork'
-  if (!/'evangelion: im filter'/.test(client)) return 'the filter effect has no label'
-  if ((client.match(/setAttribute\('title'/g) ?? []).length !== 1) {
-    return 'the entry sets hover wording again (only the pin button may carry a title)'
-  }
-  /* Round 45's retirement still holds, and rounds 48/49 must not have left the round-45
-     workspace machine behind: the switch it replaced matched a workspace by a literal title. */
-  if (/WX_GROUP_LABEL/.test(client) || /function wxGroup\(/.test(client)) {
-    return 'the retired workspace-switch machine is still in the client half'
-  }
-  return !/data-eva-tg/.test(client) || 'the retired Telegram contract is still written'
-})
+
 checks.check('cli.12', 'client.js embeds every token from src/tokens.json', () => {
   const embedded = client.match(/var TOKENS = (\{.*?\})\n\n/s)
   if (embedded === null) return 'TOKENS block not found'

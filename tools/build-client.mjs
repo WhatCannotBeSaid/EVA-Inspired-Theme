@@ -441,7 +441,7 @@ const banner = `/**
  *   ${wallpaperFile}  ${MANIFEST.wallpapers.length} wallpapers (embedded art or URL)${wallpaperNote}
  *   build/fonts.json       ${MANIFEST.fonts.length} font, embedded as an @font-face data URL
  *
- * Nine blocks, ten effects — seven of our own plus the two the vendored switch
+ * Eight blocks, nine effects — six of our own plus the two the vendored switch
  * installs and the one the vendored session-status rail installs — all mounted through \`ctx.effect\` so unloading the plugin retracts
  * everything it added:
  *
@@ -485,24 +485,18 @@ const banner = `/**
  *      other door. The ORDER is already durable on the host, so each reorder goes
  *      through the official insertBefore and survives a restart.
  *
- *   7. the WeChat workspace switch (rounds 42-44) — one row holds one view: a click leaves
- *      only the workspace the WeChat plugin creates, another click puts the official list
- *      back (the exclusive switch the user chose over a stacking one). Its MutationObserver
- *      reads batches, not the whole document: records outside its own row are dropped
- *      before any query runs.
- *
- *   8. build/plugin-toggle.js — vendored byte for byte (MIT, same author) and
+ *   7. build/plugin-toggle.js — vendored byte for byte (MIT, same author) and
  *      wrapped in an IIFE; it registers the two disposers for the switch's own
  *      remote and locale services.
  *
- *   9. build/session-eva-status.js — the user's other plugin, vendored byte for byte
+ *   8. build/session-eva-status.js — the user's other plugin, vendored byte for byte
  *      (MIT, same author) and wrapped the same way. It registers the last disposer
  *      and paints the session list's left rail (waiting on you / selected / unread
  *      completion, plus the pinned row's rainbow). Its own apply() reads the uiSession,
  *      sessions and workspaces services, which is why the exports map below names all
  *      three in its inject list.
  *
- * Ten is pinned by tools/selfcheck.mjs (cli.11d), so another effect cannot slip in
+ * Nine is pinned by tools/selfcheck.mjs (cli.11d), so another effect cannot slip in
  * unnoticed.
  *
  * The effect disposers are the whole uninstall story: the theme is one removable
