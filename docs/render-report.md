@@ -3793,3 +3793,126 @@ npm run verify          → exit code 0
 - **真机生效**：改的是客户端半（`client.js`），刷新页面即可，「工作区」行右侧那对按钮会立刻消失（与第 55 节同）。**无需重启 DSH**。
 - **插件侧的空目录不归主题管**：`~/.dsh/profiles/desktop/node_modules/@xmanrui/` 卸载后只剩一个空目录，主题侧一个字都不碰；`~/.dsh/integrations/dsh-telegram`、`~/.dsh/integrations/dsh-weixin` 的数据目录同理（用户未要求清理）。
 - **要找回这套功能**：`ec7a651`（2026-10-13）及之前任一提交都在，`git show ec7a651:src/client.js` 就是删掉前的样子。
+
+## 57. 第五十九轮：把「工作区」行的那枚微信会话开关装回来（D73）（2026-10-15 追加）
+
+用户 2026-10-15 逐字：「将DSH-wechat插件在工作区旁的图标按钮装回来。」
+
+### 57.1 装回了什么
+
+第 58 轮（D92）在用户卸载 `@xmanrui/dsh-im` 时把「工作区」行那条渠道功能整条删掉了。本轮用户点名 `dsh-wechat-plugin`，于是第 51 轮那枚**单个工作区的开关**（`815c59e` 的形态）原样回来，而不是第 49 轮那对渠道筛选按钮：
+
+- **`src/client.js`**：`ctx.effect(..., 'evangelion: wechat workspace switch')` 整块插回（459 行 / 注释 + effect），位置在 `'evangelion: workspace pins'` 之后、`exports.manifest` 之前。契约五枚：`data-eva-wx-button`（值恒为 `weixin`）、`data-eva-wx-state`（`on|off`）、`data-eva-wx-group`、`data-eva-wx-tree`、`data-eva-wx-head`。工作区靠**标题**「微信会话」认（`dsh-wechat-plugin` 的 `lib/host.js:82 WORKSPACE_TITLE`，每次启动 `workspace.setTitle()` 写回），不靠 uuid —— uuid 换机器、重装、第二个 profile 就失效。
+- **`src/theme.css`**：末段那 118 行样式原样追回；追回后与 `815c59e:src/theme.css` 逐字节相同。入口按钮抄官方 header 图标的盒子（28x28、`--dsw-radius-sm`、无边框无底色、`label-secondary`），所以它落在旁边三个官方按钮已经占着的像素上；隐藏规则一律带 `data-eva-wx-tree=` 前缀，样式表自己不认这棵树时永远不会藏东西。
+- **`tools/selfcheck.mjs`**：`css.12`、`cli.26` 两条插回原位，`cli.11d` 计数改回 **10**，断言 117 → **119**。第 50 轮对 `cli.11b` / `cli.11c` 的窄化**原样保留**（那说的是设置页与浏览器存储键，与本功能无关），音效层退场后的 `host.6`–`host.12` 也**原样保留**。
+- **`tools/build-client.mjs`**：产物头注释的块数与 effect 数、编号清单第 7 项、末尾的钉数句子一并改回。
+- **两篇 README**：表格行与「主题额外加的东西」各补一条（用 `815c59e` 的原句）。
+
+### 57.2 装回时验证的是「插件真的会建这个工作区」
+
+这是本轮唯一一条不能靠翻历史结论的东西，所以当场读了盘上的插件本体：
+
+```
+~/.dsh/profiles/desktop/package.json        "dsh-wechat-plugin": "0.43.1"，bundles 里已启用
+~/.dsh/profiles/desktop/node_modules/dsh-wechat-plugin/lib/host.js
+  :82   const WORKSPACE_TITLE = '微信会话';
+  :455  ownWorkspaceLabel: WORKSPACE_TITLE,
+  :3098 return await this.#workspaceIdFor(this.#workspace, WORKSPACE_TITLE);   // #ensureWorkspace()
+  :3128 await workspace.setTitle(title);
+```
+
+两枚槽位本体也确认还在宿主里（`resources/app.asar` 里 `sidebar.workspaces` 73 处、`sidebar.workspaces.directoryFlow` 12 处），所以 `SLOT_SELECTOR` / `MARK_SELECTOR` 仍然指向真实节点。
+
+### 57.3 门禁读数
+
+```
+node tools/build-client.mjs
+  wrote client.js  841370 chars (861376 bytes)  55 tokens  2 wallpapers from out/wallpapers.local.json
+  css 93282 chars (11865 after the comment strip)  wallpaper block 576543 chars  boot mark eva-boot/d7970da3
+
+npm run verify          → exit code 0
+  node --check index.js / client.js            OK
+  selfcheck.mjs                                119 assertions, 0 failed, 119 passed / all green
+  token-audit                                  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)
+  build-client.mjs --check                     client.js check: OK (in sync with src/, 841370 chars,
+                                               55 tokens, 2 wallpapers from out/wallpapers.local.json)
+```
+
+改动范围（`git diff --stat`）：`6 files changed, 751 insertions(+), 22 deletions(-)` —— `src/client.js` 460、`tools/selfcheck.mjs` 171、`src/theme.css` 118、`tools/build-client.mjs` 14、`README.md` 7、`README.zh.md` 3。
+
+### 57.4 坑与待办
+
+- **行尾**：`src/client.js` / `src/theme.css` / `tools/selfcheck.mjs` 在工作区是 **CRLF**，`git show` 取出来的是 **LF**。按行拼接的脚本必须先 `split('\r\n')`，否则 CRLF 文件会变成 `\r\r\n`（本轮踩过：`tools/selfcheck.mjs` 一度涨到 2626 行、diff 1484 行）。
+- **`client.js` 是产物、不在 git 里**（`.gitignore` 有一条注释解释为什么：束里嵌着壁纸数据 URL），所以判断改了多少要看源码字节与 `git diff --stat`，不要拿产物体积跟上一轮的记录比。
+- **`pnpm install` 在这台机器上不要跑**（第 55 节记过：DSH 运行时它必然动被进程占住的 `dsh-pet`）。本轮不需要它 —— 插件已经在 profile 里。
+- **真机生效**：改的是客户端半，刷新页面即可，不需要重启 DSH。开关点亮时侧栏只留「微信会话」那一组、且不显示该分组自己的标题；再点一下恢复官方列表。微信通道当前已绑定（`~/.dsh/wechat/state.json` 里有一条 account 与一条 binding），所以那个工作区应当已经存在。
+- **要回退这一轮**：`git revert` 本轮的提交即可，它只碰主题仓库自己的六个文件。
+
+## 58. 第六十轮：微信会话开关的账号闸门（没连微信就不显示按钮）（D94）（2026-10-15 追加）
+
+用户 2026-10-15 逐字：「没有连接微信的时候隐藏按钮图标」
+
+### 58.1 一句话结论
+
+按钮存在与否，问的是**插件自己**：请求 `dsh-wechat-plugin` 的 `/.dsh-wechat-plugin/status`，读 `status.accounts.length`。这正是该插件设置页判断「有没有账号」用的同一字段（插件 `client.js:1080` 与 `:1117` 两处都分支于 `status.accounts.length === 0`，`PREFIX` 定义在 `client.js:33`，GET 请求在 `:618`）。本机实测该路由 `HTTP 200`，`accounts: [{accountId: "730ba8f90e7a@im.bot", userId: "o9cq8054BuoBVofjsclmbiL37DC0@im.wechat", polling: true}]`。
+
+### 58.2 四种回答怎么落地
+
+| 插件的回答 | 按钮 | 依据 |
+| --- | --- | --- |
+| 有账号 | 留在「工作区」行 | `accounts.length > 0` |
+| 没账号 | **从行里摘掉**（`removeChild`），不是设成不可见 | 按钮应当是「不在」而不是「占着位置但看不见」 |
+| 请求失败 / 路由不存在 / 插件没装 | 保留上一次的答案 | 一次问不到不能把已经亮着的入口弄没 |
+| 回答形状读不懂（没有 `accounts` 数组） | 同上，按「问不到」处理 | 失败方向偏向「不改变现状」 |
+
+账号若在开关点亮时消失（视图正被过滤、列表里只剩下微信会话），视图会自动退回官方列表——否则列表被过滤着，却没有可点的东西把它放回来。
+
+### 58.3 什么时候重新问
+
+```
+页面挂载              问一次（refreshStatus()）
+之后                 每分钟一次（STATUS_INTERVAL = 60000，statusTimer）
+页面回到前台          一次（document 'visibilitychange' → onVisible）
+窗口重新获得焦点      一次（window 'focus' → refreshStatus）
+页面不可见时          document.hidden 为真则不发请求
+```
+
+`dispose()` 里三样都摘：`clearInterval(statusTimer)`、`document.removeEventListener('visibilitychange', onVisible)`、`window.removeEventListener('focus', refreshStatus)`。这三条连同上面三条分支，`cli.26` 里新增了 5 条断言钉住（`cli.26` 原名「the WeChat entry switches one workspace through the official controls」，现覆盖闸门）。
+
+### 58.4 改到的文件
+
+- **`src/client.js`**：闸门写在**第十个 effect 内部**（`'evangelion: wechat workspace switch'`），**没有新增 effect**。`cli.11d` 的计数仍是 **10**。
+- **`tools/selfcheck.mjs`**：`cli.26` 尾部追加 5 条闸门断言；`cli.11d` 的说明注释补一句「第 60 轮加的是第十个 effect 里的行数，不是第十一个 effect」。
+- **`README.md` / `README.zh.md`**：特性表行与「主题额外加的东西」各补一句（按钮只在通道绑定账号时出现、问的是插件自己的 status 路由、请求失败保留上一次答案）。
+
+### 58.5 真机验证（两个方向）
+
+```
+当前状态       本机微信已绑定 1 个账号，按钮在行内：data-eva-wx-state="off"，
+               aria-label="显示「微信会话」工作区"，父节点 class=_9lTDKa_sectionHeader
+隐藏方向       在页面里临时劫持 window.fetch，把 /.dsh-wechat-plugin/status 回成
+               {accounts: []}，然后派发 window 的 focus 事件
+               测到 1 次请求 → 按钮当场消失（buttonPresent: false）
+恢复方向       还原 window.fetch，再派发一次 focus
+               → 按钮自己回来（state: "off"）
+```
+
+### 58.6 门禁读数
+
+```
+npm run verify          → exit code 0
+  node --check index.js / client.js            OK
+  selfcheck.mjs                                119 assertions, 0 failed, 119 passed
+  token-audit                                  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)
+  build-client.mjs --check                     client.js check: OK (in sync with src/, 850266 chars,
+                                               55 tokens, 2 wallpapers from out/wallpapers.local.json)
+```
+
+`node tools/build-client.mjs` 输出：`wrote client.js 850266 chars (870358 bytes) 55 tokens 2 wallpapers from out/wallpapers.local.json css 93282 chars (11865 after the comment strip) wallpaper block 576543 chars boot mark eva-boot/fdb22fd4`。
+
+### 58.7 坑
+
+- **`src/client.js` 不许有反引号与 `${`**：`tools/build-client.mjs:160-166` 把该文件整份插进模板字符串，遇到反引号或 `${` 直接 `throw`。本轮写的注释里出现 `` `status.accounts.length === 0` `` 形式的行内代码，触发 `src/client.js must stay free of backticks and template placeholders`。改法是把注释里的反引号去掉（路径写成 `/.dsh-wechat-plugin/status` 这种纯文本）。
+- **注释里的数字要当场核**：本轮初稿把插件设置页的行号写成 `client.js:1080`/`:1117`（对），但另一处误写成 `:618` 表述成「分支」；正确读法是 `:618` 是 GET 请求本身，两处分支在 `:1080` 与 `:1117`。
+- **产物是构建出来的、不在 git 里**：`client.js` 被 `.gitignore` 排除，判改动看源码与 `git diff --stat`。
+

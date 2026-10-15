@@ -50,7 +50,7 @@ names. Credits are in [Fan work and attribution](#fan-work-and-attribution).
 | Wallpaper layer | No artwork ships in this repository; the browser fetches it at paint time. The tracked manifest points at two third-party pictures — the light default on haowallpaper.com, the dark one on wallhaven — and the maintainer's own machine embeds local copies instead. Surface alphas are solved against a WCAG contrast budget |
 | Boot mask | Plays once per build — the mark is derived from the bundle, so a new build replays it; `?boot=0` skips one, `?boot=1` forces one. Timings and triggers unchanged |
 | Brand mark | One client-side illustration, two tones |
-| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row |
+| Also inside | A plugin on/off switch and a session-row status rail, both vendored from MIT plugins; a pin button on every workspace and session row; a switch for the WeChat workspace on the workspace row, shown only while WeChat holds an account |
 | Language | All user-facing text goes through the official locale service (zh / en) |
 
 The theme installs one layer and can be removed as one. It ships **no settings panel
@@ -126,6 +126,14 @@ follow the interface language — a Chinese and an English user both read the Ge
   `eva-theme/workspace-pins`; the order it produces is written through the host's own
   insert-before API, so it survives a restart — and, unlike the pin set, it also
   survives removing the theme.
+- A **WeChat workspace switch** on the 「工作区」 row, on the same line as Search and the
+  view options: one click leaves only the workspace `dsh-wechat-plugin` creates — its
+  conversations, without that workspace's own group header — and another click puts the
+  official list back. It only tags rows and stores nothing, and it has nothing to show
+  until such a workspace exists. The button itself is in the row only while the channel
+  holds an account: it asks `dsh-wechat-plugin`'s own status route, and an unbound WeChat
+  takes the button away rather than offering one that leads nowhere. A failed question
+  keeps the last answer.
 - The vendored **non-official plugin switch**, on the installed group's header in the
   official Plugins page: tick which non-official plugins to disable, or to enable
   again. It switches bundle enablement only — it installs and uninstalls nothing.
