@@ -105,6 +105,140 @@
       }
     }
 
+    /* ------------------------------------------------------------------------
+       Round 50 (2026-10-14) -- the composer's model seat becomes two controls.
+
+       The official composer hands the merged control to one seat: a single button
+       reading "DeepSeek V4.1 Flash · 高" whose panel also carries the reasoning
+       levels. The user asked for the reference layout instead: TWO buttons, each
+       with its own panel -- the model on the left, the reasoning level on the
+       right -- so the two choices stop sharing one surface.
+
+       Nothing official is edited. "conversation.input.model" is a "single" slot,
+       and a single slot is claimed per PRIORITY: register() refuses a second
+       occupant at the same priority, and the renderer takes the lowest priority
+       that is still live. The official registers at 0, so this one registers at
+       -1 and shadows it. Turning the theme off disposes the registration and the
+       official control returns unchanged -- the same removable-layer rule the
+       token layer and the paint layer follow.
+
+       Why a React component instead of the DOM-level bridges the brand row and
+       the workspace pins use: those drive elements the official UI already
+       rendered, and this seat has to be the component that renders. The two
+       pickers keep their own vanilla-DOM implementations (src/model-effort-
+       picker.js, ported verbatim from the standalone build); the component is a
+       thin mount -- one container, one createPair, one destroy -- so the
+       behaviour is unchanged from the version that was self-tested on its own.
+
+       The inject face is the official one, name for name: "directory" is the
+       session's model store, "load" refreshes the catalog on open, and "select"
+       is the single verb both panels end up calling. "available" is false for an
+       addressed subagent session, where the host refuses model selection; that
+       case renders nothing at all, exactly as the official control does.
+       ------------------------------------------------------------------------ */
+
+    function EvaModelSeat(props) {
+      /* Two components, not one, for a hooks reason: a component that returns before
+         some of its hooks changes the hook count between renders, which React rejects.
+         The outer one decides whether the seat exists at all; every hook lives in the
+         inner one, where none is ever skipped. */
+      var react = null
+      try { react = require('react') } catch (err) { react = null }
+      if (react === null) return null
+      if (props.available === false) return null
+      return react.createElement(EvaModelSeatHost, props)
+    }
+
+    function EvaModelSeatHost(props) {
+      var react = require('react')
+      var hostRef = react.useRef(null)
+      var pairRef = react.useRef(null)
+
+      /* Mount once per directory. "directory" is the session's store, so a session
+         switch remounts the two controls; a re-render inside one session does not. */
+      react.useEffect(function () {
+        var node = hostRef.current
+        if (!node) return undefined
+        var made = EvaModelEffortPicker.createPair({
+          directory: props.directory,
+          load: props.load,
+          select: props.select,
+          disabled: props.locked === true
+        })
+        node.appendChild(made.model.el)
+        node.appendChild(made.effort.el)
+        pairRef.current = made
+        /* Both triggers are in the document now, so the row has a width to fit
+           the model name into. Doing this before the append would measure a
+           detached node and fit against zero. */
+        if (typeof made.watch === 'function') made.watch()
+        return function () {
+          pairRef.current = null
+          made.destroy()
+        }
+      }, [props.directory])
+
+      /* "locked" is a render-time fact (a running turn locks the composer) and it
+         changes without the session changing, so it is applied on every render rather
+         than folded into the mount above -- which is why the pair is held in a ref. */
+      react.useEffect(function () {
+        var made = pairRef.current
+        if (!made) return
+        made.model.setDisabled(props.locked === true)
+        made.effort.setDisabled(props.locked === true)
+      })
+
+      return react.createElement('div', {
+        'data-eva-mep-seat': '',
+        className: 'eva-mep-seat',
+        ref: hostRef
+      })
+    }
+
+    /* The seat's registration.
+
+       The dependency list is the official plugin's own -- its exports.inject names
+       ["commandUi","locale","sessions","slots","remote","remote.session"], and the five
+       this seat actually reaches for are the five named here. That list is not
+       decoration: a cordis scope is *traced*, so reading a service the context was not
+       injected with throws "cannot get property X without inject" AT CALL TIME, and
+       that throw lands inside the slot's render, where the error boundary treats it as
+       an abdication -- the entry is silently retired and the official control shows
+       through again with nothing in the console a user would see. Measured on a live
+       instance, exactly that: a list without "remote.session" rendered the official
+       button and looked for all the world like the theme had done nothing at all.
+
+       "sessions" is read off the injected scope at injection time rather than listed as
+       a separate wait, because that is what the shipped control does and the two must
+       stay symmetric. */
+    function mountModelSeat(ctx) {
+      ctx.inject(['slots', 'modelDirectories', 'sessions', 'remote', 'remote.session'], function (scope) {
+        var models = scope.modelDirectories
+        scope.slots.inject('conversation.input.model', function () {
+          return scope.slots.register({
+            name: 'conversation.input.model',
+            priority: -1,
+            inject: function (sessionId) {
+              var directory = models.directoryFor(sessionId)
+              var sessions = scope.sessions
+              var available = sessions === undefined ||
+                sessions.subagentAddress(sessionId) === undefined
+              return {
+                available: available,
+                directory: directory.store,
+                load: function () {
+                  if (available) directory.load().catch(function () {})
+                },
+                select: function (selection) {
+                  return available ? directory.select(selection) : Promise.resolve(undefined)
+                }
+              }
+            }
+          }, EvaModelSeat)
+        })
+      })
+    }
+
     function apply(ctx) {
       var theme = ctx.get('theme')
       if (theme === undefined) return
@@ -403,7 +537,7 @@
            disposer gives them back; without this a reload of the module would leave
            the bitmaps reachable for the life of the document. */
         var blobUrls = []
-        tag.textContent = shortenDataUrls(WALLPAPER_DECLARATIONS, blobUrls) + '\n' + CSS + '\n' + BOOT_CSS
+        tag.textContent = shortenDataUrls(WALLPAPER_DECLARATIONS, blobUrls) + '\n' + CSS + '\n' + BOOT_CSS + '\n' + PICKER_CSS
         document.head.appendChild(tag)
 
         /* prefers-reduced-motion cannot be honoured from the stylesheet: the paint
@@ -460,6 +594,13 @@
          exports.inject below, so the loader hands it a context where they exist. It is
          called after the switch only because the mount order reads top-down. */
       applySessionEvaStatus(ctx)
+
+      /* The composer's model seat (round 50, 2026-10-14): two independent controls
+         where the official composer had one merged button. It is called for its own
+         side effect -- the seat registration -- and registers through
+         ctx.inject + slots.inject rather than ctx.effect, so it adds no effect to the
+         ten cli.11d counts. See mountModelSeat above for why it shadows at -1. */
+      mountModelSeat(ctx)
 
       /* Brand row, three zones -- the user's own mapping (2026-10-08, round 25, D68):
          the avatar Logo opens Plugins, WHALE-01 stays New session, SYSTEM opens

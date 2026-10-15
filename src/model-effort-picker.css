@@ -1,0 +1,602 @@
+/* EVA model picker + EVA effort picker -- two independent controls.
+ *
+ *   [ DeepSeek V4.1 Flash  ^ ]      [ 大脑图标  高  v ]
+ *            |                              |
+ *      model panel                    effort panel
+ *
+ * Every selector is rooted at [data-eva-mep]; no CSS-Modules hash, no colour literal.
+ * Each panel is centred on its own trigger and sized by its contents, so the two
+ * controls read as two independent dropdowns rather than one shared surface. Nothing
+ * here declares container-type: a size-container is contained in the inline axis, which
+ * would stop the panel's width from following its text. Narrow-screen behaviour is
+ * therefore handled by viewport media queries at the end of this file.
+ *
+ * Density note: the tokens are DSH's, so the panel is tuned to DSH's 13px/34px scale
+ * rather than the reference mock's roomier 15px/44px rhythm. The structure, radius,
+ * hairline, selection fill and spacing relationships follow the reference.
+ */
+
+[data-eva-mep] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* The seat's row: the two controls sit side by side with the composer's own gap, and
+ * each keeps its own min-width:0 so a long model name ellipsises instead of pushing
+ * the effort button off the row. Keyed on an attribute rather than a class so the
+ * rule would also satisfy the paint layer's selector contract if it ever moved there. */
+[data-eva-mep-seat] {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------- trigger -- */
+
+[data-eva-mep] .eva-mep-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background-color: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    background-color var(--ds-transition-duration-fast) var(--ds-ease-in-out),
+    color var(--ds-transition-duration-fast) var(--ds-ease-in-out);
+}
+
+/* The model name is arbitrary-length data, so this trigger carries a width budget:
+ * without a box to measure against, the label is never clipped, the fit routine sees
+ * text that already fits, and the composer row is the thing that gives way instead --
+ * the model button drops to a second line. The budget is what turns that into type
+ * that shrinks in place. The effort trigger is deliberately left out: it is one glyph
+ * plus one short word, so it should never be the control that narrows.
+ *
+ * The model anchor is the flexible one of the two, for the same reason. The effort
+ * side is pinned at its content width so a long model name can never squash the
+ * glyph into a clipped box. */
+[data-eva-mep][data-eva-mep-kind='model'] {
+  flex: 0 1 auto;
+}
+
+[data-eva-mep][data-eva-mep-kind='effort'] {
+  flex: 0 0 auto;
+}
+
+/* The cap is deliberately loose. Its only job is to give the fit a box to measure
+ * against -- the actual constraint in a narrow composer is the row itself, which
+ * shrinks the trigger through flex and makes the label's box narrower than the text
+ * it wants to draw. Sizing the cap tight instead would shrink ordinary names in a
+ * wide row for no reason. It matches the official panel's own 420px ceiling. */
+[data-eva-mep][data-eva-mep-kind='model'] .eva-mep-trigger {
+  max-width: min(420px, 60vw);
+}
+
+[data-eva-mep] .eva-mep-trigger:hover {
+  background-color: var(--dsw-alias-interactive-bg-hover);
+}
+
+[data-eva-mep][data-eva-mep-open='true'] .eva-mep-trigger {
+  background-color: var(--dsw-alias-interactive-bg-hover-accent);
+  color: var(--dsw-alias-label-primary);
+}
+
+[data-eva-mep] .eva-mep-trigger:focus-visible {
+  outline: 1px solid var(--dsw-alias-brand-primary);
+  outline-offset: -1px;
+}
+
+[data-eva-mep] .eva-mep-triggerLabel {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+[data-eva-mep] .eva-mep-triggerValue {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-eva-mep] .eva-mep-triggerValue[hidden] {
+  display: none;
+}
+
+/* The effort trigger names its own axis with a glyph, so the value sits close to it.
+ * Its width is content, never a share of the row: when the model name beside it is
+ * long, the model trigger is the one that gives ground.
+ *
+ * The label box holds an SVG rather than type, so it is flexed to centre the glyph on
+ * the value's baseline. The glyph is a stroked outline in currentColor, which is what
+ * keeps it monochrome and lets it follow the theme's ink in both modes -- an emoji
+ * would carry its own baked-in colour and read as a foreign sticker. Its stroke is a
+ * touch heavier than the 1px family default because at this size a 1px hairline in a
+ * dense composer greys out; 1.4px is what the panel's other icons here already use. */
+[data-eva-mep][data-eva-mep-kind='effort'] .eva-mep-triggerLabel {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dsw-alias-label-dimmed);
+}
+
+[data-eva-mep] .eva-mep-triggerGlyph {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* The weight has to be set on the `path`, not the `svg`: icon() writes stroke-width as
+ * a presentation attribute on the path itself, and a directly-specified value is not
+ * overridden by inheritance from its parent. */
+[data-eva-mep] .eva-mep-triggerGlyph path {
+  /* Back to the theme's 1px icon stroke. The brain carries far more curve per unit area
+   * than the chevron and check do, so at the picker's default 1.4px its internal folds
+   * close up into a blob at this size. */
+  stroke-width: 1;
+}
+
+/* ------------------------------------------------------------- compact seat -- */
+
+/* The composer publishes a compact contract for the model seat, and this control
+ * occupies that seat, so it has to answer it.
+ *
+ * When the control row cannot fit its expanded groups on one line it sets
+ * `data-model-compact` on the row and, with it, two custom properties that every
+ * descendant inherits: `--dsh-composer-model-text-display` (none) and
+ * `--dsh-composer-model-icon-display` (block). Their defaults are the opposite, so a
+ * sheet that reads them shows text normally and collapses on its own exactly when the
+ * row says so. The row derives that from a measurement -- it compares the sum of its
+ * children's widths against its own content box -- rather than from the window width or
+ * from the right column being open, which is why this is keyed on the variable and not
+ * on a media query. A narrow window, a long model name and an expanded inspector all
+ * narrow the row by different amounts and the measurement covers all three; guessing
+ * from any one of them would collapse the labels in cases the row has room for.
+ *
+ * The official control at this seat reads the same two variables, so both controls
+ * collapse at the same moment and the row keeps one rhythm instead of the theme's
+ * buttons behaving differently from the ones beside them.
+ *
+ * Nothing here is a media query on purpose: collapsing the text is not a function of
+ * the viewport, it is a function of the line the buttons were actually given. */
+[data-eva-mep][data-eva-mep-kind='model'] .eva-mep-triggerAxis {
+  display: var(--dsh-composer-model-icon-display, none);
+}
+
+/* The model axis mark is hidden whenever the name is shown, so it never competes with
+ * it; the effort half keeps its brain at all times -- that glyph IS the axis label, and
+ * the value beside it is the part with a compact form. */
+[data-eva-mep] .eva-mep-triggerAxis {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+[data-eva-mep] .eva-mep-triggerAxis path {
+  stroke-width: 1;
+}
+
+[data-eva-mep][data-eva-mep-kind='model'] .eva-mep-triggerLabel,
+[data-eva-mep][data-eva-mep-kind='effort'] .eva-mep-triggerValue:not([hidden]) {
+  display: var(--dsh-composer-model-text-display, block);
+}
+
+[data-eva-mep] .eva-mep-chev {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--dsw-alias-label-dimmed);
+  transition: transform var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+/* Points down when closed, up while the panel is showing. */
+[data-eva-mep][data-eva-mep-open='true'] .eva-mep-chev {
+  transform: rotate(180deg);
+}
+
+/* -------------------------------------------------------------------- popover -- */
+
+[data-eva-mep] .eva-mep-pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  /* Centred on its own trigger, which is what the reference does: the panel grows
+   * symmetrically out of the button rather than hanging off one edge of it. Both
+   * controls use the same rule, so neither needs a left/right special case.
+   *
+   * Collision correction is added on top by the controller, after it measures the real
+   * panel, so a trigger near a screen edge pulls its panel back inside the viewport
+   * instead of running off it. 0px is the no-correction case; keeping the value in the
+   * transform rather than switching the property off means the centred position is
+   * written once and the correction is only ever a delta. */
+  left: 50%;
+  z-index: 1100;
+  display: none;
+  transform: translateX(calc(-50% + var(--eva-mep-shift, 0px)));
+}
+
+[data-eva-mep][data-eva-mep-open='true'] .eva-mep-pop {
+  display: block;
+}
+
+[data-eva-mep] .eva-mep-panel {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* Sized by its contents, capped by the viewport: a short list stays a short panel
+   * instead of floating in a fixed 420px box. `max-content` is what makes the width
+   * follow the text; the cap is what keeps a long model name from pushing the panel
+   * off a narrow screen. The rows inside already ellipsise, so a name that hits the
+   * cap degrades to a clipped label rather than a wider panel.
+   *
+   * This is why the panel no longer declares `container-type: inline-size`: a
+   * size-container is contained in the inline axis, so its own width cannot depend on
+   * its contents -- `max-content` would collapse to zero. The width queries it used to
+   * answer for are handled by the viewport media query at the end of this file. */
+  width: max-content;
+  max-width: min(420px, calc(100vw - 24px));
+  max-height: min(440px, calc(100vh - 120px));
+  padding: 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-panel);
+  background-color: transparent;
+  box-shadow: var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  overflow: hidden;
+
+  --eva-mep-gutter: 8px;
+  --eva-mep-indent: 32px;
+  --eva-mep-row: 38px;
+  --eva-mep-group-row: 36px;
+  --eva-mep-count: inline;
+}
+
+/* The material lives on its own layer, which is how ui-primitives MenuSurface does it:
+ *   position:absolute; inset:0; z-index:-1; border-radius:inherit;
+ *   background:var(--dsw-menu-surface-fill);
+ *   backdrop-filter:var(--dsw-menu-backdrop-filter); pointer-events:none
+ * Keeping it off the panel means the panel never becomes a containing block for
+ * positioned descendants just because it is translucent.
+ * (EVA does not override --dsw-elevation-prominent; the DSH base theme supplies it, so
+ * the fallback above only shows up in a harness that defines nothing.) */
+[data-eva-mep] .eva-mep-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--dsw-menu-surface-fill);
+  -webkit-backdrop-filter: var(--dsw-menu-backdrop-filter);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  pointer-events: none;
+}
+
+/* The effort panel is the same panel; it just holds four short rows, so its own
+ * max-content width is naturally small. No width override -- one rule for both keeps
+ * the two panels from drifting apart as their contents change. */
+[data-eva-mep][data-eva-mep-kind='effort'] .eva-mep-panel {
+  max-height: min(320px, calc(100vh - 120px));
+}
+
+/* --------------------------------------------------------------------- search -- */
+
+[data-eva-mep] .eva-mep__searchRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 2px 0 6px;
+  padding: 0 var(--eva-mep-gutter);
+}
+
+[data-eva-mep] .eva-mep__searchRow[hidden] {
+  display: none;
+}
+
+[data-eva-mep] .eva-mep__search {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--dsw-radius-md);
+  background-color: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+[data-eva-mep] .eva-mep__search::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+[data-eva-mep] .eva-mep__search:focus-visible {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+[data-eva-mep] .eva-mep__search::-webkit-search-cancel-button,
+[data-eva-mep] .eva-mep__search::-webkit-search-decoration {
+  display: none;
+}
+
+[data-eva-mep] .eva-mep__searchClear {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--eva-mep-gutter) + 4px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background-color: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+[data-eva-mep] .eva-mep__searchClear[hidden] {
+  display: none;
+}
+
+[data-eva-mep] .eva-mep__searchClear:hover {
+  background-color: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+[data-eva-mep] .eva-mep__searchClear:focus-visible {
+  outline: 1px solid var(--dsw-alias-brand-primary);
+  outline-offset: -1px;
+}
+
+/* --------------------------------------------------------------------- scroll -- */
+
+[data-eva-mep] .eva-mep__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dsw-alias-scrollbar-bg-l1) transparent;
+}
+
+[data-eva-mep] .eva-mep__scroll[role='menu'] {
+  outline: none;
+}
+
+[data-eva-mep] .eva-mep__scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-eva-mep] .eva-mep__scroll::-webkit-scrollbar-thumb {
+  border-radius: var(--dsw-radius-sm);
+  background-color: var(--dsw-alias-scrollbar-bg-l1);
+}
+
+[data-eva-mep] .eva-mep__scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--dsw-alias-scrollbar-hover-l1);
+}
+
+/* ---------------------------------------------------------------------- group -- */
+
+[data-eva-mep] .eva-mep__group + .eva-mep__group {
+  margin-top: 2px;
+}
+
+[data-eva-mep] .eva-mep__groupBody[hidden] {
+  display: none;
+}
+
+[data-eva-mep] .eva-mep__groupRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--eva-mep-group-row);
+  padding: 0 var(--eva-mep-gutter);
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background-color: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ds-transition-duration-fast) var(--ds-ease-in-out);
+}
+
+[data-eva-mep] .eva-mep__groupIcon {
+  flex: 0 0 auto;
+  width: 18px;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+}
+
+[data-eva-mep] .eva-mep__groupIcon:empty {
+  display: none;
+}
+
+[data-eva-mep] .eva-mep__groupName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-eva-mep] .eva-mep__groupCount {
+  flex: 0 0 auto;
+  display: var(--eva-mep-count);
+  color: var(--dsw-alias-label-dimmed);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-eva-mep] .eva-mep__chev {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--dsw-alias-label-dimmed);
+  transition: transform var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+/* Collapsed points at the list, expanded points at the list it just opened. */
+[data-eva-mep] .eva-mep__groupRow[aria-expanded='false'] .eva-mep__chev {
+  transform: rotate(-90deg);
+}
+
+/* --------------------------------------------------------------------- option -- */
+
+[data-eva-mep] .eva-mep__option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--eva-mep-row);
+  padding: 5px var(--eva-mep-gutter);
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background-color: transparent;
+  background-image: none;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--ds-transition-duration-fast) var(--ds-ease-in-out),
+    background-image var(--ds-transition-duration-fast) var(--ds-ease-in-out);
+}
+
+/* Model rows line up under their group's name, past the icon slot. */
+[data-eva-mep] .eva-mep__option--indent {
+  padding-left: var(--eva-mep-indent);
+}
+
+[data-eva-mep] .eva-mep__optionLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-eva-mep] .eva-mep__check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  color: var(--dsw-alias-state-business-primary);
+}
+
+[data-eva-mep] .eva-mep__option[aria-checked='true'] .eva-mep__check {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------- states -- */
+
+@media (hover: hover) {
+  [data-eva-mep] .eva-mep__option:not(:disabled):hover,
+  [data-eva-mep] .eva-mep__groupRow:not(:disabled):hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  /* A selected row keeps its fill and only brightens under the pointer, so hover can
+   * never make the current value look deselected. */
+  [data-eva-mep] .eva-mep__option[aria-checked='true']:not(:disabled):hover {
+    background-image: linear-gradient(
+      var(--dsw-alias-interactive-bg-hover),
+      var(--dsw-alias-interactive-bg-hover)
+    );
+  }
+}
+
+[data-eva-mep] .eva-mep__option[aria-checked='true'] {
+  background-color: var(--dsw-alias-interactive-bg-active);
+}
+
+/* Focus is drawn as a ring, not a fill, so it stays legible on top of the selection
+ * fill and can never be mistaken for it. */
+[data-eva-mep] .eva-mep__option:focus-visible,
+[data-eva-mep] .eva-mep__groupRow:focus-visible {
+  outline: 1px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
+
+[data-eva-mep] .eva-mep__option:disabled,
+[data-eva-mep] .eva-mep__groupRow:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+[data-eva-mep] .eva-mep__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  padding: 8px var(--eva-mep-gutter);
+  color: var(--dsw-alias-label-dimmed);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* -------------------------------------------------------------- narrow viewport -- */
+
+/* The panel is content-sized, so on a narrow screen the viewport cap above is what
+ * does the work: the panel stops growing at the screen edge and its rows ellipsise.
+ * What is left to do here is tighten the rhythm so a small panel still shows a useful
+ * number of rows, and keep the trigger from eating the whole composer row. */
+@media (max-width: 480px) {
+  [data-eva-mep] .eva-mep__searchRow,
+  [data-eva-mep] .eva-mep__scroll {
+    --eva-mep-gutter: 6px;
+    --eva-mep-indent: 26px;
+    --eva-mep-row: 34px;
+    --eva-mep-group-row: 32px;
+  }
+
+  [data-eva-mep] .eva-mep-panel {
+    max-height: min(64vh, 420px);
+  }
+
+  [data-eva-mep][data-eva-mep-kind='model'] .eva-mep-trigger {
+    max-width: min(200px, 45vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-eva-mep] .eva-mep-trigger,
+  [data-eva-mep] .eva-mep-chev,
+  [data-eva-mep] .eva-mep__chev,
+  [data-eva-mep] .eva-mep__option,
+  [data-eva-mep] .eva-mep__groupRow,
+  [data-eva-mep] .eva-mep__search {
+    transition-duration: 0s;
+  }
+}

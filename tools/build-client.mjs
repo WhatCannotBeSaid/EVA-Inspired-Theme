@@ -114,6 +114,29 @@ const cssPaint = css.replace(/\/\*[\s\S]*?\*\//g, '')
 const bootCss = read('src/boot-screen.css')
 const bootJs = read('src/boot-screen.js')
 
+/* Round 50 (2026-10-14): the composer's model seat. Two more inputs, still no fourth
+ * stylesheet — the picker's paint rules ride in the SAME <style data-plugin-css> tag as
+ * the paint layer and the boot mask, appended after them.
+ *
+ * They cannot go INTO src/theme.css: that sheet is scanned by selfcheck css.7, whose
+ * selector regex is anchored on `(^|})\s*([^{}@][^{}]*?)\{` — it skips an at-block only
+ * at the very start of the sheet, so the picker's four at-rules (@media hover, @media
+ * 480px, @container 380px, @media reduced-motion) would each be read as a selector and
+ * fail the check. Verbatim interpolation into src/client.js is the same door
+ * src/model-effort-picker.js takes for its behaviour.
+ *
+ * Neither new file may carry a backtick or `${` (they are interpolated with ${…});
+ * checked below before the template can be built, exactly as bootJs and clientJs are. */
+const pickerCss = read('src/model-effort-picker.css')
+const pickerJs = read('src/model-effort-picker.js')
+
+const pickerVerbanned = /[`]|\$\{/.exec(pickerJs)
+if (pickerVerbanned !== null) {
+  throw new Error(
+    'src/model-effort-picker.js must stay free of backticks and template placeholders; '
+    + 'found ' + JSON.stringify(pickerVerbanned[0]) + ' at offset ' + pickerVerbanned.index)
+}
+
 /* The rule in the comment above now has teeth. `bootJs` is interpolated verbatim, so
  * one backtick in it would be read as this template's own terminator — the 2026-10-06
  * failure produced a bundle the app reported as "Failed to load plugins /
@@ -524,7 +547,10 @@ window.__ModuleLoader__.load({
     var CSS = ${JSON.stringify(cssPaint)}
 
     var BOOT_CSS = ${JSON.stringify(bootCss)}
+
+    var PICKER_CSS = ${JSON.stringify(pickerCss)}
 ${bootJs}
+${pickerJs}
 ${pluginToggleJs}
 ${sessionEvaStatusJs}
 ${clientJs}

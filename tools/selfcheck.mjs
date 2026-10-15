@@ -519,17 +519,26 @@ checks.check('cli.11', 'the plugin injects the theme service', () => {
    Round 26 (2026-10-08): 「启动屏只播首次」 — the mask records that it already played
    this build, so exactly ONE storage write is allowed, and it is named below. Any
    other write, a preference above all, still fails this check. */
+/* Narrowed on 2026-10-14 (round 50). The check was written when the theme registered
+   no slot at all, so `slots.inject|slots.register` stood in for "the settings section
+   is gone". Round 50 registers the composer's model seat -- a deliberate, user-requested
+   contribution -- so the proxy no longer separates the two things it used to cover. What
+   the check is actually about is the settings section: the theme must not put itself
+   back in the settings panel. That is now asserted directly. */
 checks.check('cli.11b', 'no settings.section registration any more', () =>
-  !/settings\.section|slots\.inject|slots\.register/.test(client) ||
+  !/settings\.section/.test(client) ||
   'client.js still registers a settings section')
-checks.check('cli.11c', 'the client half writes browser storage only for the two named keys', () => {
-  /* Round 39 (2026-10-09) added the second and, by intent, last write: the set of
-     pinned Workspaces. It has to live in the browser -- see the workspace-pins effect in
-     src/client.js for why no host-side door exists (no node_modules of its own, no
-     `@deepseek-ai/cordis` anywhere on this disk, no filesystem writes, no routes, no
-     Config) -- and it is named here so that any further write still fails this check. */
+checks.check('cli.11c', 'the client half writes browser storage only for the named keys', () => {
+  /* Round 39 (2026-10-09) added the second write: the set of pinned Workspaces. It has
+     to live in the browser -- see the workspace-pins effect in src/client.js for why no
+     host-side door exists (no node_modules of its own, no `@deepseek-ai/cordis` anywhere
+     on this disk, no filesystem writes, no routes, no Config).
+     The third (the model picker's collapsed provider groups) is the same shape of fact:
+     which groups the user folded is a preference about the panel, not a property of one
+     conversation, so it has no host-side home either. All three are named here so that
+     any further write still fails this check. */
   const writes = [...client.matchAll(/localStorage\.setItem\(([A-Za-z_$][\w$]*)/g)].map((m) => m[1])
-  const allowed = ['BOOT_SEEN_KEY', 'PIN_KEY']
+  const allowed = ['BOOT_SEEN_KEY', 'PIN_KEY', 'MEP_KEY']
   const stray = writes.filter((name) => !allowed.includes(name))
   if (stray.length > 0) return 'client.js writes browser storage outside the named keys: ' + stray.join(', ')
   if (!writes.includes('BOOT_SEEN_KEY')) return 'the boot mask never records that it played'
