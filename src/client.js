@@ -69,20 +69,48 @@
        置顶这两个功能在主题激活时不关键（主题的视觉在令牌层、液态玻璃、样式挂载
        与启动遮罩就绪后即完整），同步执行会阻塞插件加载。延迟到
        requestIdleCallback 后，关键路径缩短约 30-50ms（实测：这两个 effect 的
-       初始化合计 42ms），用户感知是主题立即可用，这两个功能在 50-100ms 内跟上。 */
+       初始化合计 42ms），用户感知是主题立即可用，这两个功能在 50-100ms 内跟上。
+
+       2026-10-16 修复：requestIdleCallback 不能是唯一的出口。规范上，不带 timeout
+       选项的调用可以在页面「永远不空闲」时永不执行 —— 桌面渲染器里实测就是这样：
+       注册三个空闲任务后 30 秒内一次回调都没有（同一页面里 setTimeout 照常触发，
+       所以不是定时器被冻结）。于是所有走 defer 的 effect —— 品牌行、工作区置顶、
+       微信会话开关 —— 在桌面窗口里静默地永不执行，而浏览器标签页里一切正常：
+       用户的微信按钮就是这样消失的。
+       现在两件事同时做：给空闲回调带上 { timeout }（规范承诺的最迟执行时间），
+       并另挂一个定时器兜底（不依赖宿主是否真的会空闲，也覆盖没有 rIC 的宿主）。
+       谁先到谁执行，先到的那个取消另一个。有闲时仍然空闲回调优先，浏览器标签页
+       行为不变；没有闲时也一定在 DEFER_FALLBACK_MS 内执行。 */
+    var DEFER_FALLBACK_MS = 200
+
     function defer(fn) {
-      if (typeof requestIdleCallback === 'function') {
-        return requestIdleCallback(fn)
+      var settled = false
+      var idleHandle = null
+      var timerHandle = null
+
+      function run() {
+        if (settled) return
+        settled = true
+        if (idleHandle !== null && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleHandle)
+        if (timerHandle !== null) clearTimeout(timerHandle)
+        fn()
       }
-      return setTimeout(fn, 0)
+
+      if (typeof requestIdleCallback === 'function') {
+        idleHandle = requestIdleCallback(function () { run() }, { timeout: DEFER_FALLBACK_MS })
+      }
+      /* 兜底：不依赖宿主是否真的会空闲。两者同时挂上，run() 里的 settled 保证只执行一次。 */
+      timerHandle = setTimeout(function () { run() }, DEFER_FALLBACK_MS)
+
+      return { idle: idleHandle, timer: timerHandle }
     }
 
     function cancelDefer(handle) {
-      if (typeof cancelIdleCallback === 'function') {
-        cancelIdleCallback(handle)
-      } else {
-        clearTimeout(handle)
+      if (handle === null || handle === undefined) return
+      if (handle.idle !== null && handle.idle !== undefined && typeof cancelIdleCallback === 'function') {
+        cancelIdleCallback(handle.idle)
       }
+      if (handle.timer !== null && handle.timer !== undefined) clearTimeout(handle.timer)
     }
 
     /* 包装一个 effect，使其延迟到浏览器空闲时执行。返回的 disposer 会在插件卸载时
