@@ -106,6 +106,170 @@ const css = read('src/theme.css')
  * never on `declarations` — the art is a data URL, not CSS text. */
 const cssPaint = css.replace(/\/\*[\s\S]*?\*\//g, '')
 
+/* P5b (2026-10-15, performance round 5): the strip above covered the paint layer only,
+ * and P5's own reasoning applies unchanged to the other three inputs that ride in the
+ * SAME `<style>` tag — the boot sheet, the picker sheet, and the two behaviour files
+ * interpolated next to them. Measured on this tree, the comments that still shipped
+ * verbatim were 10,478 characters of CSS (1,396 boot + 9,082 picker) and 21,236
+ * characters of JS (3,731 boot + 17,505 picker) — 31,714 characters, about 3.2% of the
+ * non-wallpaper part of the bundle, parsed on every load for no runtime effect.
+ *
+ * Why the JS half is stripped too: these files are interpolated with the template hole
+ * into a module factory, so their comments are compiled and discarded on every load.
+ * The two VENDORED files (build/plugin-toggle.js, build/session-eva-status.js) are
+ * deliberately NOT stripped: their comments are the provenance evidence that
+ * cli.19/cli.23 pin ("移植自 …"), so removing them would destroy a contract.
+ * src/client.js was left out here in round 5 because cli.21 asserted the shipped bundle
+ * still contains its header comment; round 6 made that gate change and now strips it too
+ * (see P5d below, and docs/perf-report-4-2026-10-16.md).
+ *
+ * Safety of the strip (both halves), checked before this was written and re-checked
+ * by `node tools/selfcheck.mjs`:
+ *   · CSS: the two sheets carry no url() and no data URL at all, so the pattern cannot
+ *     land inside a payload; every quoted string in them is free of a comment
+ *     delimiter; braces balance identically before and after (80/80 -> 70/70 for the
+ *     boot+picker pair), and the strip is idempotent.
+ *   · JS: neither file contains a backtick or a backslash-newline, so no string,
+ *     template or regex literal can span a line start; a token walk found 0 comment
+ *     openers inside a string or template; and 0 of the 69 comments sits where
+ *     deleting it would merge two tokens.
+ *
+ * The replacement is newline-preserving, and that is not cosmetic. A block comment can
+ * span lines; replacing it with a single space DELETES those newlines, which can pull
+ * two statements onto one line. JavaScript inserts semicolons by rule, and
+ * `a = b` on one line followed by `(x)` on the next parses as a CALL when the newline
+ * goes away - a silent semantics change. Emitting one newline per newline the comment
+ * contained keeps every line boundary exactly where it was, so the parse cannot move.
+ * Measured cost of that guarantee: 908 characters across the three JS inputs (618 in
+ * client.js, 215 in the picker, 75 in the boot file). The whitespace pass below then
+ * re-collapses the CSS half, so the CSS sheets pay nothing for it. */
+/* P5d (2026-10-15, performance round 6): `src/client.js` is stripped too. It was the
+ * last input carrying its comments into the bundle, and it is the biggest single one:
+ * 99 block comments, 53,697 characters of a 98,095-character file (54.7%). Round 5
+ * left it out on purpose, and recorded why — cli.21 asserted that the bundle contains
+ * the file's text verbatim, including the header comment `The theme's own client glue`,
+ * so stripping it was a GATE change rather than a build change. This round makes that
+ * gate change first (tools/selfcheck.mjs, cli.21 now compares the bundle against
+ * `stripBlockComments(clientJs)` and no longer requires the header comment to survive),
+ * and only then opens the strip here.
+ *
+ * Why the replacement is newline-preserving, stated honestly: it is INSURANCE, and on
+ * today's tree no file needs it. The property that would make it necessary is a
+ * multi-line comment that supplies the ONLY line break between two tokens which would
+ * then join — replacing that comment with one space deletes the break, and automatic
+ * semicolon insertion can read the pair as a single expression. Measured across all
+ * three JS inputs by C:/Work/scratch/eva-perf4/q1q2.mjs: 0 such sites in src/client.js,
+ * 0 in src/boot-screen.js, 0 in src/model-effort-picker.js. A separate, much looser
+ * census (a line that does not end in a terminator followed by a line that could
+ * continue the previous expression) reports 21 / 1 / 0 — but that counts ordinary
+ * intentional multi-line code such as a wrapped argument list, where no comment is
+ * involved and no strip can change anything. The looser number does NOT justify the
+ * rule; the honest reason is that one code path with one guarantee is cheaper to trust
+ * than two paths whose difference is a measurement that can rot, and the guarantee
+ * costs 740 characters in total.
+ *
+ * Equivalence proof (C:/Work/scratch/eva-perf4/prove.mjs, run 2026-10-15): the same
+ * hand-written JS scanner tokenizes the file before and after the strip and compares
+ * every token's type, line number and value —
+ *   src/client.js                98,095 -> 45,016 chars, 1,768 lines, 7,436 tokens, 0 differences
+ *   src/boot-screen.js           12,281 ->  8,625 chars,   290 lines, 1,486 tokens, 0 differences
+ *   src/model-effort-picker.js   45,755 -> 28,465 chars, 1,074 lines, 5,902 tokens, 0 differences
+ * Identical line numbers matter as much as identical tokens: they are what ASI reads.
+ * Full report: docs/perf-report-4-2026-10-16.md. */
+const stripBlockComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (comment) => {
+  const newlines = comment.match(/\n/g)
+  return newlines === null ? ' ' : newlines.join('')
+})
+
+/* P5e (2026-10-16, performance round 7): the JS inputs lose their layout whitespace.
+ * Rounds 5 and 6 took the comments out of every JS input; this takes the indentation.
+ * The two are the same argument one level down — a module factory is compiled on every
+ * load, and leading indentation is bytes the parser skips and nothing ever reads. It is
+ * also the largest purely-textual pool left that no contract protects: measured at
+ * 25,792 characters across the five JS inputs — 22,830 of it indentation, 2,962 of it CR.
+ * Count that on the text THIS transform sees, i.e. after `stripBlockComments` for the four
+ * theme files and on the sliced factory body for the two vendored ones; a census taken on
+ * the raw files would count the 7,409 characters round 6 had already taken out with the
+ * comments — and they were the only place those bytes lived, since the two vendored bodies,
+ * which round 6 does not strip, contribute 0 of that 7,409.
+ *
+ * What it does, in this order, and why that order:
+ *   1. CRLF and lone CR become LF. `src/client.js` is checked out CRLF (git has it LF,
+ *      core.autocrlf=true), so before this step the SAME COMMIT produced a bundle that
+ *      differed by 1,161 characters depending on how the file landed on disk — and because
+ *      the boot mark is sha256 of the output, a different boot mark too. Measured, not
+ *      reasoned: building one tree with the file CRLF and then LF gave
+ *      `764027 / eva-boot/e3e7863b` and `762866 / eva-boot/8072405e`. That is a
+ *      reproducibility defect, not just a size one; normalising here makes the two
+ *      checkouts agree. Those absolute numbers move whenever the sources change — what does
+ *      not move is that the gap is gone.
+ *   2. leading horizontal whitespace is dropped from every line.
+ *
+ * Why this cannot change what the code DOES: it removes no newline, so every line boundary
+ * and every line number stays exactly where it was — which is what automatic semicolon
+ * insertion reads. And it removes no character from inside any string, template or regex:
+ * measured across all five inputs, 0 lines that begin with indentation begin inside a
+ * literal. Proven per input by comparing the token streams of the before and after text
+ * (type, line number and value for every token) and by `node --check`; both are restated
+ * by `node tools/selfcheck.mjs` (cli.21, cli.21b).
+ *
+ * Two entry points, and the difference is deliberate. `normaliseJs` is the whitespace
+ * half alone; `compressJs` is the comments plus it. The theme's own four files take
+ * `compressJs`. The two VENDORED factory bodies take `normaliseJs` ONLY: dropping
+ * indentation deletes no text a reviewer reads, while deleting a comment from
+ * third-party source kept recognisable on purpose (D29) does. Their comment mass is
+ * therefore still shipped, and that is a choice, not an oversight. The hand-written
+ * wrapper written around each body takes neither transform — it carries the `移植自`
+ * provenance markers cli.19/cli.23 pin.
+ *
+ * Measured: 25,792 characters removed across the five JS inputs (22,830 of it indentation,
+ * 2,962 of it the CR). The bundle's own delta is 306 smaller than that, because round 7 also
+ * ADDED those 306 characters of explanation to the two vendored wrapper comments, and the
+ * wrappers are template text, so they ship: 25,792 − 306 = 25,486, which is the measured
+ * bundle delta (764,027 -> 738,541). Full report: docs/perf-report-5-2026-10-16.md. */
+const normaliseJs = (text) => text
+  .replace(/\r\n?/g, '\n')
+  .replace(/^[ \t]+/gm, '')
+
+const compressJs = (text) => normaliseJs(stripBlockComments(text))
+
+/* P5c (2026-10-15, performance round 5): whitespace minimisation, applied to the three
+ * sheets only — never to a JS input, where a newline is sometimes significant (ASI) and
+ * a `//` comment runs to end of line.
+ *
+ * What it does, outside quoted strings and nothing else:
+ *   1. a run of whitespace becomes one space   (\s+ -> ' ')
+ *   2. the spaces adjacent to `{`, `}` and `;` are dropped
+ * In CSS, whitespace outside a string carries no meaning beyond separating tokens.
+ * Collapsing a run to one space therefore cannot change the parse, and `{`/`}`/`;` are
+ * tokens in their own right, so a space beside them separates nothing.
+ *
+ * What it deliberately does NOT touch, and why: the spacing around `:` `>` `+` `~` `(`
+ * `)`. src/theme.css holds six `> :first-child` / `> :nth-child(2)` selectors — there the
+ * space BEFORE the colon is the descendant combinator, and deleting it would turn a
+ * two-level selector into a pseudo-class. The same sheet has 52 `] >` sequences and
+ * seven `calc()` expressions whose `+` needs its spaces to stay valid. A pass that
+ * `\s*([{};:,>])\s*` -> `$1`-style hugs every punctuation mark corrupts all of them; this
+ * pass is small precisely so it can be proven.
+ *
+ * Why it is safe on these files specifically (each checked, not assumed):
+ *   · No quoted string in the three sheets contains a whitespace run, so rule 1 never has
+ *     to decide about string interiors — and it skips them anyway (the split below).
+ *   · Strings are byte-preserved: the split/join never edits a token whose first
+ *     character is a quote. Four `content` values and the font names depend on this.
+ *   · Idempotent, and brace/quote counts are unchanged (70/70, 19/19, 68/68).
+ *   · `content: 'Wovon man nicht sprechen kann, darüber muss man schweigen'` and
+ *     `'EVA-INSPIRED THEME / 闸门开启'` survive with their spaces and their non-ASCII.
+ *
+ * Measured: 26,354 -> 23,219 chars across the three sheets (-11.9%). The theme sheet is
+ * the bulk of it; the two small sheets account for 1,542 of the 3,135. */
+const QUOTED = /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[^'"]+/g
+const minifyCss = (text) => (text.match(QUOTED) || [])
+  .map((piece) => (piece.charAt(0) === "'" || piece.charAt(0) === '"')
+    ? piece
+    : piece.replace(/\s+/g, ' ').replace(/ ?([{};]) ?/g, '$1'))
+  .join('')
+
 /* The boot mask (「闸门开启」) is two more inputs but no third stylesheet: its paint
  * rules are appended to the SAME `<style data-plugin-css>` tag as the paint layer,
  * and its behaviour layer is interpolated verbatim next to the vendored switch. The
@@ -157,7 +321,7 @@ if (bootVerbanned !== null) {
  * template: a backslash here is data, not syntax. The final newline is dropped because
  * the template supplies the line break, which keeps the generated bytes identical to
  * the ones this extraction replaced. */
-const clientJs = read('src/client.js').replace(/\n$/, '')
+const clientJs = read('src/client.js').replace(/[\r\n]+$/, '')
 const clientVerbanned = /[`]|\$\{/.exec(clientJs)
 if (clientVerbanned !== null) {
   throw new Error(
@@ -350,9 +514,13 @@ const pluginToggleJs = [
   '    /* --- 移植自 dsh-disable-unofficial-plugins v1.3.0（MIT，同一作者）---',
   '     * 原样 vendor：下面这段是它 factory 的主体，只做了两处机械处理 ——',
   '     * 包进 IIFE 避免与主题自己的 ~90 个顶层名字撞车、并按模板字符串转义。',
-  '     * 它自己的 apply(ctx) 会用 ctx.effect 注册清理，主题只负责调用一次。 */',
+  '     * 它自己的 apply(ctx) 会用 ctx.effect 注册清理，主题只负责调用一次。',
+  '     * P5e (round 7, 2026-10-16) 追加第三处：主体本身过 normaliseJs，',
+  '     * 即去掉行首缩进与 CR。于是它不再是逐字节副本，而是逐 token 副本 ——',
+  '     * 由 selfcheck 的 vend.1 每次运行重新切片比对，不以注释作证。',
+  '     * 注释一个不删：它们是这份 vendor 可被人工审阅的部分。 */',
   '    var applyPluginToggle = (function () {',
-  vendorBody,
+  normaliseJs(vendorBody),
   '    ; return apply })()',
 ].join('\n')
 
@@ -398,9 +566,11 @@ const sessionEvaStatusJs = [
   '     * 原样 vendor：下面这段是它 factory 的主体，只做了两处机械处理 ——',
   '     * 包进 IIFE（它顶层有 module / exports / apply / PLUGIN_ID 等名字，',
   '     * 不包会与主题自己的名字撞车），以及用 ${…} 直接插值。',
-  '     * 它自己的 apply(ctx) 用 ctx.effect 注册清理，主题只负责调用一次。 */',
+  '     * 它自己的 apply(ctx) 用 ctx.effect 注册清理，主题只负责调用一次。',
+  '     * P5e (round 7, 2026-10-16) 追加第三处：主体本身过 normaliseJs，',
+  '     * 同 plugin-toggle 一样，由 selfcheck 的 vend.2 以重新切片证明等价。 */',
   '    var applySessionEvaStatus = (function () {',
-  statusBody,
+  normaliseJs(statusBody),
   '    ; return apply })()',
 ].join('\n')
 
@@ -550,16 +720,16 @@ window.__ModuleLoader__.load({
 
     var WALLPAPER_DECLARATIONS = ${JSON.stringify(declarations)}
 
-    var CSS = ${JSON.stringify(cssPaint)}
+    var CSS = ${JSON.stringify(minifyCss(cssPaint))}
 
-    var BOOT_CSS = ${JSON.stringify(bootCss)}
+    var BOOT_CSS = ${JSON.stringify(minifyCss(stripBlockComments(bootCss)))}
 
-    var PICKER_CSS = ${JSON.stringify(pickerCss)}
-${bootJs}
-${pickerJs}
+    var PICKER_CSS = ${JSON.stringify(minifyCss(stripBlockComments(pickerCss)))}
+${compressJs(bootJs)}
+${compressJs(pickerJs)}
 ${pluginToggleJs}
 ${sessionEvaStatusJs}
-${clientJs}
+${compressJs(clientJs)}
   },
 })
 `
@@ -626,6 +796,7 @@ writeFileSync(target, output)
  * than calling the character count "bytes". */
 console.log(`wrote client.js  ${output.length} chars (${Buffer.byteLength(output, 'utf8')} bytes)  ` +
   `${MANIFEST.tokens} tokens  ${MANIFEST.wallpapers.length} wallpapers from ${wallpaperFile}  ` +
-  `css ${css.length} chars (${cssPaint.length} after the comment strip)  ` +
+  `css ${css.length} chars (${cssPaint.length} after the comment strip, ` +
+  `${minifyCss(cssPaint).length} after comment+whitespace)  ` +
   `wallpaper block ${declarations.length} chars  ` +
   `boot mark eva-boot/${buildMark}`)

@@ -83,6 +83,40 @@ const patch = read('cordis.patch.yml')
  * why a theme must not select on one. */
 const HASH_CLASS = /\.(?:[A-Za-z0-9_-]*[A-Z0-9][A-Za-z0-9_-]{4,}_[A-Za-z][A-Za-z0-9_-]*)/g
 
+/* cli.21 asks whether the bundle carries src/client.js. Since round 6 (2026-10-15) the
+   build strips that file's block comments before interpolating it, so "contains the file"
+   is no longer the right question — the same shift cli.13 went through in round 5. Since
+   round 7 (2026-10-16) it ALSO normalises CRLF to LF and drops leading indentation
+   (`compressJs` in tools/build-client.mjs), so this restates the whole transform: the
+   gate asks "the bundle carries the file as the build transforms it".
+   Keeping it in step is the point: if the build ever stopped transforming, the bundle
+   would still contain the source and this comparison would still pass; if the build
+   transformed something ELSE, the comparison would fail. A comment is replaced by the
+   newlines it held (one space when it held none), never by nothing, so no two tokens can
+   merge. Dropping indentation removes no newline, so line numbers — what ASI reads —
+   are untouched; cli.21b proves that token by token rather than by this argument. */
+const stripJsComments = (text) => text
+  .replace(/\/\*[\s\S]*?\*\//g, (comment) => {
+    const newlines = comment.match(/\n/g)
+    return newlines === null ? ' ' : newlines.join('')
+  })
+  .replace(/\r\n?/g, '\n')
+  .replace(/^[ \t]+/gm, '')
+
+/* cli.13 compares the paint layer the bundle carries against src/theme.css. Since round 5
+   (2026-10-15) the build ALSO minimises whitespace, so a byte comparison against the
+   comment-stripped source is no longer the right question — the gate's intent is "the
+   embedded CSS is the source, transformed by the build and nothing else". Canonicalising
+   both sides to whitespace-insensitive form keeps that intent and stays independent of
+   the build's exact minifier: if the build ever dropped or altered a declaration, the
+   canonical forms would still differ. Quoted strings are preserved byte for byte, so a
+   changed `content` value still fails. */
+const canonicalCss = (text) => (text.match(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[^'"]+/g) || [])
+  .map((piece) => (piece.charAt(0) === "'" || piece.charAt(0) === '"')
+    ? piece
+    : piece.replace(/\s+/g, ' ').replace(/ ?([{};]) ?/g, '$1'))
+  .join('')
+
 /* ------------------------------------------------------------------ package */
 
 checks.group('package')
@@ -713,11 +747,24 @@ checks.check('cli.20', 'the vendored switch still talks to the real remote servi
   'the vendored switch lost its remote calls')
 /* Extraction of 2026-10-07: the glue used to be written inline in the build template,
    where reading it meant reading a template string. It lives in `src/client.js` now and
-   is interpolated verbatim, so the invariants are (a) that file stays simple enough to
-   be copied, and (b) the bundle is shown to be carrying it — the last check compares the
-   whole file against the bundle, which is the only way to prove "verbatim" and not
-   "similar". */
-checks.check('cli.21', 'the mounting half lives in src/client.js, verbatim', () => {
+   is interpolated, so the invariants are (a) that file stays simple enough to be copied,
+   (b) the bundle is shown to be carrying it — comparing the whole file against the bundle
+   is the only way to prove "carried" and not "similar" — and (c), since round 6, that the
+   file still carries the comments the strip exists to remove, so the source stays the
+   reviewable document and the strip cannot quietly become a no-op.
+
+   ROUND 6 (2026-10-15) — what changed and why. The gate used to assert three things the
+   bundle can no longer satisfy: that the header probe `The theme's own client glue` is in
+   the bundle, and that the bundle contains the file's bytes verbatim. The build strips
+   that file's block comments now (they were 53,697 of its 98,095 characters, and every
+   byte of a module factory is compiled on every load), so the bundle carries the file
+   transformed, exactly as cli.13's paint layer has been since round 5. The probe moved to
+   the SOURCE side, where it still does the job it was added for — catching a header that
+   was deleted or a file replaced by a stub — and the bundle comparison now runs against
+   `stripJsComments`, the build's own transform. The check is still a whole-file comparison,
+   so a dropped or altered statement still fails; it is no longer a byte comparison, and
+   that is the deliberate part. */
+checks.check('cli.21', 'the mounting half lives in src/client.js, transformed by the build', () => {
   if (!exists('src/client.js')) return 'src/client.js is missing'
   const banned = /[`]|\$\{/.exec(clientJs)
   if (banned !== null) {
@@ -725,14 +772,113 @@ checks.check('cli.21', 'the mounting half lives in src/client.js, verbatim', () 
   }
   const probe = "The theme's own client glue"
   if (!clientJs.includes(probe)) return 'src/client.js lost its header comment'
-  if (!client.includes(probe)) return 'the bundle does not carry src/client.js'
-  if (!client.includes(clientJs.replace(/\n$/, ''))) return 'the bundle carries a different copy'
+  const shipped = stripJsComments(clientJs.replace(/[\r\n]+$/, ''))
+  if (shipped.length >= clientJs.length) {
+    return 'the strip removed nothing, so this check proves nothing about the transform'
+  }
+  if (!client.includes(shipped)) return 'the bundle carries a different copy'
   return /applyPluginToggle\(ctx\)/.test(clientJs) || 'src/client.js no longer applies the switch'
 })
+/* cli.21b is the argument cli.21's comment makes, run instead of asserted. Round 7's
+   transform removes indentation and normalises CRLF. Both are invisible to the parser
+   only because neither touches a token or a line boundary — so this check tokenises
+   src/client.js before and after and compares every token's type, LINE NUMBER and value.
+   The line number is in the comparison on purpose: it is what automatic semicolon
+   insertion reads, and "the bytes got smaller" would be satisfied just as well by a
+   transform that joined two lines and broke ASI. A regex-literal-aware scanner is needed
+   because `//` inside a regex is not a comment; the one below is deliberately small and
+   lives here so the claim is checked on every run rather than trusted from a scratch
+   script. cli.21 covers "carried"; this covers "carried without changing the parse". */
+checks.check('cli.21b', 'the JS transform preserves every token and every line number', () => {
+  if (!exists('src/client.js')) return 'src/client.js is missing'
+  const scan = (text) => {
+    const out = []
+    let i = 0
+    let line = 1
+    const n = text.length
+    const prevChar = () => { let j = i - 1; while (j >= 0 && /\s/.test(text[j])) j--; return j < 0 ? '' : text[j] }
+    while (i < n) {
+      const c = text[i]
+      if (c === '\n') { line += 1; i += 1; continue }
+      if (c === '\r' || /\s/.test(c)) { i += 1; continue }
+      if (c === '/' && text[i + 1] === '/') { while (i < n && text[i] !== '\n') i += 1; continue }
+      if (c === '/' && text[i + 1] === '*') {
+        i += 2
+        while (i < n && !(text[i] === '*' && text[i + 1] === '/')) { if (text[i] === '\n') line += 1; i += 1 }
+        i += 2
+        continue
+      }
+      if (c === '"' || c === "'" || c === '`') {
+        const start = i
+        const quote = c
+        i += 1
+        while (i < n) {
+          if (text[i] === '\\') { if (text[i + 1] === '\n') line += 1; i += 2; continue }
+          if (text[i] === '\n') { line += 1; i += 1; continue }
+          if (text[i] === quote) { i += 1; break }
+          i += 1
+        }
+        out.push({ k: 'str', v: text.slice(start, i), line })
+        continue
+      }
+      if (c === '/') {
+        const p = prevChar()
+        if (p === '' || '(,=:[!&|?{};+-*%~^<>'.includes(p)) {
+          const start = i
+          i += 1
+          let inClass = false
+          while (i < n) {
+            if (text[i] === '\\') { i += 2; continue }
+            if (text[i] === '[') inClass = true
+            else if (text[i] === ']') inClass = false
+            else if (text[i] === '/' && !inClass) { i += 1; break }
+            else if (text[i] === '\n') break
+            i += 1
+          }
+          while (i < n && /[gimsuy]/.test(text[i])) i += 1
+          out.push({ k: 're', v: text.slice(start, i), line })
+          continue
+        }
+        out.push({ k: 'p', v: '/', line })
+        i += 1
+        continue
+      }
+      if (/[A-Za-z_$]/.test(c)) { const s = i; while (i < n && /[A-Za-z0-9_$]/.test(text[i])) i += 1; out.push({ k: 'name', v: text.slice(s, i), line }); continue }
+      if (/[0-9]/.test(c)) { const s = i; while (i < n && /[0-9a-fA-FxXoObBeE._]/.test(text[i])) i += 1; out.push({ k: 'num', v: text.slice(s, i), line }); continue }
+      out.push({ k: 'p', v: c, line })
+      i += 1
+    }
+    return out
+  }
+  const before = scan(clientJs)
+  const after = scan(stripJsComments(clientJs.replace(/[\r\n]+$/, '')))
+  if (before.length !== after.length) {
+    return `token count changed: ${before.length} -> ${after.length}`
+  }
+  for (let k = 0; k < before.length; k += 1) {
+    const a = before[k]
+    const b = after[k]
+    if (a.k !== b.k || a.v !== b.v || a.line !== b.line) {
+      return `token ${k} changed: ${a.k} ${JSON.stringify(a.v)} @L${a.line} -> `
+        + `${b.k} ${JSON.stringify(b.v)} @L${b.line}`
+    }
+  }
+  /* The transform must still be a reduction, or it is not doing the work it claims. */
+  const shrunk = stripJsComments(clientJs).length < clientJs.length
+  return shrunk || 'the transform removed nothing, so this check proves nothing'
+})
+
+/* cli.22's intent is "the build reads the mounting half, it does not carry a retyped
+   copy of it". Round 6 changed the interpolation from `${clientJs}` to
+   `${stripBlockComments(clientJs)}`, and round 7 to `${compressJs(clientJs)}` — the
+   transform is now the combined one. The assertion is still that clientJs — the
+   variable, not a literal — is what the template interpolates, through a transform
+   named in the same file, so a copy pasted into the template still fails. */
 checks.check('cli.22', 'the build reads the mounting half instead of inlining it', () => {
   const builder = read('tools/build-client.mjs')
   if (!builder.includes("read('src/client.js')")) return 'the build never reads src/client.js'
-  return /\$\{clientJs\}/.test(builder) || 'the template does not interpolate clientJs'
+  return /\$\{compressJs\(clientJs\)\}/.test(builder) ||
+    'the template does not interpolate clientJs through compressJs'
 })
 /* The second vendor (2026-10-09): `build/session-eva-status.js` is the upstream client
    bundle of the user's `dsh-session-eva-status` v0.1.0, copied byte for byte and sliced
@@ -757,6 +903,51 @@ checks.check('cli.24', 'the vendored rail still reads the real session services'
   return absent.length === 0 ||
     `exports.inject is missing ${absent.join(', ')} — apply() could run before they exist`
 })
+/* vend.1 / vend.2 (2026-10-16, round 7). Before this round the two vendored factory
+   bodies rode in the bundle byte for byte, and both files' own comments said so. Round 7
+   normalises their layout (CRLF -> LF, leading indentation dropped) to stop shipping
+   ~7,000 characters of indentation, which means the byte-for-byte claim is no longer true
+   and must not be left standing in a comment. It is replaced here by a CHECKED claim of
+   the same strength: re-slice the body out of the upstream file the same way the build
+   does, apply the same normalisation, and require the bundle to contain it. So the
+   property "this block is the upstream block" is still enforced — now it survives a
+   formatting change, and a hand-edit to either the copy or the upstream file still fails.
+
+   What is deliberately NOT claimed any more: byte identity. Both bodies keep every
+   comment (that is the point of normalising rather than stripping them), so a reviewer
+   can still read the vendored source in place. */
+const sliceVendor = (relative, open, tail) => {
+  const src = read(relative)
+  const openAt = src.indexOf(open)
+  const tailAt = src.indexOf(tail)
+  if (openAt < 0 || tailAt < openAt) return null
+  return src.slice(openAt + open.length, tailAt)
+}
+const normaliseVendor = (text) => text.replace(/\r\n?/g, '\n').replace(/^[ \t]+/gm, '')
+checks.check('vend.1', 'the plugin-toggle body in the bundle is the upstream body, minus layout', () => {
+  const body = sliceVendor('build/plugin-toggle.js', 'factory: () => {',
+    "return { name: SELF, apply, inject: ['remote', 'locale'] };")
+  if (body === null) return 'build/plugin-toggle.js: factory boundaries not found'
+  if (!/function apply\(ctx\)/.test(body)) return 'the sliced body has no apply(ctx)'
+  if (!client.includes(normaliseVendor(body))) return 'the bundle does not carry the normalised body'
+  if (normaliseVendor(body) === body) {
+    return 'the normalisation changed nothing, so this check cannot tell a re-vendor from a no-op'
+  }
+  return /移植自 dsh-disable-unofficial-plugins v1\.3\.0/.test(client) ||
+    'the provenance marker is gone from the bundle'
+})
+checks.check('vend.2', 'the session-status body in the bundle is the upstream body, minus layout', () => {
+  const body = sliceVendor('build/session-eva-status.js', 'factory: () => {', 'return module.exports')
+  if (body === null) return 'build/session-eva-status.js: factory boundaries not found'
+  if (!/exports\.apply = apply/.test(body)) return 'the sliced body lost its exports map'
+  if (!client.includes(normaliseVendor(body))) return 'the bundle does not carry the normalised body'
+  if (normaliseVendor(body) === body) {
+    return 'the normalisation changed nothing, so this check cannot tell a re-vendor from a no-op'
+  }
+  return /移植自 dsh-session-eva-status v0\.1\.0/.test(client) ||
+    'the provenance marker is gone from the bundle'
+})
+
 /* D78 (2026-10-09): the rail is the one vendored block the theme patches by hand, so the
    three patches are pinned here. cli.23 only checks the provenance markers, not the body:
    a refresh of the upstream copy (D29/D77) that silently drops a patch would be a silent
@@ -943,10 +1134,35 @@ checks.check('cli.13', 'client.js embeds the paint layer, comments stripped', ()
   const embedded = client.match(/var CSS = ("(?:[^"\\]|\\.)*")/)
   if (embedded === null) return 'CSS block not found'
   const shipped = JSON.parse(embedded[1])
-  if (shipped !== css.replace(/\/\*[\s\S]*?\*\//g, '')) {
-    return 'CSS differs from src/theme.css (comments stripped)'
+  /* Canonical form, not bytes: the build strips comments and (since round 5) collapses
+     whitespace. See canonicalCss above for why that still proves equivalence. */
+  if (canonicalCss(shipped) !== canonicalCss(css.replace(/\/\*[\s\S]*?\*\//g, ''))) {
+    return 'CSS differs from src/theme.css (comments stripped, whitespace canonicalised)'
   }
   return !/\/\*/.test(shipped) || 'the embedded paint layer carries comments again'
+})
+checks.check('cli.13b', 'the three shipped sheets carry no comments and no loose whitespace', () => {
+  /* P5c (2026-10-15, round 5). cli.13 above proves the paint layer still DERIVES from
+     src/theme.css; this one pins the two transforms that shrink it, so a future build
+     cannot quietly start shipping either one again. Both are pure reductions of the
+     source, so "no comment opener, no run of whitespace, no blank line" is exactly the
+     property that has to hold — and it is checked on the BUNDLE, which is what the
+     browser parses, not on the sources, which keep every comment a reviewer needs. */
+  const bad = []
+  for (const name of ['CSS', 'BOOT_CSS', 'PICKER_CSS']) {
+    const found = client.match(new RegExp('var ' + name + ' = ("(?:[^"\\\\]|\\\\.)*")'))
+    if (found === null) { bad.push(`${name}: block not found`); continue }
+    const text = JSON.parse(found[1])
+    if (/\/\*/.test(text)) bad.push(`${name}: still carries a comment opener`)
+    if (/\n\s*\n/.test(text)) bad.push(`${name}: still carries a blank line`)
+    if (/[ \t]\n|\n[ \t]|\s{2,}/.test(text)) bad.push(`${name}: still carries loose whitespace`)
+    /* A quoted string must survive byte for byte: the four `content` values and the font
+       names are the only places a whitespace run is meaningful. */
+    for (const str of text.match(/'(?:[^'\\]|\\.)*'/g) ?? []) {
+      if (name === 'CSS' && str.trim() !== str) bad.push(`${name}: a quoted value lost its edges`)
+    }
+  }
+  return bad.length === 0 || bad.join('; ')
 })
 checks.check('cli.14', 'client.js carries the art of every wallpaper it names', () => {
   /* Embedded art: proving the data URL is in the bundle needs a prefix, not a 700 KB
