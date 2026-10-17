@@ -1243,6 +1243,12 @@
            the title is what the user reads on that row. A missing match costs this entry its
            effect and nothing else. */
         var WX_GROUP_LABEL = '微信会话'
+        /* Round 62: the 'Yu' alias added in round 61 is gone. It made this entry treat the
+           user's own Yu workspace as the WeChat group, so that workspace vanished whenever
+           the button was off (theme.css: [data-eva-wx-tree='off'] [data-eva-wx-group='on']
+           hides the group) and was the only group left whenever the button was on. The WeChat
+           group must own exactly its own workspace (C:\Users\Axiom\.dsh\dsh_wechat, titled
+           微信会话 by dsh-wechat-plugin), and Yu must never be matched here. */
         /* The host's own names for the 工作区 area and for the empty marker that is a
            direct child of that row -- both are slots, not CSS-Modules classes. */
         var SLOT_SELECTOR = "[data-slot='sidebar.workspaces']"
@@ -1421,7 +1427,8 @@
             key = keyOf(row)
             if (key === null || key.indexOf(WORKSPACE_PREFIX) !== 0) continue
             if (key === WORKSPACE_PREFIX) continue
-            if (row.textContent.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '') !== WX_GROUP_LABEL) continue
+            var title = row.textContent.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '')
+            if (title !== WX_GROUP_LABEL) continue
             return row
           }
           return null
