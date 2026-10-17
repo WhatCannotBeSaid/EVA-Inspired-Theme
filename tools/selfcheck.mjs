@@ -449,7 +449,123 @@ checks.check('css.13', 'the settings veil is cleared on the overlay that actuall
   return true
 })
 
-checks.group('boot-screen')
+checks.check('css.14', "the art layer's filter is selected per mode, not hard-wired", () => {
+  /* Round 61 (2026-10-17, user m00732「暗色模式下加一点模糊度或者降一点透明度，现在有点看不清
+     文字。」, then m01001「以暗色模式为准，统一亮色和暗色」, then m01129「暗色不变，亮色blur
+     改为2px」): the two modes share a BRIGHTNESS, but not a radius. The radius was made equal
+     in the round that unified them; the user then asked for the light one to come down to 2px
+     on its own, so equality of radius is no longer the contract and asserting it would fight
+     the instruction. What survives is: `filter` must not be a literal on the art layer (the
+     tokens are what the dark rule rebinds), both modes must ship the SAME brightness (that is
+     the part of "风格统一" the user kept), and each radius must stay inside the 0..6px window
+     the user set as the ceiling. A mode quietly drifting on brightness is the regression. */
+  const sheet = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const art = [...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter((m) => /^body::before$/.test(m[1].trim()))
+  if (art.length !== 1) return `${art.length} body::before rules, expected 1`
+  const body = art[0][2]
+  if (!/filter:\s*var\(--cp-filter\)/.test(body)) {
+    return 'the art layer does not read --cp-filter (a literal filter silently loses the per-mode split)'
+  }
+  if (/filter:\s*(?:none|blur\()/.test(body)) return 'the art layer hard-wires its filter'
+  const lightFilter = /--cp-filter-light:\s*blur\(\s*(\d+)px\s*\)\s*brightness\(\s*([0-9.]+)\s*\)/.exec(sheet)
+  if (!lightFilter) return '--cp-filter-light is no longer a blur+brightness pair'
+  const darkFilter = /--cp-filter-dark:\s*blur\(\s*(\d+)px\s*\)\s*brightness\(\s*([0-9.]+)\s*\)/.exec(sheet)
+  if (!darkFilter) return '--cp-filter-dark is not a blur+brightness pair'
+  if (lightFilter[2] !== darkFilter[2]) {
+    return `the two modes drifted apart on brightness: light ${lightFilter[2]} vs dark ${darkFilter[2]} (the radius may differ, the brightness may not)`
+  }
+  for (const [mode, m] of [['light', lightFilter], ['dark', darkFilter]]) {
+    if (Number(m[1]) > 6) return `--cp-filter-${mode} blur is ${m[1]}px, above the 6px ceiling the user set (m00842)`
+    if (Number(m[1]) < 1) return `--cp-filter-${mode} blur is ${m[1]}px, so that mode's art is not blurred at all`
+  }
+  if (!/--cp-filter:\s*var\(--cp-filter-light\)/.test(sheet)) return 'no light-mode --cp-filter binding'
+  const dark = [...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter((m) => /^body\[data-ds-dark-theme\]$/.test(m[1].trim()))
+  if (dark.length !== 1) return `${dark.length} dark-mode rules, expected 1`
+  if (!/--cp-filter:\s*var\(--cp-filter-dark\)/.test(dark[0][2])) {
+    return 'dark mode does not rebind --cp-filter, so it would paint the light filter'
+  }
+  return true
+})
+checks.check('css.15', 'the art is filtered inside the blur+brightness window the modes share, and the inset follows it', () => {
+  /* Round 61 (2026-10-17). Measured on out/wallpaper-src/wallhaven-og33jl.png at
+     1600x900 (cover), shipped fill #1a1325 at alpha 0.35, glyph-sized 13px patch mean as
+     the ink's background, worst pixel over the frame. Blur alone cannot get there inside
+     the user's radius budget (m00842「6px都够了, 不能超过6px，越低越好」): 6px still leaves
+     the worst patch at tertiary 1.41. The lever that works is brightness, which pushes the
+     whole art down instead of averaging its hot pixels away.
+
+       worst patch, primary / secondary / tertiary
+         4px + 100%  ->  1.75 / 1.42 / 1.18
+         4px +  62%  ->  3.89 / 3.16 / 2.62
+         4px +  45%  ->  5.90 / 4.79 / 3.97
+         4px +  40%  ->  6.69 / 5.43 / 4.50   (first row that clears 4.5 for all three)
+         4px +  38%  ->  7.02 / 5.70 / 4.73   (shipped first, as AA-compliant)
+         4px +  65%  ->  3.45 / 2.80 / 2.32   (shipped now, by the user's instruction)
+
+     The 0.65 row is NOT AA compliant at its worst pixel, and this check no longer claims
+     it is. The user looked at 0.38 and said the art itself had become unreadable
+     (m01083「现在太模糊了，根本看不清」), then named the one number to move (m01089「亮度，
+     改为0.65」). So the trade is explicit and it is his: the picture is back, and the
+     worst 0.07%-0.21% of the frame -- roughly one glyph-sized patch per screen -- sits
+     under 4.5 where it lands on the brightest noise. The gate therefore pins the RANGE the
+     pair has to stay in, not a pixel-perfect ratio; a ratio floor here would either block
+     the value the user asked for or be a number nobody re-measures.
+
+     Keep the numbers and the reason together. A future round that moves either half must
+     re-measure -- the pair is only justified as a pair, and dropping brightness alone is
+     exactly the shape that shipped unreadable text in the first place. */
+  const sheet = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const blurDark = /--cp-blur-dark:\s*(\d+)px/.exec(sheet)
+  if (!blurDark) return '--cp-blur-dark is not a plain px value'
+  const radius = Number(blurDark[1])
+  if (radius > 6) return `--cp-blur-dark is ${radius}px, above the 6px the user set as the ceiling (m00842)`
+  if (radius < 1) return '--cp-blur-dark is 0, so the dark art is not blurred at all'
+  const bright = /--cp-filter-dark:\s*blur\(\s*\d+px\s*\)\s*brightness\(\s*([0-9.]+)\s*\)/.exec(sheet)
+  if (!bright) return '--cp-filter-dark does not pair the blur with a brightness() (the blur alone cannot clear 4.5)'
+  const brightness = Number(bright[1])
+  /* The window, not a point. Below 0.38 the art is gone (that is what made the user ask
+     for it to come back); above 0.85 the brightness stops helping at all and the pair is
+     back to blur-only, which is the shape that shipped unreadable text. 0.65 sits inside
+     it. Keep the bounds loose enough that the user can name a number and have it land. */
+  if (brightness < 0.38) {
+    return `--cp-filter-dark brightness is ${brightness}, below 0.38: the art is crushed past the point the user could read it`
+  }
+  if (brightness > 0.85) {
+    return `--cp-filter-dark brightness is ${brightness}, above 0.85: the blur is carrying the whole load again, which is the pair that shipped unreadable text`
+  }
+  const blurLight = /--cp-blur-light:\s*(\d+)px/.exec(sheet)
+  if (!blurLight) return '--cp-blur-light is not a plain px value'
+  /* m01129「暗色不变，亮色blur改为2px」: the two radii may now differ, so this no longer
+     demands equality. What still matters for the light mode is that it stays inside the same
+     0..6px window -- an unblurred or over-blurred light art is the shape that broke before. */
+  if (Number(blurLight[1]) > 6) return `--cp-blur-light is ${blurLight[1]}px, above the 6px ceiling the user set (m00842)`
+  if (Number(blurLight[1]) < 1) return '--cp-blur-light is 0, so the light art is not blurred at all'
+  if (!/inset:\s*calc\(-1 \* var\(--cp-blur/.test(sheet)) {
+    return 'the art layer no longer over-extends by the blur radius, so a blurred element would fade at the viewport edges'
+  }
+  /* The filter radius and the inset radius must describe the same edge growth.
+     Round 61, caught while re-reading this file: this line was first written through a
+     Python heredoc and reached the file as `\s` instead of `\\s`. Inside a TEMPLATE LITERAL
+     an unrecognized escape like `\s` collapses to a bare `s`, so the gate was compiling to
+     `--cp-filter-dark:s*blur(4px)` -- `s*` happens to match zero `s`, so it still matched the
+     shipped string and the defect stayed invisible. It is written with the doubled backslash
+     now, and the failure message prints `source` so a future escaping slip shows up in the
+     output rather than quietly loosening the gate. */
+  const filterRadius = new RegExp(`--cp-filter-dark:\\s*blur\\(${radius}px\\)`)
+  if (!filterRadius.test(sheet)) {
+    return `--cp-filter-dark does not repeat the ${radius}px that --cp-blur-dark declares (gate regex: ${filterRadius.source})`
+  }
+  /* Same coupling for the light mode, which now has its own radius (m01129). */
+  const lightRadius = Number(blurLight[1])
+  const lightFilterRadius = new RegExp(`--cp-filter-light:\\s*blur\\(${lightRadius}px\\)`)
+  if (!lightFilterRadius.test(sheet)) {
+    return `--cp-filter-light does not repeat the ${lightRadius}px that --cp-blur-light declares (gate regex: ${lightFilterRadius.source})`
+  }
+  return true
+})
+
 /* 「闸门开启」 landed on 2026-10-06: two source files, three build changes, no host
    half. The checks below pin the parts that are silent when they break — an escaping
    slip that only shows up as an import failure, or a fallback clock that leaves a
@@ -1056,8 +1172,21 @@ checks.check('cli.26', 'the WeChat entry switches one workspace through the offi
   if (!/key === WORKSPACE_PREFIX\) continue/.test(client)) {
     return 'the switch would match the Ungrouped bucket as the workspace'
   }
-  if (!/if \(row\.textContent\.replace\(\/\^\[ \\t\\r\\n\]\+\/, ''\)\.replace\(\/\[ \\t\\r\\n\]\+\$\/, ''\) !== WX_GROUP_LABEL\) continue/.test(client)) {
+  /* Round 62 (2026-10-17, m00001「现在Yu工作区变成按微信按钮才能出现了」): round 61's 'Yu'
+     alias is withdrawn, because it made this entry own the user's own Yu workspace -- the
+     group was hidden while the button was off and was the only group left while it was on.
+     The assertion is now the strict single-name form, and it also pins the alias OUT: the
+     row text must still be TRIMMED before comparing (a row carrying whitespace must match),
+     the comparison must name the label variable rather than a typed literal, and nothing
+     else may be accepted as this group's name. */
+  if (!/var title = row\.textContent\.replace\(\/\^\[ \\t\\r\\n\]\+\/, ''\)\.replace\(\/\[ \\t\\r\\n\]\+\$\/, ''\)/.test(client)) {
     return 'the switch does not trim the row text before comparing it'
+  }
+  if (!/if \(title !== WX_GROUP_LABEL\) continue/.test(client)) {
+    return 'the switch does not compare the trimmed title against the enforced workspace name'
+  }
+  if (/WX_GROUP_ALIAS/.test(client) || /title !== 'Yu'/.test(client)) {
+    return 'the switch still accepts a second name for this group, so it can take over Yu'
   }
   if (!/scope\.querySelectorAll\('\[data-row-key\]'\)/.test(client)) {
     return 'the switch does not walk the rows by their official key attribute'

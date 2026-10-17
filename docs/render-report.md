@@ -3916,3 +3916,89 @@ npm run verify          → exit code 0
 - **注释里的数字要当场核**：本轮初稿把插件设置页的行号写成 `client.js:1080`/`:1117`（对），但另一处误写成 `:618` 表述成「分支」；正确读法是 `:618` 是 GET 请求本身，两处分支在 `:1080` 与 `:1117`。
 - **产物是构建出来的、不在 git 里**：`client.js` 被 `.gitignore` 排除，判改动看源码与 `git diff --stat`。
 - **两套 D 编号各走各的**：`docs/design.md` 记决策（本轮 **D94**），`docs/render-report.md` 记轮次（本节第 **58** 节 / 第六十轮 / 它自己的 **D74**）——第 57 节漏了这条对照，本节补上，免得下一个改文档的人把 design.md 的 D94 抄进本文件的标题（本轮初稿正是这么错的：标题一度写成 D94，与本文件自己的 D73 序列断开）。
+
+## 59. 第六十一轮：两档壁纸同一个压暗、模糊半径各归各的（D95）（2026-10-17 追加）
+
+用户 2026-10-17 逐字：「暗色模式下加一点模糊度或者降一点透明度，现在有点看不清文字。」→「有点太模糊了呀，啥都不看不见了。」→「6px都够了，不能超过6px，越低越好。」→「请你不要再试了，直接先弄一个版本，后续再根据我的指令调整就行。」→「这样就好，以同样的方式处理下亮色模式然后推送。」→「我的意思以暗色模式为准，统一亮色和暗色，总不能暗色壁纸有模糊，亮色壁纸就清晰可见吧，那样风格就不统一了。」→「现在太模糊了，根本看不清，你设置的参数是什么？」→「亮度，改为0.65」→「暗色不变，亮色blur改为2px」
+
+### 59.1 一句话结论
+
+两档现在发的是**同一个亮度、各自的模糊半径**：
+
+```
+--cp-blur-light: 2px;      --cp-filter-light: blur(2px) brightness(0.65);
+--cp-blur-dark:  4px;      --cp-filter-dark:  blur(4px) brightness(0.65);
+```
+
+`body[data-ds-dark-theme]` 仍按模式重绑 `--cp-filter` / `--cp-blur`，所以换档走属性、不走 JS；`inset: calc(-1 * var(--cp-blur, 0px))` 读的是各档自己的半径，亮档 2px 的负 inset 自动就是 2px，不需要第二套规则。
+
+### 59.2 这一轮的形状：先统一，再解耦
+
+三段指令叠在一起，只看第一段会误判：
+
+1. 「以暗色模式为准，统一亮色和暗色」——把口径从「暗档的问题」提升到「两档的观感」，于是两档一度逐字相同：都是 `blur(4px) brightness(0.38)`。
+2. 「现在太模糊了，根本看不清」——否决的是 **brightness**，不是半径。4px 这种小半径在壁纸上几乎看不出模糊，真正把画压没的是 `0.38`。
+3. 「亮度，改为0.65」→「暗色不变，亮色blur改为2px」——保留统一的那一半（亮度），拆开半径（暗 4px、亮 2px）。
+
+所以本轮的判据是：**亮度必须相等，半径可以不等**。「风格不统一」在代码里的形状是亮度漂开；半径差 2px 只是给亮档留的余地。
+
+### 59.3 暗档为什么是 4px + 0.65
+
+测的是 `out/wallpaper-src/wallhaven-og33jl.png`（1600x900 按 cover 缩放），fill `#1a1325` alpha 0.35，取字形大小 13px 的方块均值当文字真正压住的底色，逐像素取最坏值。这张画的问题在**高频**：0.2% 的像素是发亮的眼睛与红色划痕，峰值相对亮度 0.42，是画面中位数的 54 倍。
+
+| 半径 | 最坏 primary / secondary / tertiary | 细节保留率 |
+| --- | --- | --- |
+| 0px | 1.60 / 1.30 / 1.08 | 100% |
+| 4px | 1.75 / 1.42 / 1.18 | 53.5% |
+| 6px | 2.10 / 1.70 / 1.41 | 42.3% |
+| 12px | 4.07 / 3.31 / 2.74 | 24.4% |
+| 28px | 7.43 / 6.04 / 5.00 | — |
+
+92% 的有害边缘能量在 6px 之前就没了，而 6px 之后每多一档只换来很少的可读性、却把画糊成雾 —— 28px 那次用户的原话是「啥都看不见了」。所以模糊停在 4px（用户要「越低越好」），可读性交给压亮度。同一口径下压亮度的收益（括号内是低于 4.5 的面积占比）：
+
+```
+4px + 100%  ->  1.75 / 1.42 / 1.18   (0.440% / 0.597% / 0.837%)
+4px +  62%  ->  3.89 / 3.16 / 2.62   (0.040% / 0.164% / 0.312%)
+4px +  45%  ->  5.90 / 4.79 / 3.97   (0.000% / 0.000% / 0.053%)
+4px +  40%  ->  6.69 / 5.43 / 4.50   (0.000% / 0.000% / 0.000%)   <- 刚好卡在 4.5
+4px +  38%  ->  7.02 / 5.70 / 4.73   (0.000% / 0.000% / 0.000%)   <- 上一版，用户嫌黑
+4px +  65%  ->  3.45 / 2.80 / 2.32   (0.066% / 0.132% / 0.208%)   <- 现在发的这一档
+```
+
+**0.65 不是 AA 合规档**：最坏的 0.066%／0.132%／0.208% 面积低于 4.5（一屏 1600x900 约 1～3 个字形大小的地方）。这是用户在「画被压没了」和「文字有点吃亏」之间自己选的，门禁因此不再宣称合规，只钉区间。
+
+### 59.4 亮档为什么是 2px + 0.65
+
+亮档本来就富余 —— 同一口径实测（`out/wallpaper-src/eva01-city.jpg`，1600x900 cover，fill `#e2e1ed` alpha 0.84，字形 13px 方块均值）：`2px/0.65` 下最坏值 `8.65 / 7.49 / 6.52`，`4px/0.65` 下同样是 `8.65 / 7.49 / 6.52`。亮档在这两档之间几乎不动，瓶颈从来是亮度不是清晰度，所以降到 2px 不会让它「清晰可见」到与暗档割裂。
+
+### 59.5 为什么压亮度，而不是抬 alpha
+
+用户原话的另一半是「降一点透明度」，但 alpha 是**冻结值**：`tools/selfcheck.mjs:1567` 的 `DARK_VEIL_ALPHA = 0.35`、`:1568` 的 `DARK_VEILED = {'--dsw-alias-bg-base': '#1a132559', '--dsw-specific-sidebar-fill': '#1a132559'}` 与 `:1566` 的 `DARK_TOKENS_SHA = 'd29a6d36e8a444fc'` 把它连同 55 个暗档令牌的 sha256 一起钉住（`dark.1` / `dark.2`），动它要重新解令牌、重算摘要、牵动 55-token 账本；而且实测 alpha 一路拉到 0.60，模糊 0 时 tertiary 也只有 2.28，够不着 4.5。压亮度动的是低频，同级效果、代价小得多。
+
+### 59.6 改到的文件
+
+- **`src/theme.css`**：`--cp-blur-dark: 28px` → `4px`、`--cp-blur-light: 0px` → `4px` → `2px`；`--cp-filter-dark: blur(28px)` → `blur(4px) brightness(0.38)` → `blur(4px) brightness(0.65)`；`--cp-filter-light: none` → `blur(4px) brightness(0.38)` → `blur(2px) brightness(0.65)`。`body::before` 的 `filter: var(--cp-filter)` 与 `inset: calc(-1 * var(--cp-blur, 0px))` 一个字没动（半径变了，负 inset 自动跟着变）。上方两段注释整块重写成这一轮的口径。
+- **`tools/selfcheck.mjs`**：`css.14`（画层滤镜按模式选、不是写死字面量）从「亮档必须是 `none`」改成「两条 `--cp-filter-*` 都是 `blur(Npx) brightness(X)` 成对出现，且**两个亮度 X 必须相等**，两个半径各自落在 `1..6px`」；`css.15`（画层滤镜落在两档共享的窗口内、且 inset 跟随）从「半径 ≥ 24px」改成「`1px ≤ 半径 ≤ 6px`、`--cp-filter-dark` 必须把 `blur()` 与 `brightness()` 成对写出、`0.38 ≤ brightness ≤ 0.85`、`inset: calc(-1 * var(--cp-blur…` 仍在、`--cp-filter-dark` 里的 `blur(Npx)` 必须与 `--cp-blur-dark` 一致」，并给亮档补了一条同形的「`--cp-filter-light` 里的 `blur(Npx)` 必须与 `--cp-blur-light` 的 N 一致」。
+- **`docs/design.md`**：D95 追记最终态（②③④ 三段）。
+- **`docs/render-report.md`**：本节按最终态重写。
+
+### 59.7 门禁读数
+
+```
+npm run verify          → exit code 0
+  node --check index.js / client.js            OK
+  selfcheck.mjs                                125 assertions, 0 failed, 125 passed
+  token-audit                                  AUDIT OK — 55 overrides, exactly the planned 55 (A 41 + B 14)
+  build-client.mjs --check                     client.js check: OK (in sync with src/, 738739 chars,
+                                               55 tokens, 2 wallpapers from out/wallpapers.local.json)
+```
+
+`node tools/build-client.mjs` 输出：`wrote client.js 738739 chars (752674 bytes) 55 tokens 2 wallpapers from out/wallpapers.local.json css 96511 chars (12063 after the comment strip, 10525 after comment+whitespace) wallpaper block 576543 chars boot mark eva-boot/7d88ea28`。产物里 `--cp-blur-light: 2px;`、`--cp-blur-dark: 4px;`、`--cp-filter-light: blur(2px) brightness(0.65);`、`--cp-filter-dark: blur(4px) brightness(0.65);` 各一条，`brightness(0.38)` 零条。构建产物 `client.js` 的 sha1 与 profile 软链那份一致：`2f5899735372a4a8a7726ed22c5a36c1da61fdc2`。
+
+### 59.8 坑
+
+- **`css.15` 的失败文案一度骗人**：重写后第一次 `npm run verify` 报的是 `--cp-filter-dark does not repeat the 4px that --cp-blur-dark declares`，看起来像 `theme.css` 少了半径；实际是 `tools/selfcheck.mjs` 里那行 `new RegExp(\`--cp-filter-dark:\s*blur\(${radius}px\)\`)` 的**反斜杠被吃掉了一层**（从 Python 写回去时 `\\s` 变成了 `\s`，`\s` 退化成字面 `s`、`\(` 退化成能匹配任意字符的分组）。改这一行要连着数反斜杠，改完直接打印那条正则的 `source` 核一遍。
+- **别用 heredoc 直接改中文文档**：在 bash 里 `node -e "…"` 且脚本体含反引号／括号时，shell 会抢着做命令替换，中文段落里的 `(0.38)`、`var(--cp-blur)` 全被当子命令执行，写进文件的却是被掏空的文本。改 `docs/*.md` 一律先落到 `C:\Work\scratch\` 的 `.mjs`／`.md`，再 `node script.mjs` 执行。
+- **CRLF**：`src/theme.css`、`tools/selfcheck.mjs`、`docs/design.md`、`docs/render-report.md` 全是 CRLF。按 `'\n'` 切分再拼回去会把 `\r` 留在行尾，断言「上一行是空的」就会假失败。改法一律是整文件读、改完写回时保持 CRLF，并当场核「CRLF 计数 == 行数 - 1」。
+- **构建是产物判据**：`client.js` 被 `.gitignore` 排除，看改动只看源码 `git status`，但**生效**与否只看 `--check` 与 profile 软链那份的 sha1。
+- **两套 D 编号各走各的**：`docs/design.md` 记 **D95**，本节是第 **59** 节 / 第六十一轮 —— 不要混抄。

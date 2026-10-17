@@ -80,13 +80,72 @@
  * ------------------------------------------------------------------------ */
 body {
   /* 2026-10-06 用户更正：「我是让你去掉毛玻璃效果，然后把透明度调到 75%」——
-     所以这里是 0px（毛玻璃关掉），不是原来那版冻结的面板默认值 4px。
+     所以那时候这里是 0px（毛玻璃关掉），不是原来那版冻结的面板默认值 4px。
      透明度 75% 在 build/veil-budget.json -> src/tokens.json 那一侧
-     （tools/s3-veil-budget.py 的 SHIPPED_ALPHA）。 */
-  --cp-blur-light: 0px;
-  --cp-blur-dark: 0px;
+     （tools/s3-veil-budget.py 的 SHIPPED_ALPHA）。
+     2026-10-17：那条「去掉毛玻璃」只对亮档成立过，现在两档都要模糊，见下面这一段。 */
+  /* 2026-10-17 第六十一轮 用户：「暗色模式下加一点模糊度或者降一点透明度，现在有点看不清
+     文字。」随后两轮把口径钉死：「有点太模糊了呀，啥都看不见了」（28px 被否）、
+     「6px都够了，不能超过6px，越低越好」。所以暗档 = 4px 模糊 + 亮度压到 38%，亮档随后跟上（见本段末）。
+
+     为什么不能只靠模糊：暗档那张画（out/wallpaper-src/wallhaven-og33jl.png，1600x900 按
+     cover 缩放，fill #1a1325 alpha 0.35，取字形大小 13px 的方块均值当文字真正压住的底色，
+     逐像素取最坏值）的瓶颈是**高频**——0.2% 的像素是发亮的眼睛与红色划痕，峰值相对亮度
+     0.42，是画面中位数的 54 倍。半径一过 6px 整幅就糊成雾，而 6px 本身只把最坏值从 0px 的
+     1.60 / 1.30 / 1.08 抬到 2.10 / 1.70 / 1.41，仍然读不清。
+
+     所以补一档 brightness()，同一口径实测（整幅取最坏值；括号内是低于 4.5 的面积占比）：
+       4px + 100% -> 1.75 / 1.42 / 1.18   (0.440% / 0.597% / 0.837%)
+       4px +  62% -> 3.89 / 3.16 / 2.62   (0.040% / 0.164% / 0.312%)
+       4px +  45% -> 5.90 / 4.79 / 3.97   (0.000% / 0.000% / 0.053%)
+       4px +  40% -> 6.69 / 5.43 / 4.50   (0.000% / 0.000% / 0.000%)  <- 过线
+       4px +  38% -> 7.02 / 5.70 / 4.73   (0.000% / 0.000% / 0.000%)  <- 曾经发这一档
+     压亮度不同：`brightness()` 把整幅逐像素一起乘下去，一个边缘都不抹掉，画还在，只是暗了；
+     对比度是跟着抬起来的。模糊换不来这个 —— 6px 半径已经抹掉 58% 的画面细节，最坏值却几乎
+     没改善。两者作用在相反的一端，所以是叠加用，不是二选一。
+
+     2026-10-17 稍后，用户看过 0.38 之后：「现在太模糊了，根本看不清，你设置的参数是什么？」
+     → 被问的是参数，答的也是参数 → 用户点名要改的那一项：「亮度，改为0.65」。所以亮度从
+     0.38 抬到 0.65，模糊仍是 4px，**两档仍然同值**（口径没变，变的只是那一个数）。
+
+     0.65 是一个已知的取舍，不是测出来的最优：同一口径下
+       4px +  65% -> 3.45 / 2.80 / 2.32   (0.066% / 0.132% / 0.208% 低于 4.5)
+     三档都掉到 AA 的 4.5 以下，低于 4.5 的面积是 0.07%～0.21%。换算成看得见的东西：屏幕上
+     大约千分之一到千分之二的面积（一整屏 1600x900 里约 1～3 个字形大小的地方）压在最亮的
+     噪点上时读不利索，其余部分都在 4.5 以上。这是用户看过画面之后要的那一档 —— 他要的是
+     画能看清，不是纸面合规；把这个取舍写在这里，是为了下一轮不要再把它当成「没测过」。
+
+     4px 而不是 6px：3px 与 4px 的可读性几乎并列，再往上就开始糊；用户要求「越低越好」，
+     4px 是既稳又低的那一档。
+
+     亮档 2026-10-17 同一轮跟上：用户「以暗色模式为准，统一亮色和暗色，总不能暗色壁纸有
+     模糊，亮色壁纸就清晰可见吧，那样风格就不统一了」。所以两档曾经发**同一串**
+     `blur(4px) brightness(0.65)`、同一个 4px 半径 —— 这不是把暗档的药照抄给亮档，亮档本来
+     就富余，压亮度只是让它和暗档的观感一致。亮档从前靠 alpha 0.84 解决可读性、模糊边际
+     收益小，这是它当年留在 0px 的理由；那个理由只解释了「不必要」，不解释「该不该统一」。
+     注意亮档压亮度是**反方向**的：壁纸本来是亮的，`brightness(0.65)` 把它压暗，而亮档的墨
+     色是深色，所以这一档是把画压向墨色、不是压离它；它富余，压了仍然过线。
+
+     2026-10-17 再后来，用户：「暗色不变，亮色blur改为2px」。所以**两档的半径从此可以不同**：
+     暗档 4px、亮档 2px。这是统一口径之后第一次按模式分开，但只分开半径、不分开亮度 ——
+     两档仍然发同一个 brightness(0.65)，`--cp-filter-*` 仍是一个模式一条、由
+     `body[data-ds-dark-theme]` 重绑。为什么这样不违背「风格统一」：用户要的是观感对齐，
+     不是两个数字逐字相等；亮档本来富余（2px/0.65 下最坏值 8.65 / 7.49 / 6.52，远在 4.5
+     之上），少糊那一半不会让哪一档变得「清晰可见」而与另一档割裂。门禁 `css.14` 相应地从
+     「两个半径必须相等」放宽成「两个半径都在 0～6px 窗口内、且亮度必须相等」——把真正要守
+     的那条（亮度口径一致）钉住，把用户明确要求分开的那条（半径）放开。 */
+  --cp-blur-light: 2px;
+  --cp-blur-dark: 4px;
+  /* 两个 `--cp-filter-*` 现在**亮度同值、半径不同**（暗 `blur(4px)`、亮 `blur(2px)`，两条都是
+     brightness(0.65)），但两条令牌都保留：`body[data-ds-dark-theme]` 仍按模式重绑
+     `--cp-filter`，那是换档走属性而不是走 JS 的那条路，删掉任一条都会让某一档读到另一档的值。
+     为什么不再写 `none`：P4 (2026-10-09) 把亮档的 `blur(0px)` 换成 `none` 是为了省掉一个
+     filter effect node；本轮亮档也要模糊，`none` 这条路随之作废。 */
+  --cp-filter-light: blur(2px) brightness(0.65);
+  --cp-filter-dark: blur(4px) brightness(0.65);
   --cp-wall: var(--cp-pick-light);
   --cp-blur: var(--cp-blur-light);
+  --cp-filter: var(--cp-filter-light);
   /* 2026-10-07 第二十四轮：`--cp-glass: 14px` 与它唯一的消费者（「新会话」按钮的
      `backdrop-filter`）一并删除 —— 那个按钮被本主题自己藏成 `display: none`
      （见下面「隐藏重复的新会话按钮」那条规则），真机复核 rect [0,0,0,0] /
@@ -114,6 +173,7 @@ body {
 body[data-ds-dark-theme] {
   --cp-wall: var(--cp-pick-dark);
   --cp-blur: var(--cp-blur-dark);
+  --cp-filter: var(--cp-filter-dark);
   /* 2026-10-07 用户：「将左上角亮色模式下的Logo替换为暗色模式那张。」
      D33 的分档选择现已取消：生成块里的 `--cp-brand-mark` 直接发布暗档那张图，
      因此两档天然一致，不需要在这里重声明，也没有模式切换时的旧图帧。 */
@@ -175,13 +235,15 @@ body::before {
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
-  /* P4 (2026-10-09): `none`, not `blur(var(--cp-blur, 0px))`. Both modes ship
-     `--cp-blur: 0px`, and `blur(0px)` is not `none`: it keeps a filter effect node
-     alive on this full-viewport fixed layer for the life of the page, for zero visible
-     pixels. To bring the frosted glass back, write the `blur()` form again (and set the
-     token); `inset` above still reads the token, so the negative inset stays correct
-     either way — that is what keeps the blur a one-line change, not a restructure. */
-  filter: none;
+  /* P4 (2026-10-09) made this a literal `none`, because both modes shipped
+     `--cp-blur: 0px` and `blur(0px)` is not `none`: it keeps a filter effect node alive on
+     this full-viewport fixed layer for the life of the page, for zero visible pixels.
+     That reasoning is now spent — round 61 (2026-10-17) ships a real radius on BOTH modes
+     (`blur(4px) brightness(0.38)`, one identical string per mode), so a filter node is
+     wanted, and the value comes from the two `--cp-filter-*` tokens above rather than from
+     a literal. `inset` still reads `--cp-blur`, so the negative inset follows the radius
+     on its own — that is what keeps the blur a one-line change, not a restructure. */
+  filter: var(--cp-filter);
   pointer-events: none;
 }
 body::after {
